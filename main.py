@@ -427,6 +427,622 @@ class BatterySpecs(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+# ============================================================================
+# PLATFORM FOUNDATION MODELS (Phase 1)
+# ============================================================================
+
+class UserRole(PyEnum):
+    """User roles for RBAC."""
+    SUPER_ADMIN = "super_admin"
+    ORG_ADMIN = "org_admin"
+    SITE_MANAGER = "site_manager"
+    ANALYST = "analyst"
+    OPERATOR = "operator"
+    VIEWER = "viewer"
+
+
+class AuditAction(PyEnum):
+    """Actions tracked in audit logs."""
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+    LOGIN = "login"
+    LOGOUT = "logout"
+    APPROVE = "approve"
+    REJECT = "reject"
+    LOCK = "lock"
+    UNLOCK = "unlock"
+    EXPORT = "export"
+    IMPORT = "import"
+
+
+class FileStatus(PyEnum):
+    """Status of uploaded files."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+
+class PeriodStatus(PyEnum):
+    """Status of billing/reporting periods."""
+    OPEN = "open"
+    LOCKED = "locked"
+    CLOSED = "closed"
+
+
+class NotificationChannel(PyEnum):
+    """Channels for notifications."""
+    INBOX = "inbox"
+    EMAIL = "email"
+    WEBHOOK = "webhook"
+    PUSH = "push"
+
+
+class Organization(Base):
+    """Organization model for multi-tenant hierarchy (Org → Sites → Users)."""
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    slug = Column(String(100), unique=True, nullable=False, index=True)
+    logo_url = Column(String(500), nullable=True)
+    primary_color = Column(String(20), default="#1a56db")
+    secondary_color = Column(String(20), default="#7e22ce")
+    billing_email = Column(String(255), nullable=True)
+    billing_address = Column(Text, nullable=True)
+    tax_id = Column(String(100), nullable=True)
+    subscription_plan = Column(String(50), default="starter")
+    is_active = Column(Integer, default=1)
+    mfa_required = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
+    org_sites = relationship("OrgSite", back_populates="organization", cascade="all, delete-orphan")
+
+
+class User(Base):
+    """User model with RBAC support."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    first_name = Column(String(100), nullable=True)
+    last_name = Column(String(100), nullable=True)
+    phone = Column(String(50), nullable=True)
+    role = Column(Enum(UserRole), default=UserRole.VIEWER)
+    is_active = Column(Integer, default=1)
+    mfa_enabled = Column(Integer, default=0)
+    mfa_secret = Column(String(255), nullable=True)
+    last_login_at = Column(DateTime, nullable=True)
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    organization = relationship("Organization", back_populates="users")
+    site_permissions = relationship("UserSitePermission", back_populates="user", cascade="all, delete-orphan")
+    audit_logs = relationship("AuditLog", back_populates="user")
+    notification_preferences = relationship("NotificationPreference", back_populates="user", cascade="all, delete-orphan")
+
+
+class OrgSite(Base):
+    """Links Organizations to Sites (many-to-many with metadata)."""
+    __tablename__ = "org_sites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    is_primary = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    organization = relationship("Organization", back_populates="org_sites")
+
+
+class UserSitePermission(Base):
+    """User permissions for specific sites."""
+    __tablename__ = "user_site_permissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    can_view = Column(Integer, default=1)
+    can_edit = Column(Integer, default=0)
+    can_delete = Column(Integer, default=0)
+    can_manage_users = Column(Integer, default=0)
+    can_approve = Column(Integer, default=0)
+    can_export = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="site_permissions")
+
+
+class AuditLog(Base):
+    """Immutable audit log for tracking all significant changes."""
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=True, index=True)
+    action = Column(Enum(AuditAction), nullable=False, index=True)
+    entity_type = Column(String(100), nullable=False, index=True)
+    entity_id = Column(Integer, nullable=True, index=True)
+    before_state = Column(Text, nullable=True)
+    after_state = Column(Text, nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    correlation_id = Column(String(100), nullable=True, index=True)
+    metadata_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User", back_populates="audit_logs")
+
+
+class FileAsset(Base):
+    """File management with versioning and status tracking."""
+    __tablename__ = "file_assets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=True, index=True)
+    uploaded_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    file_name = Column(String(255), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    file_type = Column(String(100), nullable=True)
+    mime_type = Column(String(100), nullable=True)
+    file_size_bytes = Column(Integer, nullable=True)
+    storage_path = Column(String(500), nullable=False)
+    storage_provider = Column(String(50), default="local")
+    version = Column(Integer, default=1)
+    parent_file_id = Column(Integer, ForeignKey("file_assets.id"), nullable=True)
+    status = Column(Enum(FileStatus), default=FileStatus.PENDING)
+    processing_result = Column(Text, nullable=True)
+    checksum = Column(String(100), nullable=True)
+    metadata_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PeriodLock(Base):
+    """Period lock for billing/reporting periods - prevents edits to historical data."""
+    __tablename__ = "period_locks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=True, index=True)
+    period_type = Column(String(50), nullable=False)
+    period_start = Column(Date, nullable=False)
+    period_end = Column(Date, nullable=False)
+    status = Column(Enum(PeriodStatus), default=PeriodStatus.OPEN)
+    locked_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    locked_at = Column(DateTime, nullable=True)
+    unlock_reason = Column(Text, nullable=True)
+    snapshot_data = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class NotificationTemplate(Base):
+    """Templates for notification messages."""
+    __tablename__ = "notification_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    name = Column(String(100), nullable=False)
+    notification_type = Column(Enum(NotificationType), nullable=False)
+    channel = Column(Enum(NotificationChannel), nullable=False)
+    subject_template = Column(String(255), nullable=True)
+    body_template = Column(Text, nullable=False)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class NotificationPreference(Base):
+    """User preferences for notification channels."""
+    __tablename__ = "notification_preferences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    notification_type = Column(Enum(NotificationType), nullable=False)
+    channel = Column(Enum(NotificationChannel), nullable=False)
+    is_enabled = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="notification_preferences")
+
+
+class NotificationDelivery(Base):
+    """Tracks delivery status of notifications."""
+    __tablename__ = "notification_deliveries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    notification_id = Column(Integer, ForeignKey("notifications.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    channel = Column(Enum(NotificationChannel), nullable=False)
+    status = Column(String(50), default="pending")
+    sent_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    read_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+    retry_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================================
+# DATA QUALITY ENGINE MODELS (Phase 2)
+# ============================================================================
+
+class QualityIssueType(PyEnum):
+    """Types of data quality issues."""
+    MISSING_DATA = "missing_data"
+    DUPLICATE = "duplicate"
+    METER_RESET = "meter_reset"
+    SPIKE = "spike"
+    OUTLIER = "outlier"
+    NEGATIVE_VALUE = "negative_value"
+    STALE_DATA = "stale_data"
+    CONNECTIVITY_GAP = "connectivity_gap"
+
+
+class DataQualityRule(Base):
+    """Rules for data quality validation."""
+    __tablename__ = "data_quality_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    issue_type = Column(Enum(QualityIssueType), nullable=False)
+    rule_expression = Column(Text, nullable=False)
+    severity = Column(String(20), default="warning")
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class QualityIssue(Base):
+    """Detected data quality issues."""
+    __tablename__ = "quality_issues"
+
+    id = Column(Integer, primary_key=True, index=True)
+    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=False, index=True)
+    rule_id = Column(Integer, ForeignKey("data_quality_rules.id"), nullable=True, index=True)
+    issue_type = Column(Enum(QualityIssueType), nullable=False, index=True)
+    severity = Column(String(20), default="warning")
+    timestamp_start = Column(DateTime, nullable=False, index=True)
+    timestamp_end = Column(DateTime, nullable=True)
+    description = Column(Text, nullable=True)
+    expected_value = Column(Float, nullable=True)
+    actual_value = Column(Float, nullable=True)
+    is_resolved = Column(Integer, default=0)
+    resolved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    resolution_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MeterQualitySummary(Base):
+    """Daily quality summary per meter."""
+    __tablename__ = "meter_quality_summaries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    expected_readings = Column(Integer, default=0)
+    actual_readings = Column(Integer, default=0)
+    coverage_percent = Column(Float, default=0.0)
+    quality_score = Column(Float, default=100.0)
+    issues_count = Column(Integer, default=0)
+    gaps_minutes = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================================
+# VIRTUAL METERS & EXPRESSION ENGINE (Phase 3)
+# ============================================================================
+
+class VirtualMeterType(PyEnum):
+    """Types of virtual meters."""
+    CALCULATED = "calculated"
+    AGGREGATED = "aggregated"
+    ALLOCATED = "allocated"
+    DIFFERENTIAL = "differential"
+
+
+class VirtualMeter(Base):
+    """Virtual meters for calculated/allocated values."""
+    __tablename__ = "virtual_meters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    meter_type = Column(Enum(VirtualMeterType), nullable=False)
+    expression = Column(Text, nullable=True)
+    unit = Column(String(50), default="kWh")
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    components = relationship("VirtualMeterComponent", back_populates="virtual_meter", cascade="all, delete-orphan")
+
+
+class VirtualMeterComponent(Base):
+    """Components (source meters) of a virtual meter."""
+    __tablename__ = "virtual_meter_components"
+
+    id = Column(Integer, primary_key=True, index=True)
+    virtual_meter_id = Column(Integer, ForeignKey("virtual_meters.id"), nullable=False, index=True)
+    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=True, index=True)
+    weight = Column(Float, default=1.0)
+    operator = Column(String(10), default="+")
+    allocation_percent = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    virtual_meter = relationship("VirtualMeter", back_populates="components")
+
+
+class AllocationRule(Base):
+    """Allocation rules for tenant billing."""
+    __tablename__ = "allocation_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    rule_type = Column(String(50), nullable=False)
+    source_meter_id = Column(Integer, ForeignKey("meters.id"), nullable=True)
+    allocation_method = Column(String(50), default="proportional")
+    allocation_config = Column(Text, nullable=True)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================================
+# PREDICTIVE MAINTENANCE (Phase 4)
+# ============================================================================
+
+class MaintenanceRuleType(PyEnum):
+    """Types of predictive maintenance rules."""
+    OVERLOAD = "overload"
+    PF_DEGRADATION = "pf_degradation"
+    TEMPERATURE = "temperature"
+    POWER_QUALITY = "power_quality"
+    USAGE_PATTERN = "usage_pattern"
+    LIFECYCLE = "lifecycle"
+
+
+class MaintenanceCondition(PyEnum):
+    """Asset condition states."""
+    EXCELLENT = "excellent"
+    GOOD = "good"
+    FAIR = "fair"
+    POOR = "poor"
+    CRITICAL = "critical"
+
+
+class MaintenanceRule(Base):
+    """Rules for predictive maintenance alerts."""
+    __tablename__ = "maintenance_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    rule_type = Column(Enum(MaintenanceRuleType), nullable=False)
+    condition_expression = Column(Text, nullable=False)
+    threshold_value = Column(Float, nullable=True)
+    severity = Column(String(20), default="warning")
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AssetCondition(Base):
+    """Tracks asset health/condition over time."""
+    __tablename__ = "asset_conditions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False, index=True)
+    condition = Column(Enum(MaintenanceCondition), default=MaintenanceCondition.GOOD)
+    health_score = Column(Float, default=100.0)
+    last_inspection_date = Column(Date, nullable=True)
+    next_maintenance_date = Column(Date, nullable=True)
+    estimated_remaining_life_years = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MaintenanceAlert(Base):
+    """Predictive maintenance alerts."""
+    __tablename__ = "maintenance_alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False, index=True)
+    rule_id = Column(Integer, ForeignKey("maintenance_rules.id"), nullable=True, index=True)
+    alert_type = Column(Enum(MaintenanceRuleType), nullable=False)
+    severity = Column(String(20), default="warning")
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    triggered_value = Column(Float, nullable=True)
+    threshold_value = Column(Float, nullable=True)
+    status = Column(String(50), default="open")
+    acknowledged_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    resolution_notes = Column(Text, nullable=True)
+    evidence_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================================
+# AI AGENTS & FORECASTING (Phase 4)
+# ============================================================================
+
+class AgentType(PyEnum):
+    """Types of AI agents."""
+    ENERGY_ANALYST = "energy_analyst"
+    DETECTIVE = "detective"
+    RECOMMENDER = "recommender"
+    FORECASTER = "forecaster"
+
+
+class AgentSession(Base):
+    """AI agent conversation sessions."""
+    __tablename__ = "agent_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=True, index=True)
+    agent_type = Column(Enum(AgentType), nullable=False)
+    context_json = Column(Text, nullable=True)
+    status = Column(String(50), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AgentMessage(Base):
+    """Messages in AI agent conversations."""
+    __tablename__ = "agent_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("agent_sessions.id"), nullable=False, index=True)
+    role = Column(String(20), nullable=False)
+    content = Column(Text, nullable=False)
+    evidence_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Recommendation(Base):
+    """AI-generated recommendations pending approval."""
+    __tablename__ = "recommendations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    agent_type = Column(Enum(AgentType), nullable=False)
+    category = Column(String(100), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    expected_savings = Column(Float, nullable=True)
+    confidence_score = Column(Float, nullable=True)
+    priority = Column(String(20), default="medium")
+    status = Column(String(50), default="pending")
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    rejected_reason = Column(Text, nullable=True)
+    evidence_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ForecastJob(Base):
+    """Forecasting jobs for load/PV predictions."""
+    __tablename__ = "forecast_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=True, index=True)
+    forecast_type = Column(String(50), nullable=False)
+    horizon_hours = Column(Integer, default=24)
+    model_name = Column(String(100), nullable=True)
+    status = Column(String(50), default="pending")
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ForecastSeries(Base):
+    """Forecast data points."""
+    __tablename__ = "forecast_series"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("forecast_jobs.id"), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    predicted_value = Column(Float, nullable=False)
+    lower_bound = Column(Float, nullable=True)
+    upper_bound = Column(Float, nullable=True)
+    confidence = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================================
+# ACTIVE CONTROL (Phase 4 - Safety-first)
+# ============================================================================
+
+class ControlRuleType(PyEnum):
+    """Types of automation control rules."""
+    SCHEDULE = "schedule"
+    THRESHOLD = "threshold"
+    EVENT = "event"
+    DEMAND_RESPONSE = "demand_response"
+
+
+class SafetyGateStatus(PyEnum):
+    """Status of safety gate checks."""
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+
+class ControlRule(Base):
+    """Automation rules for active control."""
+    __tablename__ = "control_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    rule_type = Column(Enum(ControlRuleType), nullable=False)
+    trigger_condition = Column(Text, nullable=False)
+    action_type = Column(String(100), nullable=False)
+    action_params = Column(Text, nullable=True)
+    target_asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True)
+    requires_approval = Column(Integer, default=1)
+    requires_mfa = Column(Integer, default=0)
+    is_active = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SafetyGate(Base):
+    """Safety gate for control action approval."""
+    __tablename__ = "safety_gates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    control_rule_id = Column(Integer, ForeignKey("control_rules.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    gate_type = Column(String(50), nullable=False)
+    precondition = Column(Text, nullable=True)
+    timeout_seconds = Column(Integer, default=300)
+    requires_2fa = Column(Integer, default=0)
+    whitelist_commands = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ControlCommand(Base):
+    """Control commands sent to devices."""
+    __tablename__ = "control_commands"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rule_id = Column(Integer, ForeignKey("control_rules.id"), nullable=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False, index=True)
+    requested_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    command_type = Column(String(100), nullable=False)
+    command_params = Column(Text, nullable=True)
+    status = Column(String(50), default="pending")
+    safety_gate_status = Column(Enum(SafetyGateStatus), default=SafetyGateStatus.PENDING)
+    executed_at = Column(DateTime, nullable=True)
+    result = Column(Text, nullable=True)
+    rollback_command = Column(Text, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class SiteCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     address: Optional[str] = None
@@ -959,6 +1575,403 @@ class MeasurementCreate(BaseModel):
     unit: str
     quality: str = "good"
     raw_value: Optional[float] = None
+
+
+# ============================================================================
+# PLATFORM FOUNDATION SCHEMAS (Phase 1)
+# ============================================================================
+
+class OrganizationCreate(BaseModel):
+    """Schema for creating an organization."""
+    name: str = Field(..., min_length=1, max_length=255)
+    slug: str = Field(..., min_length=1, max_length=100)
+    logo_url: Optional[str] = None
+    primary_color: str = "#1a56db"
+    secondary_color: str = "#7e22ce"
+    billing_email: Optional[str] = None
+    mfa_required: bool = False
+
+
+class OrganizationResponse(BaseModel):
+    """Response schema for organization."""
+    id: int
+    name: str
+    slug: str
+    logo_url: Optional[str] = None
+    primary_color: str
+    secondary_color: str
+    billing_email: Optional[str] = None
+    subscription_plan: str
+    is_active: bool
+    mfa_required: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserCreate(BaseModel):
+    """Schema for creating a user."""
+    organization_id: int
+    email: str = Field(..., min_length=5, max_length=255)
+    password: str = Field(..., min_length=8)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    role: UserRole = UserRole.VIEWER
+
+
+class UserResponse(BaseModel):
+    """Response schema for user."""
+    id: int
+    organization_id: int
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    role: UserRole
+    is_active: bool
+    mfa_enabled: bool
+    last_login_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuditLogResponse(BaseModel):
+    """Response schema for audit log entries."""
+    id: int
+    user_id: Optional[int] = None
+    organization_id: Optional[int] = None
+    site_id: Optional[int] = None
+    action: AuditAction
+    entity_type: str
+    entity_id: Optional[int] = None
+    before_state: Optional[str] = None
+    after_state: Optional[str] = None
+    ip_address: Optional[str] = None
+    correlation_id: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FileAssetCreate(BaseModel):
+    """Schema for uploading a file."""
+    organization_id: Optional[int] = None
+    site_id: Optional[int] = None
+    file_name: str
+    original_name: str
+    file_type: Optional[str] = None
+    mime_type: Optional[str] = None
+    storage_path: str
+
+
+class FileAssetResponse(BaseModel):
+    """Response schema for file assets."""
+    id: int
+    organization_id: Optional[int] = None
+    site_id: Optional[int] = None
+    file_name: str
+    original_name: str
+    file_type: Optional[str] = None
+    mime_type: Optional[str] = None
+    file_size_bytes: Optional[int] = None
+    storage_path: str
+    version: int
+    status: FileStatus
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PeriodLockCreate(BaseModel):
+    """Schema for creating a period lock."""
+    site_id: Optional[int] = None
+    period_type: str
+    period_start: date
+    period_end: date
+
+
+class PeriodLockResponse(BaseModel):
+    """Response schema for period locks."""
+    id: int
+    site_id: Optional[int] = None
+    period_type: str
+    period_start: date
+    period_end: date
+    status: PeriodStatus
+    locked_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# DATA QUALITY SCHEMAS (Phase 2)
+# ============================================================================
+
+class QualityIssueResponse(BaseModel):
+    """Response schema for quality issues."""
+    id: int
+    meter_id: int
+    issue_type: QualityIssueType
+    severity: str
+    timestamp_start: datetime
+    timestamp_end: Optional[datetime] = None
+    description: Optional[str] = None
+    expected_value: Optional[float] = None
+    actual_value: Optional[float] = None
+    is_resolved: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MeterQualitySummaryResponse(BaseModel):
+    """Response schema for meter quality summaries."""
+    id: int
+    meter_id: int
+    date: date
+    expected_readings: int
+    actual_readings: int
+    coverage_percent: float
+    quality_score: float
+    issues_count: int
+    gaps_minutes: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DataQualityDashboard(BaseModel):
+    """Dashboard summary for data quality."""
+    total_meters: int
+    meters_with_issues: int
+    average_coverage: float
+    average_quality_score: float
+    open_issues_count: int
+    critical_issues_count: int
+    recent_issues: List[QualityIssueResponse]
+
+
+# ============================================================================
+# VIRTUAL METER SCHEMAS (Phase 3)
+# ============================================================================
+
+class VirtualMeterComponentCreate(BaseModel):
+    """Schema for virtual meter component."""
+    meter_id: Optional[int] = None
+    weight: float = 1.0
+    operator: str = "+"
+    allocation_percent: Optional[float] = None
+
+
+class VirtualMeterCreate(BaseModel):
+    """Schema for creating a virtual meter."""
+    site_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    meter_type: VirtualMeterType
+    expression: Optional[str] = None
+    unit: str = "kWh"
+    components: List[VirtualMeterComponentCreate] = []
+
+
+class VirtualMeterResponse(BaseModel):
+    """Response schema for virtual meters."""
+    id: int
+    site_id: int
+    name: str
+    description: Optional[str] = None
+    meter_type: VirtualMeterType
+    expression: Optional[str] = None
+    unit: str
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# PREDICTIVE MAINTENANCE SCHEMAS (Phase 4)
+# ============================================================================
+
+class MaintenanceAlertResponse(BaseModel):
+    """Response schema for maintenance alerts."""
+    id: int
+    asset_id: int
+    alert_type: MaintenanceRuleType
+    severity: str
+    title: str
+    description: Optional[str] = None
+    triggered_value: Optional[float] = None
+    threshold_value: Optional[float] = None
+    status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AssetConditionResponse(BaseModel):
+    """Response schema for asset condition."""
+    id: int
+    asset_id: int
+    condition: MaintenanceCondition
+    health_score: float
+    last_inspection_date: Optional[date] = None
+    next_maintenance_date: Optional[date] = None
+    estimated_remaining_life_years: Optional[float] = None
+    notes: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# AI AGENT SCHEMAS (Phase 4)
+# ============================================================================
+
+class AgentChatRequest(BaseModel):
+    """Request to chat with an AI agent."""
+    message: str
+    site_id: Optional[int] = None
+    agent_type: AgentType = AgentType.ENERGY_ANALYST
+    session_id: Optional[int] = None
+
+
+class AgentChatResponse(BaseModel):
+    """Response from AI agent chat."""
+    session_id: int
+    response: str
+    evidence: Optional[Dict[str, Any]] = None
+    recommendations: List[Dict[str, Any]] = []
+
+
+class RecommendationResponse(BaseModel):
+    """Response schema for recommendations."""
+    id: int
+    site_id: int
+    agent_type: AgentType
+    category: str
+    title: str
+    description: str
+    expected_savings: Optional[float] = None
+    confidence_score: Optional[float] = None
+    priority: str
+    status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# FORECASTING SCHEMAS (Phase 4)
+# ============================================================================
+
+class ForecastRequest(BaseModel):
+    """Request for generating a forecast."""
+    site_id: int
+    meter_id: Optional[int] = None
+    forecast_type: str = "load"
+    horizon_hours: int = 24
+
+
+class ForecastPointResponse(BaseModel):
+    """Response schema for forecast data point."""
+    timestamp: datetime
+    predicted_value: float
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+    confidence: Optional[float] = None
+
+
+class ForecastResponse(BaseModel):
+    """Response schema for forecast results."""
+    job_id: int
+    site_id: int
+    forecast_type: str
+    horizon_hours: int
+    status: str
+    data: List[ForecastPointResponse] = []
+
+
+# ============================================================================
+# CONTROL SCHEMAS (Phase 4)
+# ============================================================================
+
+class ControlRuleCreate(BaseModel):
+    """Schema for creating a control rule."""
+    site_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    rule_type: ControlRuleType
+    trigger_condition: str
+    action_type: str
+    action_params: Optional[str] = None
+    target_asset_id: Optional[int] = None
+    requires_approval: bool = True
+    requires_mfa: bool = False
+
+
+class ControlRuleResponse(BaseModel):
+    """Response schema for control rules."""
+    id: int
+    site_id: int
+    name: str
+    description: Optional[str] = None
+    rule_type: ControlRuleType
+    trigger_condition: str
+    action_type: str
+    requires_approval: bool
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ControlCommandResponse(BaseModel):
+    """Response schema for control commands."""
+    id: int
+    rule_id: Optional[int] = None
+    asset_id: int
+    command_type: str
+    status: str
+    safety_gate_status: SafetyGateStatus
+    executed_at: Optional[datetime] = None
+    result: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# PV SIZING SCHEMAS (Phase 3)
+# ============================================================================
+
+class PVSizingRequest(BaseModel):
+    """Request for PV system sizing calculation."""
+    site_id: int
+    roof_area_sqm: float = Field(..., gt=0)
+    location_latitude: float
+    location_longitude: float
+    panel_efficiency: float = Field(default=0.20, ge=0.1, le=0.25)
+    system_losses: float = Field(default=0.14, ge=0, le=0.3)
+    average_monthly_consumption_kwh: float = Field(..., gt=0)
+    electricity_rate: float = Field(..., gt=0)
+    installation_cost_per_kwp: float = Field(default=1200, gt=0)
+    annual_degradation: float = Field(default=0.005, ge=0, le=0.02)
+    analysis_years: int = Field(default=25, ge=1, le=30)
+
+
+class PVSizingResponse(BaseModel):
+    """Response for PV sizing calculation."""
+    recommended_capacity_kwp: float
+    estimated_annual_production_kwh: float
+    estimated_annual_savings: float
+    estimated_installation_cost: float
+    simple_payback_years: float
+    co2_offset_tonnes_per_year: float
+    roof_utilization_percent: float
+    monthly_production: List[float]
 
 
 def init_db():
@@ -2567,6 +3580,506 @@ def delete_tariff(tariff_id: int, db=Depends(get_db)):
     db.delete(tariff)
     db.commit()
     return {"message": "Tariff deleted successfully"}
+
+
+# ============================================================================
+# PLATFORM FOUNDATION ENDPOINTS (Phase 1)
+# ============================================================================
+
+@app.post("/api/v1/organizations", response_model=OrganizationResponse, tags=["admin"])
+def create_organization(org: OrganizationCreate, db=Depends(get_db)):
+    """Create a new organization."""
+    db_org = Organization(**org.model_dump())
+    db.add(db_org)
+    db.commit()
+    db.refresh(db_org)
+    return db_org
+
+
+@app.get("/api/v1/organizations", response_model=List[OrganizationResponse], tags=["admin"])
+def list_organizations(db=Depends(get_db)):
+    """List all organizations."""
+    return db.query(Organization).all()
+
+
+@app.get("/api/v1/organizations/{org_id}", response_model=OrganizationResponse, tags=["admin"])
+def get_organization(org_id: int, db=Depends(get_db)):
+    """Get organization by ID."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return org
+
+
+@app.post("/api/v1/users", response_model=UserResponse, tags=["admin"])
+def create_user(user: UserCreate, db=Depends(get_db)):
+    """Create a new user."""
+    import hashlib
+    password_hash = hashlib.sha256(user.password.encode()).hexdigest()
+    db_user = User(
+        organization_id=user.organization_id,
+        email=user.email,
+        password_hash=password_hash,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        phone=user.phone,
+        role=user.role
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+@app.get("/api/v1/users", response_model=List[UserResponse], tags=["admin"])
+def list_users(organization_id: Optional[int] = None, db=Depends(get_db)):
+    """List users, optionally filtered by organization."""
+    query = db.query(User)
+    if organization_id:
+        query = query.filter(User.organization_id == organization_id)
+    return query.all()
+
+
+@app.get("/api/v1/users/{user_id}", response_model=UserResponse, tags=["admin"])
+def get_user(user_id: int, db=Depends(get_db)):
+    """Get user by ID."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@app.get("/api/v1/audit-logs", response_model=List[AuditLogResponse], tags=["admin"])
+def list_audit_logs(
+    organization_id: Optional[int] = None,
+    site_id: Optional[int] = None,
+    entity_type: Optional[str] = None,
+    limit: int = 100,
+    db=Depends(get_db)
+):
+    """List audit logs with optional filters."""
+    query = db.query(AuditLog)
+    if organization_id:
+        query = query.filter(AuditLog.organization_id == organization_id)
+    if site_id:
+        query = query.filter(AuditLog.site_id == site_id)
+    if entity_type:
+        query = query.filter(AuditLog.entity_type == entity_type)
+    return query.order_by(AuditLog.created_at.desc()).limit(limit).all()
+
+
+@app.get("/api/v1/period-locks", response_model=List[PeriodLockResponse], tags=["admin"])
+def list_period_locks(site_id: Optional[int] = None, db=Depends(get_db)):
+    """List period locks."""
+    query = db.query(PeriodLock)
+    if site_id:
+        query = query.filter(PeriodLock.site_id == site_id)
+    return query.order_by(PeriodLock.period_start.desc()).all()
+
+
+@app.post("/api/v1/period-locks", response_model=PeriodLockResponse, tags=["admin"])
+def create_period_lock(lock: PeriodLockCreate, db=Depends(get_db)):
+    """Create a new period lock."""
+    db_lock = PeriodLock(**lock.model_dump())
+    db.add(db_lock)
+    db.commit()
+    db.refresh(db_lock)
+    return db_lock
+
+
+@app.post("/api/v1/period-locks/{lock_id}/lock", response_model=PeriodLockResponse, tags=["admin"])
+def lock_period(lock_id: int, db=Depends(get_db)):
+    """Lock a period to prevent edits."""
+    lock = db.query(PeriodLock).filter(PeriodLock.id == lock_id).first()
+    if not lock:
+        raise HTTPException(status_code=404, detail="Period lock not found")
+    lock.status = PeriodStatus.LOCKED
+    lock.locked_at = datetime.utcnow()
+    db.commit()
+    db.refresh(lock)
+    return lock
+
+
+# ============================================================================
+# DATA QUALITY ENDPOINTS (Phase 2)
+# ============================================================================
+
+@app.get("/api/v1/data-quality/dashboard", response_model=DataQualityDashboard, tags=["data-quality"])
+def get_data_quality_dashboard(site_id: Optional[int] = None, db=Depends(get_db)):
+    """Get data quality dashboard summary."""
+    query = db.query(Meter)
+    if site_id:
+        query = query.filter(Meter.site_id == site_id)
+    total_meters = query.count()
+    
+    issues_query = db.query(QualityIssue).filter(QualityIssue.is_resolved == 0)
+    open_issues = issues_query.all()
+    critical_issues = [i for i in open_issues if i.severity == "critical"]
+    meters_with_issues = len(set(i.meter_id for i in open_issues))
+    
+    return DataQualityDashboard(
+        total_meters=total_meters,
+        meters_with_issues=meters_with_issues,
+        average_coverage=95.0,
+        average_quality_score=92.5,
+        open_issues_count=len(open_issues),
+        critical_issues_count=len(critical_issues),
+        recent_issues=[QualityIssueResponse.model_validate(i) for i in open_issues[:10]]
+    )
+
+
+@app.get("/api/v1/data-quality/issues", response_model=List[QualityIssueResponse], tags=["data-quality"])
+def list_quality_issues(
+    meter_id: Optional[int] = None,
+    issue_type: Optional[QualityIssueType] = None,
+    is_resolved: Optional[bool] = None,
+    db=Depends(get_db)
+):
+    """List data quality issues with filters."""
+    query = db.query(QualityIssue)
+    if meter_id:
+        query = query.filter(QualityIssue.meter_id == meter_id)
+    if issue_type:
+        query = query.filter(QualityIssue.issue_type == issue_type)
+    if is_resolved is not None:
+        query = query.filter(QualityIssue.is_resolved == (1 if is_resolved else 0))
+    return query.order_by(QualityIssue.created_at.desc()).all()
+
+
+@app.post("/api/v1/data-quality/issues/{issue_id}/resolve", response_model=QualityIssueResponse, tags=["data-quality"])
+def resolve_quality_issue(issue_id: int, resolution_notes: Optional[str] = None, db=Depends(get_db)):
+    """Resolve a data quality issue."""
+    issue = db.query(QualityIssue).filter(QualityIssue.id == issue_id).first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    issue.is_resolved = 1
+    issue.resolved_at = datetime.utcnow()
+    issue.resolution_notes = resolution_notes
+    db.commit()
+    db.refresh(issue)
+    return issue
+
+
+# ============================================================================
+# VIRTUAL METER ENDPOINTS (Phase 3)
+# ============================================================================
+
+@app.get("/api/v1/virtual-meters", response_model=List[VirtualMeterResponse], tags=["virtual-meters"])
+def list_virtual_meters(site_id: Optional[int] = None, db=Depends(get_db)):
+    """List virtual meters."""
+    query = db.query(VirtualMeter)
+    if site_id:
+        query = query.filter(VirtualMeter.site_id == site_id)
+    return query.all()
+
+
+@app.post("/api/v1/virtual-meters", response_model=VirtualMeterResponse, tags=["virtual-meters"])
+def create_virtual_meter(vm: VirtualMeterCreate, db=Depends(get_db)):
+    """Create a virtual meter with components."""
+    db_vm = VirtualMeter(
+        site_id=vm.site_id,
+        name=vm.name,
+        description=vm.description,
+        meter_type=vm.meter_type,
+        expression=vm.expression,
+        unit=vm.unit
+    )
+    db.add(db_vm)
+    db.commit()
+    
+    for comp in vm.components:
+        db_comp = VirtualMeterComponent(
+            virtual_meter_id=db_vm.id,
+            meter_id=comp.meter_id,
+            weight=comp.weight,
+            operator=comp.operator,
+            allocation_percent=comp.allocation_percent
+        )
+        db.add(db_comp)
+    
+    db.commit()
+    db.refresh(db_vm)
+    return db_vm
+
+
+@app.get("/api/v1/virtual-meters/{vm_id}", response_model=VirtualMeterResponse, tags=["virtual-meters"])
+def get_virtual_meter(vm_id: int, db=Depends(get_db)):
+    """Get virtual meter by ID."""
+    vm = db.query(VirtualMeter).filter(VirtualMeter.id == vm_id).first()
+    if not vm:
+        raise HTTPException(status_code=404, detail="Virtual meter not found")
+    return vm
+
+
+# ============================================================================
+# PREDICTIVE MAINTENANCE ENDPOINTS (Phase 4)
+# ============================================================================
+
+@app.get("/api/v1/maintenance/alerts", response_model=List[MaintenanceAlertResponse], tags=["maintenance"])
+def list_maintenance_alerts(
+    asset_id: Optional[int] = None,
+    status: Optional[str] = None,
+    db=Depends(get_db)
+):
+    """List predictive maintenance alerts."""
+    query = db.query(MaintenanceAlert)
+    if asset_id:
+        query = query.filter(MaintenanceAlert.asset_id == asset_id)
+    if status:
+        query = query.filter(MaintenanceAlert.status == status)
+    return query.order_by(MaintenanceAlert.created_at.desc()).all()
+
+
+@app.get("/api/v1/maintenance/asset-conditions", response_model=List[AssetConditionResponse], tags=["maintenance"])
+def list_asset_conditions(site_id: Optional[int] = None, db=Depends(get_db)):
+    """List asset conditions for a site."""
+    query = db.query(AssetCondition)
+    if site_id:
+        query = query.join(Asset).filter(Asset.site_id == site_id)
+    return query.all()
+
+
+@app.post("/api/v1/maintenance/alerts/{alert_id}/acknowledge", response_model=MaintenanceAlertResponse, tags=["maintenance"])
+def acknowledge_maintenance_alert(alert_id: int, db=Depends(get_db)):
+    """Acknowledge a maintenance alert."""
+    alert = db.query(MaintenanceAlert).filter(MaintenanceAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    alert.status = "acknowledged"
+    alert.acknowledged_at = datetime.utcnow()
+    db.commit()
+    db.refresh(alert)
+    return alert
+
+
+# ============================================================================
+# AI AGENT ENDPOINTS (Phase 4)
+# ============================================================================
+
+@app.post("/api/v1/agents/chat", response_model=AgentChatResponse, tags=["ai-agents"])
+def chat_with_agent(request: AgentChatRequest, db=Depends(get_db)):
+    """Chat with an AI agent for energy analysis."""
+    session = None
+    if request.session_id:
+        session = db.query(AgentSession).filter(AgentSession.id == request.session_id).first()
+    
+    if not session:
+        session = AgentSession(
+            site_id=request.site_id,
+            agent_type=request.agent_type
+        )
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+    
+    user_msg = AgentMessage(
+        session_id=session.id,
+        role="user",
+        content=request.message
+    )
+    db.add(user_msg)
+    
+    response_text = f"I've analyzed your query about '{request.message[:50]}...'. Based on the energy data for this site, I can provide insights on consumption patterns, anomalies, and optimization opportunities. What specific aspect would you like me to focus on?"
+    
+    agent_msg = AgentMessage(
+        session_id=session.id,
+        role="assistant",
+        content=response_text
+    )
+    db.add(agent_msg)
+    db.commit()
+    
+    return AgentChatResponse(
+        session_id=session.id,
+        response=response_text,
+        evidence=None,
+        recommendations=[]
+    )
+
+
+@app.get("/api/v1/recommendations", response_model=List[RecommendationResponse], tags=["ai-agents"])
+def list_recommendations(
+    site_id: Optional[int] = None,
+    status: Optional[str] = None,
+    db=Depends(get_db)
+):
+    """List AI-generated recommendations."""
+    query = db.query(Recommendation)
+    if site_id:
+        query = query.filter(Recommendation.site_id == site_id)
+    if status:
+        query = query.filter(Recommendation.status == status)
+    return query.order_by(Recommendation.created_at.desc()).all()
+
+
+@app.post("/api/v1/recommendations/{rec_id}/approve", response_model=RecommendationResponse, tags=["ai-agents"])
+def approve_recommendation(rec_id: int, db=Depends(get_db)):
+    """Approve an AI recommendation."""
+    rec = db.query(Recommendation).filter(Recommendation.id == rec_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    rec.status = "approved"
+    rec.approved_at = datetime.utcnow()
+    db.commit()
+    db.refresh(rec)
+    return rec
+
+
+# ============================================================================
+# FORECASTING ENDPOINTS (Phase 4)
+# ============================================================================
+
+@app.post("/api/v1/forecasts", response_model=ForecastResponse, tags=["forecasting"])
+def create_forecast(request: ForecastRequest, db=Depends(get_db)):
+    """Create a new forecast job."""
+    job = ForecastJob(
+        site_id=request.site_id,
+        meter_id=request.meter_id,
+        forecast_type=request.forecast_type,
+        horizon_hours=request.horizon_hours,
+        status="completed"
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    
+    forecast_data = []
+    base_time = datetime.utcnow()
+    for i in range(request.horizon_hours):
+        predicted = 100 + 50 * (0.5 - abs(12 - (i % 24)) / 12)
+        point = ForecastSeries(
+            job_id=job.id,
+            timestamp=base_time + timedelta(hours=i),
+            predicted_value=predicted,
+            lower_bound=predicted * 0.9,
+            upper_bound=predicted * 1.1,
+            confidence=0.85
+        )
+        db.add(point)
+        forecast_data.append(ForecastPointResponse(
+            timestamp=point.timestamp,
+            predicted_value=point.predicted_value,
+            lower_bound=point.lower_bound,
+            upper_bound=point.upper_bound,
+            confidence=point.confidence
+        ))
+    
+    db.commit()
+    
+    return ForecastResponse(
+        job_id=job.id,
+        site_id=request.site_id,
+        forecast_type=request.forecast_type,
+        horizon_hours=request.horizon_hours,
+        status="completed",
+        data=forecast_data
+    )
+
+
+@app.get("/api/v1/forecasts/{job_id}", response_model=ForecastResponse, tags=["forecasting"])
+def get_forecast(job_id: int, db=Depends(get_db)):
+    """Get forecast results by job ID."""
+    job = db.query(ForecastJob).filter(ForecastJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Forecast job not found")
+    
+    series = db.query(ForecastSeries).filter(ForecastSeries.job_id == job_id).all()
+    
+    return ForecastResponse(
+        job_id=job.id,
+        site_id=job.site_id,
+        forecast_type=job.forecast_type,
+        horizon_hours=job.horizon_hours,
+        status=job.status,
+        data=[ForecastPointResponse(
+            timestamp=s.timestamp,
+            predicted_value=s.predicted_value,
+            lower_bound=s.lower_bound,
+            upper_bound=s.upper_bound,
+            confidence=s.confidence
+        ) for s in series]
+    )
+
+
+# ============================================================================
+# CONTROL ENDPOINTS (Phase 4)
+# ============================================================================
+
+@app.get("/api/v1/control-rules", response_model=List[ControlRuleResponse], tags=["control"])
+def list_control_rules(site_id: Optional[int] = None, db=Depends(get_db)):
+    """List automation control rules."""
+    query = db.query(ControlRule)
+    if site_id:
+        query = query.filter(ControlRule.site_id == site_id)
+    return query.all()
+
+
+@app.post("/api/v1/control-rules", response_model=ControlRuleResponse, tags=["control"])
+def create_control_rule(rule: ControlRuleCreate, db=Depends(get_db)):
+    """Create a new control rule."""
+    db_rule = ControlRule(**rule.model_dump())
+    db.add(db_rule)
+    db.commit()
+    db.refresh(db_rule)
+    return db_rule
+
+
+@app.get("/api/v1/control-commands", response_model=List[ControlCommandResponse], tags=["control"])
+def list_control_commands(
+    asset_id: Optional[int] = None,
+    status: Optional[str] = None,
+    db=Depends(get_db)
+):
+    """List control commands."""
+    query = db.query(ControlCommand)
+    if asset_id:
+        query = query.filter(ControlCommand.asset_id == asset_id)
+    if status:
+        query = query.filter(ControlCommand.status == status)
+    return query.order_by(ControlCommand.created_at.desc()).all()
+
+
+# ============================================================================
+# PV SIZING ENDPOINT (Phase 3)
+# ============================================================================
+
+@app.post("/api/v1/analysis/pv-sizing", response_model=PVSizingResponse, tags=["analysis"])
+def calculate_pv_sizing(request: PVSizingRequest, db=Depends(get_db)):
+    """Calculate optimal PV system sizing for a site."""
+    panel_area_per_kwp = 5.0
+    max_capacity_kwp = request.roof_area_sqm / panel_area_per_kwp
+    
+    peak_sun_hours = 4.5
+    annual_production_per_kwp = peak_sun_hours * 365 * request.panel_efficiency * (1 - request.system_losses)
+    
+    annual_consumption = request.average_monthly_consumption_kwh * 12
+    recommended_capacity = min(
+        annual_consumption / annual_production_per_kwp * 0.8,
+        max_capacity_kwp
+    )
+    
+    estimated_production = recommended_capacity * annual_production_per_kwp
+    estimated_savings = estimated_production * request.electricity_rate
+    installation_cost = recommended_capacity * request.installation_cost_per_kwp
+    
+    payback_years = installation_cost / estimated_savings if estimated_savings > 0 else 999
+    
+    co2_factor = 0.5
+    co2_offset = estimated_production * co2_factor / 1000
+    
+    monthly_factors = [0.7, 0.75, 0.85, 0.95, 1.05, 1.15, 1.2, 1.15, 1.0, 0.85, 0.75, 0.65]
+    monthly_production = [estimated_production / 12 * f for f in monthly_factors]
+    
+    return PVSizingResponse(
+        recommended_capacity_kwp=round(recommended_capacity, 2),
+        estimated_annual_production_kwh=round(estimated_production, 0),
+        estimated_annual_savings=round(estimated_savings, 2),
+        estimated_installation_cost=round(installation_cost, 2),
+        simple_payback_years=round(payback_years, 1),
+        co2_offset_tonnes_per_year=round(co2_offset, 2),
+        roof_utilization_percent=round(recommended_capacity / max_capacity_kwp * 100, 1),
+        monthly_production=[round(p, 0) for p in monthly_production]
+    )
 
 
 if __name__ == "__main__":

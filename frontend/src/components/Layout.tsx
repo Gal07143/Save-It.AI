@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'wouter'
 import { 
   LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
-  Battery, Plug, Search, Bell, Settings, DollarSign, Leaf, FileText
+  Battery, Plug, Search, Bell, Settings, DollarSign, Leaf, FileText,
+  ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api, Site } from '../services/api'
@@ -25,7 +26,12 @@ const navItems = [
   { path: '/gap-analysis', icon: Search, label: 'Gap Analysis' },
   { path: '/carbon', icon: Leaf, label: 'Carbon / ESG' },
   { path: '/reports', icon: FileText, label: 'Reports' },
-  { path: '/notifications', icon: Bell, label: 'Notifications' },
+  { path: '/data-quality', icon: ShieldCheck, label: 'Data Quality' },
+  { path: '/virtual-meters', icon: Calculator, label: 'Virtual Meters' },
+  { path: '/maintenance', icon: Wrench, label: 'Maintenance' },
+  { path: '/ai-agents', icon: Bot, label: 'AI Agents' },
+  { path: '/forecasting', icon: TrendingUp, label: 'Forecasting' },
+  { path: '/admin', icon: Shield, label: 'Admin' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ]
 

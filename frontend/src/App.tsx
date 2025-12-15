@@ -15,6 +15,12 @@ import Tariffs from './pages/Tariffs'
 import CarbonESG from './pages/CarbonESG'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import DataQuality from './pages/DataQuality'
+import VirtualMeters from './pages/VirtualMeters'
+import Maintenance from './pages/Maintenance'
+import AIAgents from './pages/AIAgents'
+import Forecasting from './pages/Forecasting'
+import Admin from './pages/Admin'
 
 export default function App() {
   const [currentSite, setCurrentSite] = useState<number | null>(null)
@@ -36,6 +42,12 @@ export default function App() {
         <Route path="/reports">{() => <Reports currentSite={currentSite} />}</Route>
         <Route path="/notifications">{() => <Notifications currentSite={currentSite} />}</Route>
         <Route path="/settings">{() => <Settings />}</Route>
+        <Route path="/data-quality">{() => <DataQuality />}</Route>
+        <Route path="/virtual-meters">{() => <VirtualMeters />}</Route>
+        <Route path="/maintenance">{() => <Maintenance />}</Route>
+        <Route path="/ai-agents">{() => <AIAgents />}</Route>
+        <Route path="/forecasting">{() => <Forecasting />}</Route>
+        <Route path="/admin">{() => <Admin />}</Route>
         <Route>404 - Page Not Found</Route>
       </Switch>
     </Layout>
