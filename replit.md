@@ -167,6 +167,15 @@ Access API docs at `/docs` (Swagger UI).
 
 ## Recent Changes
 
+- 2025-12-15: Site Dashboard & Gateway Integration
+  - **Site Dashboard Integration**: Connected Sites page to Site Dashboard - clicking a site card navigates to live dashboard
+  - **Power Flow Visualization**: Site Dashboard now fetches Digital Twin Builder asset tree and renders dynamic power flow
+  - **Gateway Management**: New Gateways page with MQTT/HTTPS protocol configuration for meter data collection
+  - **Meter Connectivity**: Enhanced Meters page with protocol/connection status indicators and configuration modals (Modbus RTU/TCP, TCP/IP)
+  - **Tariff Database**: Extended Tariff model with supplier, tariff_type, base_rate, peak_rate, off_peak_rate, demand_charge, export_rate fields
+  - **Sample Tariffs**: Added Standard Commercial TOU, Green Energy Flat Rate, Industrial Peak Shave, Solar Net Metering tariffs
+  - **Navigation Cleanup**: Removed Carbon/ESG page per user request, replaced with Gateways page
+
 - 2025-12-15: Comprehensive Page Enhancements (Round 2)
   - **Site Dashboard**: Live power flow diagram with animated SVG, losses breakdown, asset status monitor, 24-hour load profile
   - **Data Ingestion**: File preview before import, import history with rollback, scheduled imports (SFTP/API/Email), validation rules config
