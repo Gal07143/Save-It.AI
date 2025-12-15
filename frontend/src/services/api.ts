@@ -1,15 +1,30 @@
+import { getAuthToken } from '../contexts/AuthContext'
+
 const API_BASE = '/api/v1'
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const token = getAuthToken()
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options?.headers,
+  }
+  
+  if (token) {
+    (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`
+  }
+  
   const response = await fetch(`${API_BASE}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
     ...options,
   })
   
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('auth_token')
+      window.location.href = '/login'
+      throw new Error('Session expired')
+    }
     const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
     throw new Error(error.detail || 'An error occurred')
   }
@@ -18,6 +33,19 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 }
 
 export const api = {
+  auth: {
+    login: (email: string, password: string) => 
+      fetchApi<TokenResponse>('/auth/login', { 
+        method: 'POST', 
+        body: JSON.stringify({ email, password }) 
+      }),
+    register: (data: RegisterData) => 
+      fetchApi<TokenResponse>('/auth/register', { 
+        method: 'POST', 
+        body: JSON.stringify(data) 
+      }),
+    me: () => fetchApi<AuthUser>('/auth/me'),
+  },
   sites: {
     list: () => fetchApi<Site[]>('/sites'),
     get: (id: number) => fetchApi<Site>(`/sites/${id}`),
@@ -26,7 +54,9 @@ export const api = {
   assets: {
     list: (siteId?: number) => fetchApi<Asset[]>(`/assets${siteId ? `?site_id=${siteId}` : ''}`),
     tree: (siteId: number) => fetchApi<AssetTreeNode[]>(`/assets/tree/${siteId}`),
+    getTree: (siteId: number) => fetchApi<AssetTreeNode[]>(`/assets/tree/${siteId}`),
     create: (data: Partial<Asset>) => fetchApi<Asset>('/assets', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<Asset>) => fetchApi<Asset>(`/assets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   },
   meters: {
     list: (siteId?: number) => fetchApi<Meter[]>(`/meters${siteId ? `?site_id=${siteId}` : ''}`),
@@ -89,6 +119,66 @@ export const api = {
     siteSummaryUrl: (siteId: number) => `${API_BASE}/reports/site-summary/${siteId}`,
     energyAnalysisUrl: (siteId: number) => `${API_BASE}/reports/energy-analysis/${siteId}`,
   },
+  dataQuality: {
+    dashboard: () => fetchApi<DataQualityDashboard>('/data-quality/dashboard'),
+    issues: (siteId?: number) => fetchApi<QualityIssue[]>(`/data-quality/issues${siteId ? `?site_id=${siteId}` : ''}`),
+    resolveIssue: (issueId: number, resolution: string) => 
+      fetchApi<QualityIssue>(`/data-quality/issues/${issueId}/resolve`, { 
+        method: 'POST', 
+        body: JSON.stringify({ resolution }) 
+      }),
+  },
+  virtualMeters: {
+    list: (siteId?: number) => fetchApi<VirtualMeter[]>(`/virtual-meters${siteId ? `?site_id=${siteId}` : ''}`),
+    get: (id: number) => fetchApi<VirtualMeter>(`/virtual-meters/${id}`),
+    create: (data: Partial<VirtualMeter>) => fetchApi<VirtualMeter>('/virtual-meters', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  maintenance: {
+    alerts: (siteId?: number) => fetchApi<MaintenanceAlert[]>(`/maintenance/alerts${siteId ? `?site_id=${siteId}` : ''}`),
+    acknowledge: (alertId: number) => fetchApi<MaintenanceAlert>(`/maintenance/alerts/${alertId}/acknowledge`, { method: 'POST' }),
+    assetConditions: (assetId?: number) => fetchApi<AssetCondition[]>(`/maintenance/asset-conditions${assetId ? `?asset_id=${assetId}` : ''}`),
+  },
+  agents: {
+    chat: (siteId: number, agentType: string, message: string) => 
+      fetchApi<AgentChatResponse>('/agents/chat', { 
+        method: 'POST', 
+        body: JSON.stringify({ site_id: siteId, agent_type: agentType, message }) 
+      }),
+  },
+  forecasts: {
+    create: (siteId: number, forecastType: string, horizonHours: number) => 
+      fetchApi<ForecastResponse>('/forecasts', { 
+        method: 'POST', 
+        body: JSON.stringify({ site_id: siteId, forecast_type: forecastType, horizon_hours: horizonHours }) 
+      }),
+    get: (jobId: number) => fetchApi<ForecastResponse>(`/forecasts/${jobId}`),
+  },
+}
+
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+  expires_in: number
+  user: AuthUser
+}
+
+export interface RegisterData {
+  email: string
+  password: string
+  first_name?: string
+  last_name?: string
+  organization_name?: string
+}
+
+export interface AuthUser {
+  id: number
+  email: string
+  first_name?: string
+  last_name?: string
+  role: string
+  organization_id: number
+  organization_name?: string
+  is_active: boolean
 }
 
 export interface Site {
@@ -293,4 +383,81 @@ export interface CarbonSummary {
   total_energy_kwh: number
   emission_intensity: number
   record_count: number
+}
+
+export interface DataQualityDashboard {
+  total_meters: number
+  meters_with_issues: number
+  average_coverage: number
+  average_quality_score: number
+  open_issues_count: number
+  critical_issues_count: number
+  recent_issues: QualityIssue[]
+}
+
+export interface QualityIssue {
+  id: number
+  meter_id: number
+  issue_type: string
+  severity: string
+  description: string
+  detected_at: string
+  resolved_at?: string
+  resolution?: string
+}
+
+export interface VirtualMeter {
+  id: number
+  site_id: number
+  name: string
+  meter_type: string
+  expression: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface MaintenanceAlert {
+  id: number
+  asset_id: number
+  alert_type: string
+  severity: string
+  message: string
+  predicted_failure_date?: string
+  confidence: number
+  acknowledged_at?: string
+  created_at: string
+}
+
+export interface AssetCondition {
+  id: number
+  asset_id: number
+  condition_score: number
+  health_status: string
+  metrics: Record<string, number>
+  recorded_at: string
+}
+
+export interface AgentChatResponse {
+  session_id: number
+  agent_type: string
+  response: string
+  actions?: Array<{ type: string, data: Record<string, unknown> }>
+  recommendations?: string[]
+}
+
+export interface ForecastResponse {
+  job_id: number
+  site_id: number
+  forecast_type: string
+  horizon_hours: number
+  status: string
+  data: ForecastPoint[]
+}
+
+export interface ForecastPoint {
+  timestamp: string
+  predicted_value: number
+  lower_bound?: number
+  upper_bound?: number
+  confidence?: number
 }

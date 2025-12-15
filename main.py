@@ -7,14 +7,18 @@ for B2B clients.
 """
 import os
 import sys
+import secrets
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import bcrypt
+from jose import JWTError, jwt
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
@@ -34,8 +38,67 @@ def get_db():
 
 
 from datetime import datetime, date, time, timedelta
+from typing import Optional, List, Dict, Any
 from enum import Enum as PyEnum
-from typing import List, Optional, Dict, Any
+
+
+# ============================================================================
+# AUTHENTICATION CONFIGURATION
+# ============================================================================
+
+SECRET_KEY = os.getenv("SESSION_SECRET", secrets.token_urlsafe(32))
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+
+security = HTTPBearer(auto_error=False)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash."""
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
+def get_password_hash(password: str) -> str:
+    """Hash a password."""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create a JWT access token."""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_access_token(token: str) -> Optional[dict]:
+    """Decode and validate a JWT token."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+
+# ============================================================================
+# RBAC ROLE CHECKING (defined after User model is available)
+# ============================================================================
+
+# Role hierarchy for RBAC
+ROLE_HIERARCHY = {
+    "super_admin": 100,
+    "org_admin": 80,
+    "site_manager": 60,
+    "engineer": 40,
+    "billing_admin": 30,
+    "viewer": 10
+}
+
+def get_role_level(role: str) -> int:
+    """Get the numeric level for a role."""
+    return ROLE_HIERARCHY.get(role, 0)
+
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Enum, Text, Date, Time
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel, Field, ConfigDict
@@ -1634,6 +1697,47 @@ class UserResponse(BaseModel):
     mfa_enabled: bool
     last_login_at: Optional[datetime] = None
     created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# AUTHENTICATION SCHEMAS
+# ============================================================================
+
+class LoginRequest(BaseModel):
+    """Schema for login request."""
+    email: str = Field(..., min_length=5, max_length=255)
+    password: str = Field(..., min_length=1)
+
+
+class RegisterRequest(BaseModel):
+    """Schema for user registration."""
+    email: str = Field(..., min_length=5, max_length=255)
+    password: str = Field(..., min_length=8)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    organization_name: Optional[str] = None
+
+
+class TokenResponse(BaseModel):
+    """Response schema for authentication token."""
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserResponse
+
+
+class AuthUserResponse(BaseModel):
+    """Response schema for current authenticated user."""
+    id: int
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role: UserRole
+    organization_id: int
+    organization_name: Optional[str] = None
+    is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -4079,6 +4183,402 @@ def calculate_pv_sizing(request: PVSizingRequest, db=Depends(get_db)):
         co2_offset_tonnes_per_year=round(co2_offset, 2),
         roof_utilization_percent=round(recommended_capacity / max_capacity_kwp * 100, 1),
         monthly_production=[round(p, 0) for p in monthly_production]
+    )
+
+
+# ============================================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================================
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db=Depends(get_db)
+):
+    """Get the current authenticated user from JWT token."""
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = credentials.credentials
+    payload = decode_access_token(token)
+    
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+    
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled",
+        )
+    
+    return user
+
+
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db=Depends(get_db)
+):
+    """Get the current user if authenticated, otherwise return None."""
+    if not credentials:
+        return None
+    
+    try:
+        return get_current_user(credentials, db)
+    except HTTPException:
+        return None
+
+
+class RoleChecker:
+    """Dependency class for checking user roles."""
+    
+    def __init__(self, min_role: str):
+        self.min_role = min_role
+        self.min_level = get_role_level(min_role)
+    
+    def __call__(self, user = Depends(get_current_user)):
+        user_level = get_role_level(user.role.value if hasattr(user.role, 'value') else str(user.role))
+        if user_level < self.min_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Minimum role required: {self.min_role}"
+            )
+        return user
+
+
+def require_role(min_role: str):
+    """Dependency factory for role-based access control."""
+    return RoleChecker(min_role)
+
+
+require_viewer = Depends(require_role("viewer"))
+require_engineer = Depends(require_role("engineer"))
+require_site_manager = Depends(require_role("site_manager"))
+require_org_admin = Depends(require_role("org_admin"))
+require_super_admin = Depends(require_role("super_admin"))
+
+
+@app.post("/api/v1/auth/register", response_model=TokenResponse, tags=["auth"])
+def register(request: RegisterRequest, db=Depends(get_db)):
+    """Register a new user account."""
+    existing_user = db.query(User).filter(User.email == request.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    org_name = request.organization_name or f"{request.email.split('@')[0]}'s Organization"
+    slug = org_name.lower().replace(" ", "-").replace("'", "")[:50]
+    
+    existing_org = db.query(Organization).filter(Organization.slug == slug).first()
+    if existing_org:
+        slug = f"{slug}-{secrets.token_hex(4)}"
+    
+    organization = Organization(
+        name=org_name,
+        slug=slug,
+        is_active=1
+    )
+    db.add(organization)
+    db.flush()
+    
+    user = User(
+        organization_id=organization.id,
+        email=request.email,
+        password_hash=get_password_hash(request.password),
+        first_name=request.first_name,
+        last_name=request.last_name,
+        role=UserRole.ORG_ADMIN,
+        is_active=1
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    access_token = create_access_token(data={"sub": str(user.id)})
+    
+    return TokenResponse(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=UserResponse(
+            id=user.id,
+            organization_id=user.organization_id,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            phone=user.phone,
+            role=user.role,
+            is_active=bool(user.is_active),
+            mfa_enabled=bool(user.mfa_enabled),
+            last_login_at=user.last_login_at,
+            created_at=user.created_at
+        )
+    )
+
+
+@app.post("/api/v1/auth/login", response_model=TokenResponse, tags=["auth"])
+def login(request: LoginRequest, db=Depends(get_db)):
+    """Authenticate user and return access token."""
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    if user.locked_until and user.locked_until > datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is temporarily locked due to too many failed login attempts"
+        )
+    
+    if not verify_password(request.password, user.password_hash):
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= 5:
+            user.locked_until = datetime.utcnow() + timedelta(minutes=15)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled"
+        )
+    
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    
+    access_token = create_access_token(data={"sub": str(user.id)})
+    
+    return TokenResponse(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=UserResponse(
+            id=user.id,
+            organization_id=user.organization_id,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            phone=user.phone,
+            role=user.role,
+            is_active=bool(user.is_active),
+            mfa_enabled=bool(user.mfa_enabled),
+            last_login_at=user.last_login_at,
+            created_at=user.created_at
+        )
+    )
+
+
+@app.get("/api/v1/auth/me", response_model=AuthUserResponse, tags=["auth"])
+def get_current_user_info(current_user: User = Depends(get_current_user), db=Depends(get_db)):
+    """Get current authenticated user information."""
+    org = db.query(Organization).filter(Organization.id == current_user.organization_id).first()
+    
+    return AuthUserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        role=current_user.role,
+        organization_id=current_user.organization_id,
+        organization_name=org.name if org else None,
+        is_active=bool(current_user.is_active)
+    )
+
+
+@app.post("/api/v1/auth/logout", tags=["auth"])
+def logout(current_user: User = Depends(get_current_user)):
+    """Logout current user (client-side token removal)."""
+    return {"message": "Successfully logged out"}
+
+
+@app.post("/api/v1/auth/change-password", tags=["auth"])
+def change_password(
+    current_password: str = Form(...),
+    new_password: str = Form(..., min_length=8),
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """Change the current user's password."""
+    if not verify_password(current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    current_user.password_hash = get_password_hash(new_password)
+    db.commit()
+    
+    return {"message": "Password changed successfully"}
+
+
+# ============================================================================
+# DATA INGESTION ENDPOINTS
+# ============================================================================
+
+import io
+import pandas as pd
+
+class ParsedFileResponse(BaseModel):
+    """Response schema for parsed file data."""
+    headers: List[str]
+    preview: List[Dict[str, Any]]
+    totalRows: int
+
+
+class ImportResultResponse(BaseModel):
+    """Response schema for import results."""
+    imported: int
+    errors: int
+    message: str
+
+
+@app.post("/api/v1/data-ingestion/parse", response_model=ParsedFileResponse, tags=["data-ingestion"])
+async def parse_data_file(file: UploadFile = File(...)):
+    """Parse a CSV or Excel file and return headers with preview data."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    filename = file.filename.lower()
+    content = await file.read()
+    
+    try:
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(content))
+        elif filename.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(io.BytesIO(content))
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format. Use CSV or Excel.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+    
+    df = df.fillna('')
+    df = df.astype(str)
+    
+    preview_rows = df.head(5).to_dict('records')
+    
+    return ParsedFileResponse(
+        headers=list(df.columns),
+        preview=preview_rows,
+        totalRows=len(df)
+    )
+
+
+@app.post("/api/v1/data-ingestion/import", response_model=ImportResultResponse, tags=["data-ingestion"])
+async def import_data_file(
+    file: UploadFile = File(...),
+    mappings: str = Form(...),
+    db=Depends(get_db)
+):
+    """Import meter readings from a file with column mappings."""
+    import json
+    
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    try:
+        column_mappings = json.loads(mappings)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid mappings JSON")
+    
+    filename = file.filename.lower()
+    content = await file.read()
+    
+    try:
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(content))
+        elif filename.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(io.BytesIO(content))
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+    
+    mapping_dict = {m['sourceColumn']: m['targetField'] for m in column_mappings if m['targetField'] != 'ignore'}
+    
+    imported_count = 0
+    error_count = 0
+    
+    for _, row in df.iterrows():
+        try:
+            timestamp_col = next((k for k, v in mapping_dict.items() if v == 'timestamp'), None)
+            meter_id_col = next((k for k, v in mapping_dict.items() if v == 'meter_id'), None)
+            reading_col = next((k for k, v in mapping_dict.items() if v == 'reading_kwh'), None)
+            
+            if not all([timestamp_col, meter_id_col, reading_col]):
+                error_count += 1
+                continue
+            
+            meter = db.query(Meter).filter(Meter.meter_id == str(row[meter_id_col])).first()
+            if not meter:
+                meter = db.query(Meter).filter(Meter.name.ilike(f"%{row[meter_id_col]}%")).first()
+            
+            if not meter:
+                error_count += 1
+                continue
+            
+            try:
+                reading_time = pd.to_datetime(row[timestamp_col])
+            except:
+                error_count += 1
+                continue
+            
+            try:
+                reading_value = float(row[reading_col])
+            except:
+                error_count += 1
+                continue
+            
+            reading = MeterReading(
+                meter_id=meter.id,
+                timestamp=reading_time,
+                reading_kwh=reading_value,
+                reading_type='imported'
+            )
+            db.add(reading)
+            imported_count += 1
+            
+        except Exception:
+            error_count += 1
+    
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+    return ImportResultResponse(
+        imported=imported_count,
+        errors=error_count,
+        message=f"Successfully imported {imported_count} readings. {error_count} rows had errors."
     )
 
 

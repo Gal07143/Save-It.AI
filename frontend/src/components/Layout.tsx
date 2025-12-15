@@ -2,10 +2,12 @@ import { Link, useLocation } from 'wouter'
 import { 
   LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
   Battery, Plug, Search, Bell, Settings, DollarSign, Leaf, FileText,
-  ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield
+  ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield, LogOut, User,
+  FileSpreadsheet, GitBranch, FileCheck, Zap
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api, Site } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -17,8 +19,12 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/sites', icon: Building2, label: 'Sites' },
   { path: '/assets', icon: Network, label: 'Digital Twin' },
+  { path: '/twin-builder', icon: GitBranch, label: 'Twin Builder' },
   { path: '/meters', icon: Gauge, label: 'Meters' },
+  { path: '/data-ingestion', icon: FileSpreadsheet, label: 'Data Ingestion' },
   { path: '/bills', icon: Receipt, label: 'Bills' },
+  { path: '/mv-audit', icon: FileCheck, label: 'M&V Audit' },
+  { path: '/supplier-comparison', icon: Zap, label: 'Supplier Compare' },
   { path: '/tariffs', icon: DollarSign, label: 'Tariffs' },
   { path: '/tenants', icon: Users, label: 'Tenants' },
   { path: '/bess', icon: Battery, label: 'BESS Simulator' },
@@ -38,6 +44,12 @@ const navItems = [
 export default function Layout({ children, currentSite, onSiteChange }: LayoutProps) {
   const [location] = useLocation()
   const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
+  const { user, logout } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+    window.location.href = '/login'
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -79,7 +91,7 @@ export default function Layout({ children, currentSite, onSiteChange }: LayoutPr
           </select>
         </div>
 
-        <nav style={{ flex: 1, padding: '1rem 0' }}>
+        <nav style={{ flex: 1, padding: '1rem 0', overflowY: 'auto' }}>
           {navItems.map((item) => {
             const isActive = location === item.path
             return (
@@ -114,14 +126,59 @@ export default function Layout({ children, currentSite, onSiteChange }: LayoutPr
             color: '#94a3b8',
             textDecoration: 'none',
             fontSize: '0.875rem',
+            marginBottom: '1rem',
           }}>
             <Settings size={16} />
             API Docs
           </a>
+          
+          {user && (
+            <div style={{ 
+              padding: '0.75rem', 
+              background: '#334155', 
+              borderRadius: '0.5rem',
+              marginBottom: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <User size={16} color="#10b981" />
+                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                  {user.first_name || user.email.split('@')[0]}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                {user.organization_name || 'Organization'}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
+                {user.role.replace('_', ' ').toUpperCase()}
+              </div>
+            </div>
+          )}
+          
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.375rem',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+            }}
+          >
+            <LogOut size={16} />
+            Sign Out
+          </button>
         </div>
       </aside>
 
-      <main style={{ flex: 1, padding: '1.5rem', overflow: 'auto' }}>
+      <main style={{ flex: 1, padding: '1.5rem', overflow: 'auto', background: '#f1f5f9' }}>
         {children}
       </main>
     </div>
