@@ -3084,6 +3084,159 @@ def delete_bill(bill_id: int, db=Depends(get_db)):
     return {"message": "Bill deleted successfully"}
 
 
+# ============================================================================
+# OCR BILL SCANNING
+# ============================================================================
+
+class OCRBillResult(BaseModel):
+    """Result of OCR bill scanning."""
+    success: bool
+    supplier_name: Optional[str] = None
+    account_number: Optional[str] = None
+    bill_date: Optional[str] = None
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+    total_kwh: Optional[float] = None
+    total_amount: Optional[float] = None
+    peak_demand_kw: Optional[float] = None
+    line_items: List[Dict[str, Any]] = []
+    raw_text: Optional[str] = None
+    error: Optional[str] = None
+
+
+@app.post("/api/v1/bills/ocr-scan", response_model=OCRBillResult, tags=["bills"])
+async def ocr_scan_bill(file: UploadFile = File(...)):
+    """
+    Scan a utility bill image using OCR and extract structured data.
+    Supports common image formats (PNG, JPG, PDF first page).
+    Uses OpenAI Vision via Replit AI Integrations.
+    """
+    import base64
+    from openai import OpenAI
+    
+    # Get AI Integrations credentials
+    api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
+    base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+    
+    if not api_key or not base_url:
+        return OCRBillResult(
+            success=False,
+            error="OpenAI AI Integrations not configured. Please set up the integration."
+        )
+    
+    try:
+        # Read and encode the uploaded file
+        contents = await file.read()
+        base64_image = base64.b64encode(contents).decode('utf-8')
+        
+        # Determine MIME type
+        content_type = file.content_type or "image/png"
+        if "pdf" in content_type.lower():
+            content_type = "application/pdf"
+        elif "jpeg" in content_type.lower() or "jpg" in content_type.lower():
+            content_type = "image/jpeg"
+        else:
+            content_type = "image/png"
+        
+        # Initialize OpenAI client with AI Integrations
+        # This uses Replit AI Integrations, no personal API key needed
+        client = OpenAI(
+            api_key=api_key,
+            base_url=base_url
+        )
+        
+        # Create the prompt for bill extraction
+        extraction_prompt = """Analyze this utility bill image and extract the following information in JSON format:
+
+{
+  "supplier_name": "Name of the utility company",
+  "account_number": "Customer account number",
+  "bill_date": "Bill issue date in YYYY-MM-DD format",
+  "period_start": "Billing period start date in YYYY-MM-DD format",
+  "period_end": "Billing period end date in YYYY-MM-DD format",
+  "total_kwh": "Total energy consumption in kWh (number only)",
+  "total_amount": "Total bill amount (number only, no currency symbol)",
+  "peak_demand_kw": "Peak demand in kW if available (number only)",
+  "line_items": [
+    {"description": "Line item description", "amount": "Amount as number", "quantity": "Quantity if applicable"}
+  ],
+  "raw_text": "Key text extracted from the bill"
+}
+
+If a field cannot be determined, use null. Extract numbers without commas or currency symbols.
+Respond ONLY with valid JSON, no additional text."""
+
+        # the newest OpenAI model is "gpt-5" which was released August 7, 2025
+        # do not change this unless explicitly requested by the user
+        response = client.chat.completions.create(
+            model="gpt-4o",  # Using gpt-4o for vision capabilities
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": extraction_prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{content_type};base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_completion_tokens=2048
+        )
+        
+        # Parse the response
+        result_text = response.choices[0].message.content or ""
+        
+        # Clean up the response (remove markdown code blocks if present)
+        if result_text.startswith("```"):
+            result_text = result_text.split("```")[1]
+            if result_text.startswith("json"):
+                result_text = result_text[4:]
+        result_text = result_text.strip()
+        
+        import json
+        try:
+            extracted_data = json.loads(result_text)
+        except json.JSONDecodeError:
+            # Try to find JSON in the response
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', result_text)
+            if json_match:
+                extracted_data = json.loads(json_match.group())
+            else:
+                return OCRBillResult(
+                    success=False,
+                    error="Failed to parse OCR response as JSON",
+                    raw_text=result_text
+                )
+        
+        return OCRBillResult(
+            success=True,
+            supplier_name=extracted_data.get("supplier_name"),
+            account_number=extracted_data.get("account_number"),
+            bill_date=extracted_data.get("bill_date"),
+            period_start=extracted_data.get("period_start"),
+            period_end=extracted_data.get("period_end"),
+            total_kwh=float(extracted_data.get("total_kwh") or 0) if extracted_data.get("total_kwh") else None,
+            total_amount=float(extracted_data.get("total_amount") or 0) if extracted_data.get("total_amount") else None,
+            peak_demand_kw=float(extracted_data.get("peak_demand_kw") or 0) if extracted_data.get("peak_demand_kw") else None,
+            line_items=extracted_data.get("line_items", []),
+            raw_text=extracted_data.get("raw_text")
+        )
+        
+    except Exception as e:
+        return OCRBillResult(
+            success=False,
+            error=f"OCR processing failed: {str(e)}"
+        )
+
+
 @app.get("/api/v1/tariffs", response_model=List[TariffResponse], tags=["tariffs"])
 def list_tariffs(site_id: Optional[int] = None, skip: int = 0, limit: int = 100, db=Depends(get_db)):
     """List all tariffs, optionally filtered by site."""

@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { 
   Network, Trash2, Save, Undo, Redo, ZoomIn, ZoomOut,
-  Zap, Battery, Sun, Building2, Gauge, Box, X, Edit2
+  Zap, Battery, Sun, Building2, Gauge, Box, X, Edit2,
+  Grid3X3, Download, Layers
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
@@ -52,6 +53,116 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
   const [history, setHistory] = useState<{ nodes: AssetNode[], connections: Connection[] }[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [showPalette] = useState(true)
+  const [gridSnap, setGridSnap] = useState(true)
+  const [showTemplates, setShowTemplates] = useState(false)
+  
+  const GRID_SIZE = 20
+  
+  const snapToGrid = (value: number) => {
+    if (!gridSnap) return value
+    return Math.round(value / GRID_SIZE) * GRID_SIZE
+  }
+
+  const TEMPLATES = [
+    {
+      name: 'Commercial Building',
+      description: 'Main breaker with distribution boards',
+      nodes: [
+        { type: 'main_breaker', name: 'Main Breaker', x: 300, y: 50 },
+        { type: 'transformer', name: 'Transformer', x: 300, y: 170 },
+        { type: 'distribution_board', name: 'DB-1', x: 150, y: 290 },
+        { type: 'distribution_board', name: 'DB-2', x: 450, y: 290 },
+      ]
+    },
+    {
+      name: 'Solar + Battery',
+      description: 'Hybrid renewable system',
+      nodes: [
+        { type: 'solar_inverter', name: 'Solar Inverter', x: 150, y: 50 },
+        { type: 'battery_storage', name: 'Battery Bank', x: 350, y: 50 },
+        { type: 'main_breaker', name: 'Main Panel', x: 250, y: 170 },
+      ]
+    },
+    {
+      name: 'Industrial Facility',
+      description: 'Complex distribution with generators',
+      nodes: [
+        { type: 'main_breaker', name: 'Main Incomer', x: 300, y: 50 },
+        { type: 'generator', name: 'Backup Generator', x: 500, y: 50 },
+        { type: 'transformer', name: 'MV Transformer', x: 300, y: 170 },
+        { type: 'sub_panel', name: 'MCC-1', x: 150, y: 290 },
+        { type: 'sub_panel', name: 'MCC-2', x: 300, y: 290 },
+        { type: 'sub_panel', name: 'MCC-3', x: 450, y: 290 },
+      ]
+    }
+  ]
+  
+  const applyTemplate = (template: typeof TEMPLATES[0]) => {
+    saveToHistory()
+    const newNodes = template.nodes.map((n, i) => ({
+      id: `node-${Date.now()}-${i}`,
+      name: n.name,
+      type: n.type,
+      x: n.x,
+      y: n.y,
+      parentId: null,
+      children: []
+    }))
+    setNodes([...nodes, ...newNodes])
+    setShowTemplates(false)
+  }
+  
+  const exportToPNG = async () => {
+    if (!canvasRef.current) return
+    
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
+    canvas.width = 1200
+    canvas.height = 800
+    
+    ctx.fillStyle = '#0f172a'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    
+    ctx.fillStyle = '#f8fafc'
+    ctx.font = 'bold 24px system-ui'
+    ctx.fillText('Digital Twin - Single Line Diagram', 40, 50)
+    ctx.font = '14px system-ui'
+    ctx.fillStyle = '#94a3b8'
+    ctx.fillText(`Exported: ${new Date().toLocaleString()}`, 40, 75)
+    
+    connections.forEach(conn => {
+      const fromNode = nodes.find(n => n.id === conn.from)
+      const toNode = nodes.find(n => n.id === conn.to)
+      if (!fromNode || !toNode) return
+      
+      ctx.beginPath()
+      ctx.strokeStyle = '#475569'
+      ctx.lineWidth = 2
+      ctx.moveTo(fromNode.x + 60, fromNode.y + 100 + 40)
+      ctx.lineTo(toNode.x + 60, toNode.y + 100)
+      ctx.stroke()
+    })
+    
+    nodes.forEach(node => {
+      const assetType = ASSET_TYPES.find(t => t.type === node.type)
+      ctx.fillStyle = assetType?.color || '#475569'
+      ctx.fillRect(node.x, node.y + 100, 120, 80)
+      
+      ctx.fillStyle = '#f8fafc'
+      ctx.font = 'bold 12px system-ui'
+      ctx.fillText(node.name, node.x + 10, node.y + 130)
+      ctx.font = '10px system-ui'
+      ctx.fillStyle = 'rgba(255,255,255,0.7)'
+      ctx.fillText(assetType?.label || node.type, node.x + 10, node.y + 150)
+    })
+    
+    const link = document.createElement('a')
+    link.download = 'digital-twin-sld.png'
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
 
   const { data: existingAssets } = useQuery({
     queryKey: ['assets', 'tree', currentSite],
@@ -179,8 +290,10 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
     if (draggingNode) {
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
-        const x = (e.clientX - rect.left) / zoom - pan.x
-        const y = (e.clientY - rect.top) / zoom - pan.y
+        const rawX = (e.clientX - rect.left) / zoom - pan.x
+        const rawY = (e.clientY - rect.top) / zoom - pan.y
+        const x = snapToGrid(rawX)
+        const y = snapToGrid(rawY)
         updateNode(draggingNode, { x, y })
       }
     } else if (isPanning) {
@@ -301,6 +414,32 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
           >
             <ZoomIn size={18} />
           </button>
+          <div style={{ width: '1px', height: '24px', background: '#475569' }}></div>
+          <button 
+            className={`btn ${gridSnap ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setGridSnap(!gridSnap)}
+            style={{ padding: '0.5rem' }}
+            title={gridSnap ? 'Grid Snap: ON' : 'Grid Snap: OFF'}
+          >
+            <Grid3X3 size={18} />
+          </button>
+          <button 
+            className="btn btn-outline"
+            onClick={() => setShowTemplates(!showTemplates)}
+            style={{ padding: '0.5rem' }}
+            title="Load Template"
+          >
+            <Layers size={18} />
+          </button>
+          <button 
+            className="btn btn-outline"
+            onClick={exportToPNG}
+            disabled={nodes.length === 0}
+            style={{ padding: '0.5rem' }}
+            title="Export to PNG"
+          >
+            <Download size={18} />
+          </button>
           <button 
             className="btn btn-primary" 
             onClick={() => saveMutation.mutate()}
@@ -311,6 +450,41 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
           </button>
         </div>
       </div>
+      
+      {showTemplates && (
+        <div className="card" style={{ marginBottom: '1rem', padding: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Quick Templates</h3>
+            <button className="btn btn-ghost" onClick={() => setShowTemplates(false)}>
+              <X size={16} />
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+            {TEMPLATES.map((template, i) => (
+              <button
+                key={i}
+                onClick={() => applyTemplate(template)}
+                disabled={!currentSite}
+                style={{
+                  padding: '1rem',
+                  background: '#1e293b',
+                  border: '1px solid #334155',
+                  borderRadius: '0.5rem',
+                  textAlign: 'left',
+                  cursor: currentSite ? 'pointer' : 'not-allowed',
+                  opacity: currentSite ? 1 : 0.5
+                }}
+              >
+                <div style={{ fontWeight: 500, marginBottom: '0.25rem' }}>{template.name}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{template.description}</div>
+                <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.5rem' }}>
+                  {template.nodes.length} components
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!currentSite && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem', marginBottom: '1rem' }}>

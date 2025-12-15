@@ -68,6 +68,29 @@ export const api = {
     get: (id: number) => fetchApi<Bill>(`/bills/${id}`),
     validate: (id: number) => fetchApi<BillValidationResult>(`/bills/${id}/validate`, { method: 'POST' }),
     create: (data: Partial<Bill>) => fetchApi<Bill>('/bills', { method: 'POST', body: JSON.stringify(data) }),
+    ocrScan: async (file: File): Promise<OCRBillResult> => {
+      const token = getAuthToken()
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const headers: HeadersInit = {}
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      
+      const response = await fetch(`${API_BASE}/bills/ocr-scan`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'OCR scan failed' }))
+        throw new Error(error.detail || 'OCR scan failed')
+      }
+      
+      return response.json()
+    },
   },
   analysis: {
     gapAnalysis: (siteId: number) => fetchApi<GapAnalysisResult>(`/analysis/gap-analysis/${siteId}`),
@@ -238,6 +261,21 @@ export interface BillValidationResult {
   variance_kwh: number
   variance_percentage: number
   message: string
+}
+
+export interface OCRBillResult {
+  success: boolean
+  supplier_name?: string
+  account_number?: string
+  bill_date?: string
+  period_start?: string
+  period_end?: string
+  total_kwh?: number
+  total_amount?: number
+  peak_demand_kw?: number
+  line_items?: Array<{ description: string; amount: number; quantity?: number }>
+  raw_text?: string
+  error?: string
 }
 
 export interface GapAnalysisResult {
