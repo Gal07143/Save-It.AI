@@ -730,6 +730,52 @@ class NotificationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TariffCreate(BaseModel):
+    """Create a new tariff schedule."""
+    site_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    provider_name: Optional[str] = None
+    effective_from: Optional[datetime] = None
+    effective_to: Optional[datetime] = None
+    currency: str = "USD"
+    fixed_charge: float = 0.0
+    demand_charge_per_kw: Optional[float] = None
+    power_factor_threshold: Optional[float] = None
+    power_factor_penalty_rate: Optional[float] = None
+    tariff_type: str = "flat"
+    rate_per_kwh: float = 0.12
+    peak_rate: Optional[float] = None
+    off_peak_rate: Optional[float] = None
+    is_active: bool = True
+
+
+class TariffResponse(BaseModel):
+    """Response for tariff queries."""
+    id: int
+    site_id: int
+    name: str
+    description: Optional[str] = None
+    provider_name: Optional[str] = None
+    effective_from: Optional[datetime] = None
+    effective_to: Optional[datetime] = None
+    currency: str
+    fixed_charge: float
+    demand_charge_per_kw: Optional[float] = None
+    demand_rate_per_kw: Optional[float] = None
+    power_factor_threshold: Optional[float] = None
+    power_factor_penalty_rate: Optional[float] = None
+    tariff_type: str = "flat"
+    rate_per_kwh: float = 0.12
+    peak_rate: Optional[float] = None
+    off_peak_rate: Optional[float] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SolarROIInput(BaseModel):
     """Input parameters for Solar ROI calculation."""
     annual_consumption_kwh: float
@@ -1921,6 +1967,26 @@ def delete_bill(bill_id: int, db=Depends(get_db)):
     return {"message": "Bill deleted successfully"}
 
 
+@app.get("/api/v1/tariffs", response_model=List[TariffResponse], tags=["tariffs"])
+def list_tariffs(site_id: Optional[int] = None, skip: int = 0, limit: int = 100, db=Depends(get_db)):
+    """List all tariffs, optionally filtered by site."""
+    query = db.query(Tariff)
+    if site_id:
+        query = query.filter(Tariff.site_id == site_id)
+    return query.offset(skip).limit(limit).all()
+
+
+@app.post("/api/v1/tariffs", response_model=TariffResponse, tags=["tariffs"])
+def create_tariff(tariff: TariffCreate, db=Depends(get_db)):
+    """Create a new tariff schedule."""
+    tariff_data = tariff.model_dump()
+    db_tariff = Tariff(**{k: v for k, v in tariff_data.items() if hasattr(Tariff, k)})
+    db.add(db_tariff)
+    db.commit()
+    db.refresh(db_tariff)
+    return db_tariff
+
+
 @app.get("/api/v1/analysis/gap-analysis/{site_id}", response_model=GapAnalysisResult, tags=["analysis"])
 def run_gap_analysis(site_id: int, db=Depends(get_db)):
     """Run gap analysis comparing SLD assets vs connected meters."""
@@ -2103,6 +2169,404 @@ def mark_notification_resolved(notification_id: int, db=Depends(get_db)):
     notification.resolved_at = datetime.utcnow()
     db.commit()
     return notification
+
+
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+
+class CarbonEmission(Base):
+    """Carbon emission tracking for ESG reporting."""
+    __tablename__ = "carbon_emissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    scope1_kg_co2 = Column(Float, default=0)
+    scope2_kg_co2 = Column(Float, default=0)
+    scope3_kg_co2 = Column(Float, default=0)
+    energy_kwh = Column(Float, default=0)
+    emission_factor = Column(Float, default=0.5)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    site = relationship("Site")
+
+
+class CarbonEmissionCreate(BaseModel):
+    site_id: int
+    year: int
+    month: int
+    scope1_kg_co2: float = 0
+    scope2_kg_co2: float = 0
+    scope3_kg_co2: float = 0
+    energy_kwh: float = 0
+    emission_factor: float = 0.5
+
+
+class CarbonEmissionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    site_id: int
+    year: int
+    month: int
+    scope1_kg_co2: float
+    scope2_kg_co2: float
+    scope3_kg_co2: float
+    energy_kwh: float
+    emission_factor: float
+    created_at: datetime
+
+
+@app.post("/api/v1/carbon-emissions", response_model=CarbonEmissionResponse, tags=["esg"])
+def create_carbon_emission(emission: CarbonEmissionCreate, db=Depends(get_db)):
+    """Create carbon emission record for ESG tracking."""
+    db_emission = CarbonEmission(**emission.model_dump())
+    db.add(db_emission)
+    db.commit()
+    db.refresh(db_emission)
+    return db_emission
+
+
+@app.get("/api/v1/carbon-emissions", response_model=List[CarbonEmissionResponse], tags=["esg"])
+def list_carbon_emissions(site_id: Optional[int] = None, year: Optional[int] = None, db=Depends(get_db)):
+    """List carbon emissions with optional filters."""
+    query = db.query(CarbonEmission)
+    if site_id:
+        query = query.filter(CarbonEmission.site_id == site_id)
+    if year:
+        query = query.filter(CarbonEmission.year == year)
+    return query.order_by(CarbonEmission.year.desc(), CarbonEmission.month.desc()).all()
+
+
+@app.get("/api/v1/carbon-emissions/summary", tags=["esg"])
+def get_carbon_summary(site_id: Optional[int] = None, year: Optional[int] = None, db=Depends(get_db)):
+    """Get carbon emission summary for ESG reporting."""
+    query = db.query(CarbonEmission)
+    if site_id:
+        query = query.filter(CarbonEmission.site_id == site_id)
+    if year:
+        query = query.filter(CarbonEmission.year == year)
+    
+    emissions = query.all()
+    total_scope1 = sum(e.scope1_kg_co2 for e in emissions)
+    total_scope2 = sum(e.scope2_kg_co2 for e in emissions)
+    total_scope3 = sum(e.scope3_kg_co2 for e in emissions)
+    total_energy = sum(e.energy_kwh for e in emissions)
+    
+    return {
+        "total_scope1_kg_co2": total_scope1,
+        "total_scope2_kg_co2": total_scope2,
+        "total_scope3_kg_co2": total_scope3,
+        "total_emissions_kg_co2": total_scope1 + total_scope2 + total_scope3,
+        "total_energy_kwh": total_energy,
+        "emission_intensity": (total_scope1 + total_scope2) / total_energy if total_energy > 0 else 0,
+        "record_count": len(emissions)
+    }
+
+
+@app.get("/api/v1/export/sites", tags=["export"])
+def export_sites_excel(db=Depends(get_db)):
+    """Export sites to Excel file."""
+    sites = db.query(Site).all()
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sites"
+    
+    headers = ["ID", "Name", "Address", "City", "Country", "Timezone", "Created At"]
+    header_fill = PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+    
+    for row, site in enumerate(sites, 2):
+        ws.cell(row=row, column=1, value=site.id)
+        ws.cell(row=row, column=2, value=site.name)
+        ws.cell(row=row, column=3, value=site.address or "")
+        ws.cell(row=row, column=4, value=site.city or "")
+        ws.cell(row=row, column=5, value=site.country or "")
+        ws.cell(row=row, column=6, value=site.timezone)
+        ws.cell(row=row, column=7, value=str(site.created_at))
+    
+    for col in ws.columns:
+        max_length = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_length + 2, 50)
+    
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=sites_export.xlsx"}
+    )
+
+
+@app.get("/api/v1/export/meters", tags=["export"])
+def export_meters_excel(site_id: Optional[int] = None, db=Depends(get_db)):
+    """Export meters to Excel file."""
+    query = db.query(Meter)
+    if site_id:
+        query = query.filter(Meter.site_id == site_id)
+    meters = query.all()
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Meters"
+    
+    headers = ["ID", "Meter ID", "Name", "Site ID", "Manufacturer", "Model", "Serial Number", "Active"]
+    header_fill = PatternFill(start_color="10B981", end_color="10B981", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+    
+    for row, meter in enumerate(meters, 2):
+        ws.cell(row=row, column=1, value=meter.id)
+        ws.cell(row=row, column=2, value=meter.meter_id)
+        ws.cell(row=row, column=3, value=meter.name)
+        ws.cell(row=row, column=4, value=meter.site_id)
+        ws.cell(row=row, column=5, value=meter.manufacturer or "")
+        ws.cell(row=row, column=6, value=meter.model or "")
+        ws.cell(row=row, column=7, value=meter.serial_number or "")
+        ws.cell(row=row, column=8, value="Yes" if meter.is_active else "No")
+    
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=meters_export.xlsx"}
+    )
+
+
+@app.get("/api/v1/export/bills", tags=["export"])
+def export_bills_excel(site_id: Optional[int] = None, db=Depends(get_db)):
+    """Export bills to Excel file."""
+    query = db.query(Bill)
+    if site_id:
+        query = query.filter(Bill.site_id == site_id)
+    bills = query.all()
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Bills"
+    
+    headers = ["ID", "Site ID", "Utility Provider", "Bill Period Start", "Bill Period End", 
+               "Total kWh", "Peak kW", "Total Amount", "Currency", "Validated"]
+    header_fill = PatternFill(start_color="F59E0B", end_color="F59E0B", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+    
+    for row, bill in enumerate(bills, 2):
+        ws.cell(row=row, column=1, value=bill.id)
+        ws.cell(row=row, column=2, value=bill.site_id)
+        ws.cell(row=row, column=3, value=bill.utility_provider or "")
+        ws.cell(row=row, column=4, value=str(bill.period_start))
+        ws.cell(row=row, column=5, value=str(bill.period_end))
+        ws.cell(row=row, column=6, value=bill.total_kwh or 0)
+        ws.cell(row=row, column=7, value=bill.peak_kw or 0)
+        ws.cell(row=row, column=8, value=bill.total_amount or 0)
+        ws.cell(row=row, column=9, value=bill.currency)
+        ws.cell(row=row, column=10, value="Yes" if bill.is_validated else "No")
+    
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=bills_export.xlsx"}
+    )
+
+
+@app.get("/api/v1/reports/site-summary/{site_id}", tags=["reports"])
+def generate_site_report_pdf(site_id: int, db=Depends(get_db)):
+    """Generate PDF report for a site."""
+    site = db.query(Site).filter(Site.id == site_id).first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    meters = db.query(Meter).filter(Meter.site_id == site_id).all()
+    bills = db.query(Bill).filter(Bill.site_id == site_id).order_by(Bill.period_end.desc()).limit(12).all()
+    assets = db.query(Asset).filter(Asset.site_id == site_id).all()
+    
+    output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=24, textColor=colors.HexColor('#1E40AF'))
+    story.append(Paragraph(f"SAVE-IT.AI - Site Report", title_style))
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(f"<b>Site:</b> {site.name}", styles['Normal']))
+    story.append(Paragraph(f"<b>Address:</b> {site.address or 'N/A'}, {site.city or ''}, {site.country or ''}", styles['Normal']))
+    story.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
+    story.append(Spacer(1, 30))
+    
+    story.append(Paragraph("Site Summary", styles['Heading2']))
+    summary_data = [
+        ["Metric", "Value"],
+        ["Total Assets", str(len(assets))],
+        ["Active Meters", str(len([m for m in meters if m.is_active]))],
+        ["Total Bills", str(len(bills))],
+        ["Total Capacity (kW)", str(sum(a.rated_capacity_kw or 0 for a in assets))],
+    ]
+    summary_table = Table(summary_data, colWidths=[200, 200])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E40AF')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+    ]))
+    story.append(summary_table)
+    story.append(Spacer(1, 30))
+    
+    if bills:
+        story.append(Paragraph("Recent Bills", styles['Heading2']))
+        bill_data = [["Period", "kWh", "Peak kW", "Amount", "Validated"]]
+        for bill in bills[:6]:
+            bill_data.append([
+                f"{bill.period_start} - {bill.period_end}",
+                f"{bill.total_kwh:,.0f}" if bill.total_kwh else "N/A",
+                f"{bill.peak_kw:,.1f}" if bill.peak_kw else "N/A",
+                f"{bill.currency} {bill.total_amount:,.2f}" if bill.total_amount else "N/A",
+                "Yes" if bill.is_validated else "No"
+            ])
+        bill_table = Table(bill_data, colWidths=[120, 80, 80, 100, 70])
+        bill_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10B981')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        ]))
+        story.append(bill_table)
+    
+    doc.build(story)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=site_{site_id}_report.pdf"}
+    )
+
+
+@app.get("/api/v1/reports/energy-analysis/{site_id}", tags=["reports"])
+def generate_energy_analysis_pdf(site_id: int, db=Depends(get_db)):
+    """Generate energy analysis PDF report."""
+    site = db.query(Site).filter(Site.id == site_id).first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    bills = db.query(Bill).filter(Bill.site_id == site_id).order_by(Bill.period_end.desc()).limit(12).all()
+    
+    output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    story.append(Paragraph("Energy Analysis Report", styles['Title']))
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(f"<b>Site:</b> {site.name}", styles['Normal']))
+    story.append(Paragraph(f"<b>Report Period:</b> Last 12 Months", styles['Normal']))
+    story.append(Spacer(1, 30))
+    
+    if bills:
+        total_kwh = sum(b.total_kwh or 0 for b in bills)
+        total_cost = sum(b.total_amount or 0 for b in bills)
+        avg_monthly_kwh = total_kwh / len(bills)
+        avg_monthly_cost = total_cost / len(bills)
+        peak_demand = max(b.peak_kw or 0 for b in bills)
+        
+        story.append(Paragraph("Key Metrics", styles['Heading2']))
+        metrics_data = [
+            ["Metric", "Value"],
+            ["Total Energy Consumption", f"{total_kwh:,.0f} kWh"],
+            ["Total Energy Cost", f"${total_cost:,.2f}"],
+            ["Average Monthly Consumption", f"{avg_monthly_kwh:,.0f} kWh"],
+            ["Average Monthly Cost", f"${avg_monthly_cost:,.2f}"],
+            ["Peak Demand", f"{peak_demand:,.1f} kW"],
+            ["Average Cost per kWh", f"${total_cost/total_kwh:.4f}" if total_kwh > 0 else "N/A"],
+        ]
+        metrics_table = Table(metrics_data, colWidths=[200, 200])
+        metrics_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E40AF')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        ]))
+        story.append(metrics_table)
+    
+    doc.build(story)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=energy_analysis_{site_id}.pdf"}
+    )
+
+
+@app.get("/api/v1/tariffs/{tariff_id}", response_model=TariffResponse, tags=["tariffs"])
+def get_tariff(tariff_id: int, db=Depends(get_db)):
+    """Get tariff by ID."""
+    tariff = db.query(Tariff).filter(Tariff.id == tariff_id).first()
+    if not tariff:
+        raise HTTPException(status_code=404, detail="Tariff not found")
+    return tariff
+
+
+@app.put("/api/v1/tariffs/{tariff_id}", response_model=TariffResponse, tags=["tariffs"])
+def update_tariff(tariff_id: int, tariff_update: TariffCreate, db=Depends(get_db)):
+    """Update an existing tariff."""
+    tariff = db.query(Tariff).filter(Tariff.id == tariff_id).first()
+    if not tariff:
+        raise HTTPException(status_code=404, detail="Tariff not found")
+    
+    for key, value in tariff_update.model_dump().items():
+        setattr(tariff, key, value)
+    
+    db.commit()
+    db.refresh(tariff)
+    return tariff
+
+
+@app.delete("/api/v1/tariffs/{tariff_id}", tags=["tariffs"])
+def delete_tariff(tariff_id: int, db=Depends(get_db)):
+    """Delete a tariff."""
+    tariff = db.query(Tariff).filter(Tariff.id == tariff_id).first()
+    if not tariff:
+        raise HTTPException(status_code=404, detail="Tariff not found")
+    db.delete(tariff)
+    db.commit()
+    return {"message": "Tariff deleted successfully"}
 
 
 if __name__ == "__main__":

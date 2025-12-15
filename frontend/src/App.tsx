@@ -11,6 +11,10 @@ import BESSSimulator from './pages/BESSSimulator'
 import Integrations from './pages/Integrations'
 import GapAnalysis from './pages/GapAnalysis'
 import Notifications from './pages/Notifications'
+import Tariffs from './pages/Tariffs'
+import CarbonESG from './pages/CarbonESG'
+import Reports from './pages/Reports'
+import Settings from './pages/Settings'
 
 export default function App() {
   const [currentSite, setCurrentSite] = useState<number | null>(null)
@@ -18,16 +22,20 @@ export default function App() {
   return (
     <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
       <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/sites" component={Sites} />
-        <Route path="/assets" component={Assets} />
-        <Route path="/meters" component={Meters} />
-        <Route path="/bills" component={Bills} />
-        <Route path="/tenants" component={Tenants} />
-        <Route path="/bess" component={BESSSimulator} />
-        <Route path="/integrations" component={Integrations} />
-        <Route path="/gap-analysis" component={GapAnalysis} />
-        <Route path="/notifications" component={Notifications} />
+        <Route path="/">{() => <Dashboard />}</Route>
+        <Route path="/sites">{() => <Sites />}</Route>
+        <Route path="/assets">{() => <Assets currentSite={currentSite} />}</Route>
+        <Route path="/meters">{() => <Meters currentSite={currentSite} />}</Route>
+        <Route path="/bills">{() => <Bills currentSite={currentSite} />}</Route>
+        <Route path="/tariffs">{() => <Tariffs currentSite={currentSite} />}</Route>
+        <Route path="/tenants">{() => <Tenants currentSite={currentSite} />}</Route>
+        <Route path="/bess">{() => <BESSSimulator />}</Route>
+        <Route path="/integrations">{() => <Integrations currentSite={currentSite} />}</Route>
+        <Route path="/gap-analysis">{() => <GapAnalysis currentSite={currentSite} />}</Route>
+        <Route path="/carbon">{() => <CarbonESG currentSite={currentSite} />}</Route>
+        <Route path="/reports">{() => <Reports currentSite={currentSite} />}</Route>
+        <Route path="/notifications">{() => <Notifications currentSite={currentSite} />}</Route>
+        <Route path="/settings">{() => <Settings />}</Route>
         <Route>404 - Page Not Found</Route>
       </Switch>
     </Layout>

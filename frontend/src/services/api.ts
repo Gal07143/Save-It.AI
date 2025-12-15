@@ -66,6 +66,29 @@ export const api = {
     markRead: (id: number) => fetchApi<Notification>(`/notifications/${id}/read`, { method: 'POST' }),
     resolve: (id: number) => fetchApi<Notification>(`/notifications/${id}/resolve`, { method: 'POST' }),
   },
+  tariffs: {
+    list: (siteId?: number) => fetchApi<Tariff[]>(`/tariffs${siteId ? `?site_id=${siteId}` : ''}`),
+    get: (id: number) => fetchApi<Tariff>(`/tariffs/${id}`),
+    create: (data: Partial<Tariff>) => fetchApi<Tariff>('/tariffs', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<Tariff>) => fetchApi<Tariff>(`/tariffs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<void>(`/tariffs/${id}`, { method: 'DELETE' }),
+  },
+  carbonEmissions: {
+    list: (siteId?: number, year?: number) => 
+      fetchApi<CarbonEmission[]>(`/carbon-emissions?${siteId ? `site_id=${siteId}&` : ''}${year ? `year=${year}` : ''}`),
+    summary: (siteId?: number, year?: number) => 
+      fetchApi<CarbonSummary>(`/carbon-emissions/summary?${siteId ? `site_id=${siteId}&` : ''}${year ? `year=${year}` : ''}`),
+    create: (data: Partial<CarbonEmission>) => fetchApi<CarbonEmission>('/carbon-emissions', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  exports: {
+    sitesUrl: () => `${API_BASE}/export/sites`,
+    metersUrl: (siteId?: number) => `${API_BASE}/export/meters${siteId ? `?site_id=${siteId}` : ''}`,
+    billsUrl: (siteId?: number) => `${API_BASE}/export/bills${siteId ? `?site_id=${siteId}` : ''}`,
+  },
+  reports: {
+    siteSummaryUrl: (siteId: number) => `${API_BASE}/reports/site-summary/${siteId}`,
+    energyAnalysisUrl: (siteId: number) => `${API_BASE}/reports/energy-analysis/${siteId}`,
+  },
 }
 
 export interface Site {
@@ -232,4 +255,42 @@ export interface Notification {
   is_read: boolean
   is_resolved: boolean
   created_at: string
+}
+
+export interface Tariff {
+  id: number
+  site_id: number
+  name: string
+  tariff_type: string
+  rate_per_kwh: number
+  demand_rate_per_kw?: number
+  fixed_charge?: number
+  peak_rate?: number
+  off_peak_rate?: number
+  is_active: boolean
+  effective_from: string
+  effective_to?: string
+}
+
+export interface CarbonEmission {
+  id: number
+  site_id: number
+  year: number
+  month: number
+  scope1_kg_co2: number
+  scope2_kg_co2: number
+  scope3_kg_co2: number
+  energy_kwh: number
+  emission_factor: number
+  created_at: string
+}
+
+export interface CarbonSummary {
+  total_scope1_kg_co2: number
+  total_scope2_kg_co2: number
+  total_scope3_kg_co2: number
+  total_emissions_kg_co2: number
+  total_energy_kwh: number
+  emission_intensity: number
+  record_count: number
 }

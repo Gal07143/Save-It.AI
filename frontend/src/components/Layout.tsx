@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter'
 import { 
   LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
-  Battery, Plug, Search, Bell, Settings, ChevronDown 
+  Battery, Plug, Search, Bell, Settings, DollarSign, Leaf, FileText
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api, Site } from '../services/api'
@@ -18,11 +18,15 @@ const navItems = [
   { path: '/assets', icon: Network, label: 'Digital Twin' },
   { path: '/meters', icon: Gauge, label: 'Meters' },
   { path: '/bills', icon: Receipt, label: 'Bills' },
+  { path: '/tariffs', icon: DollarSign, label: 'Tariffs' },
   { path: '/tenants', icon: Users, label: 'Tenants' },
   { path: '/bess', icon: Battery, label: 'BESS Simulator' },
   { path: '/integrations', icon: Plug, label: 'Integrations' },
   { path: '/gap-analysis', icon: Search, label: 'Gap Analysis' },
+  { path: '/carbon', icon: Leaf, label: 'Carbon / ESG' },
+  { path: '/reports', icon: FileText, label: 'Reports' },
   { path: '/notifications', icon: Bell, label: 'Notifications' },
+  { path: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 export default function Layout({ children, currentSite, onSiteChange }: LayoutProps) {
