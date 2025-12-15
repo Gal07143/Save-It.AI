@@ -1,27 +1,35 @@
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Bot, Send, Sparkles, Lightbulb, Search, MessageSquare } from 'lucide-react';
+import { useState } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { Bot, Send, Sparkles, Lightbulb, Search, MessageSquare, Zap } from 'lucide-react'
 
-const API_BASE = '/api/v1';
+const API_BASE = '/api/v1'
 
 interface Message {
-  role: 'user' | 'assistant';
-  content: string;
+  role: 'user' | 'assistant'
+  content: string
+}
+
+interface Recommendation {
+  id: number
+  title: string
+  priority: string
+  category: string
+  expected_savings: number | null
 }
 
 export default function AIAgents() {
-  const [selectedAgent, setSelectedAgent] = useState<'energy_analyst' | 'detective' | 'recommender'>('energy_analyst');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<'energy_analyst' | 'detective' | 'recommender'>('energy_analyst')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [sessionId, setSessionId] = useState<number | null>(null)
 
-  const { data: recommendations } = useQuery({
+  const { data: recommendations } = useQuery<Recommendation[]>({
     queryKey: ['recommendations'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/recommendations`);
-      return response.json();
+      const response = await fetch(`${API_BASE}/recommendations`)
+      return response.json()
     },
-  });
+  })
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -33,83 +41,109 @@ export default function AIAgents() {
           agent_type: selectedAgent,
           session_id: sessionId,
         }),
-      });
-      return response.json();
+      })
+      return response.json()
     },
     onSuccess: (data) => {
-      setSessionId(data.session_id);
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      setSessionId(data.session_id)
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
     },
-  });
+  })
 
   const handleSend = () => {
-    if (!input.trim()) return;
-    setMessages(prev => [...prev, { role: 'user', content: input }]);
-    chatMutation.mutate(input);
-    setInput('');
-  };
+    if (!input.trim()) return
+    setMessages(prev => [...prev, { role: 'user', content: input }])
+    chatMutation.mutate(input)
+    setInput('')
+  }
 
   const agents = [
-    { id: 'energy_analyst', name: 'Energy Analyst', icon: Sparkles, color: 'blue', desc: 'Analyze consumption patterns and anomalies' },
-    { id: 'detective', name: 'Detective', icon: Search, color: 'purple', desc: 'Investigate unassigned loads and hypotheses' },
-    { id: 'recommender', name: 'Recommender', icon: Lightbulb, color: 'amber', desc: 'Get optimization recommendations' },
-  ];
+    { id: 'energy_analyst', name: 'Energy Analyst', icon: Sparkles, color: '#3b82f6', desc: 'Analyze consumption patterns and anomalies' },
+    { id: 'detective', name: 'Detective', icon: Search, color: '#8b5cf6', desc: 'Investigate unassigned loads and hypotheses' },
+    { id: 'recommender', name: 'Recommender', icon: Lightbulb, color: '#f59e0b', desc: 'Get optimization recommendations' },
+  ]
+
+  const suggestions = [
+    'Why did consumption spike last month?',
+    'Analyze my peak demand patterns',
+    'Find energy saving opportunities',
+  ]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Bot className="w-7 h-7 text-blue-600" />
+    <div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Bot size={24} color="#3b82f6" />
           AI Agents
         </h1>
-        <p className="text-gray-500 mt-1">Intelligent assistants for energy analysis and optimization</p>
+        <p style={{ color: '#64748b' }}>Intelligent assistants for energy analysis and optimization</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-3" style={{ marginBottom: '1.5rem' }}>
         {agents.map((agent) => (
           <button
             key={agent.id}
             onClick={() => {
-              setSelectedAgent(agent.id as any);
-              setMessages([]);
-              setSessionId(null);
+              setSelectedAgent(agent.id as 'energy_analyst' | 'detective' | 'recommender')
+              setMessages([])
+              setSessionId(null)
             }}
-            className={`p-5 rounded-xl border-2 text-left transition-all ${
-              selectedAgent === agent.id
-                ? `border-${agent.color}-500 bg-${agent.color}-50`
-                : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}
+            className="card"
+            style={{
+              cursor: 'pointer',
+              border: selectedAgent === agent.id ? `2px solid ${agent.color}` : '1px solid #334155',
+              background: selectedAgent === agent.id ? `${agent.color}10` : undefined,
+              textAlign: 'left',
+            }}
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div className={`p-2 rounded-lg bg-${agent.color}-100`}>
-                <agent.icon className={`w-5 h-5 text-${agent.color}-600`} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '0.5rem',
+                background: `${agent.color}20`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <agent.icon size={20} color={agent.color} />
               </div>
-              <h3 className="font-semibold text-gray-900">{agent.name}</h3>
+              <span style={{ fontWeight: 600 }}>{agent.name}</span>
             </div>
-            <p className="text-sm text-gray-500">{agent.desc}</p>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8' }}>{agent.desc}</p>
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[500px]">
-          <div className="p-4 border-b flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-gray-500" />
-            <h2 className="font-semibold text-gray-900">Chat with {agents.find(a => a.id === selectedAgent)?.name}</h2>
+      <div className="grid grid-3" style={{ gap: '1.5rem' }}>
+        <div className="card" style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', height: '500px' }}>
+          <div className="card-header">
+            <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <MessageSquare size={18} />
+              Chat with {agents.find(a => a.id === selectedAgent)?.name}
+            </h2>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {messages.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium">Start a conversation</p>
-                <p className="text-sm mt-1">Ask me about your energy data and I'll help analyze it</p>
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {['Why did consumption spike last month?', 'Analyze my peak demand patterns', 'Find energy saving opportunities'].map((suggestion) => (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
+                <Bot size={64} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+                <p style={{ fontSize: '1.125rem', fontWeight: 500 }}>Start a conversation</p>
+                <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Ask me about your energy data and I'll help analyze it</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+                  {suggestions.map((suggestion) => (
                     <button
                       key={suggestion}
                       onClick={() => setInput(suggestion)}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200"
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '999px',
+                        fontSize: '0.875rem',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                      }}
                     >
                       {suggestion}
                     </button>
@@ -118,80 +152,89 @@ export default function AIAgents() {
               </div>
             ) : (
               messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] p-3 rounded-lg ${
-                    msg.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}>
-                    <p className="text-sm">{msg.content}</p>
+                <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth: '80%',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '0.75rem',
+                    background: msg.role === 'user' ? '#3b82f6' : '#1e293b',
+                    color: 'white',
+                  }}>
+                    <p style={{ fontSize: '0.875rem' }}>{msg.content}</p>
                   </div>
                 </div>
               ))
             )}
             {chatMutation.isPending && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 p-3 rounded-lg">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ background: '#1e293b', padding: '0.75rem 1rem', borderRadius: '0.75rem' }}>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <span style={{ width: '8px', height: '8px', background: '#64748b', borderRadius: '50%', animation: 'bounce 1s infinite' }}></span>
+                    <span style={{ width: '8px', height: '8px', background: '#64748b', borderRadius: '50%', animation: 'bounce 1s infinite 0.1s' }}></span>
+                    <span style={{ width: '8px', height: '8px', background: '#64748b', borderRadius: '50%', animation: 'bounce 1s infinite 0.2s' }}></span>
                   </div>
                 </div>
               </div>
             )}
           </div>
           
-          <div className="p-4 border-t">
-            <div className="flex gap-2">
+          <div style={{ padding: '1rem', borderTop: '1px solid #334155' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
                 type="text"
+                className="form-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Ask a question about your energy data..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                style={{ flex: 1 }}
               />
               <button
+                className="btn btn-primary"
                 onClick={handleSend}
                 disabled={!input.trim() || chatMutation.isPending}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ padding: '0.5rem 1rem' }}
               >
-                <Send className="w-5 h-5" />
+                <Send size={18} />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Lightbulb className="w-5 h-5 text-amber-500" />
-            Recommendations
-          </h2>
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Lightbulb size={18} color="#f59e0b" />
+              Recommendations
+            </h2>
+          </div>
           
           {(recommendations?.length || 0) === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Lightbulb className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No recommendations yet</p>
-              <p className="text-xs mt-1">Chat with the AI to get insights</p>
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+              <Lightbulb size={48} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
+              <p style={{ fontWeight: 500 }}>No recommendations yet</p>
+              <p style={{ fontSize: '0.875rem' }}>Chat with the AI to get insights</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {recommendations?.slice(0, 5).map((rec: any) => (
-                <div key={rec.id} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      rec.priority === 'high' ? 'bg-red-100 text-red-700' :
-                      rec.priority === 'medium' ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {recommendations?.slice(0, 5).map((rec) => (
+                <div key={rec.id} style={{ 
+                  padding: '0.75rem', 
+                  background: '#1e293b', 
+                  borderRadius: '0.5rem' 
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <span className={`badge badge-${rec.priority === 'high' ? 'danger' : rec.priority === 'medium' ? 'warning' : 'secondary'}`}>
                       {rec.priority}
                     </span>
-                    <span className="text-xs text-gray-500">{rec.category}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{rec.category}</span>
                   </div>
-                  <h3 className="font-medium text-gray-900 text-sm">{rec.title}</h3>
+                  <h3 style={{ fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.25rem' }}>{rec.title}</h3>
                   {rec.expected_savings && (
-                    <p className="text-xs text-green-600 mt-1">Est. savings: ${rec.expected_savings.toLocaleString()}/yr</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: '#10b981' }}>
+                      <Zap size={12} />
+                      Est. savings: ${rec.expected_savings.toLocaleString()}/yr
+                    </div>
                   )}
                 </div>
               ))}
@@ -199,6 +242,13 @@ export default function AIAgents() {
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+      `}</style>
     </div>
-  );
+  )
 }

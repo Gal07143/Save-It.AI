@@ -28,6 +28,8 @@ import DigitalTwinBuilder from './pages/DigitalTwinBuilder'
 import MVAudit from './pages/MVAudit'
 import SupplierComparison from './pages/SupplierComparison'
 import SiteDashboard from './pages/SiteDashboard'
+import PVSystems from './pages/PVSystems'
+import StorageUnits from './pages/StorageUnits'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -326,6 +328,26 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
               <Admin />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/pv-systems">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <PVSystems />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/storage-units">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <StorageUnits />
             </Layout>
           </ProtectedRoute>
         )}

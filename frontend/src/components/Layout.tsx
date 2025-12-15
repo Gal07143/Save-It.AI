@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
   Battery, Plug, Search, Settings, DollarSign, FileText,
   ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield, LogOut, User,
-  FileSpreadsheet, GitBranch, FileCheck, Zap, Activity
+  FileSpreadsheet, GitBranch, FileCheck, Zap, Activity, Sun
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
@@ -28,6 +28,8 @@ const navItems = [
   { path: '/supplier-comparison', icon: Zap, label: 'Supplier Compare' },
   { path: '/tariffs', icon: DollarSign, label: 'Tariffs' },
   { path: '/tenants', icon: Users, label: 'Tenants' },
+  { path: '/pv-systems', icon: Sun, label: 'PV Systems' },
+  { path: '/storage-units', icon: Battery, label: 'Storage Units' },
   { path: '/bess', icon: Battery, label: 'BESS Simulator' },
   { path: '/integrations', icon: Plug, label: 'Integrations' },
   { path: '/gap-analysis', icon: Search, label: 'Gap Analysis' },

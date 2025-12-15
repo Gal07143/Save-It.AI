@@ -1,120 +1,164 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Shield, Users, Building2, FileText, Lock } from 'lucide-react';
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Shield, Users, Building2, FileText, Lock, Plus, User } from 'lucide-react'
 
-const API_BASE = '/api/v1';
+const API_BASE = '/api/v1'
+
+interface Organization {
+  id: number
+  name: string
+  slug: string
+  subscription_plan: string
+  mfa_required: boolean
+  is_active: boolean
+}
+
+interface UserRecord {
+  id: number
+  email: string
+  first_name: string
+  last_name: string
+  role: string
+  mfa_enabled: boolean
+  is_active: boolean
+  last_login_at: string | null
+}
+
+interface AuditLog {
+  id: number
+  action: string
+  entity_type: string
+  entity_id: number
+  user_id: number | null
+  ip_address: string | null
+  created_at: string
+}
+
+interface PeriodLock {
+  id: number
+  period_type: string
+  period_start: string
+  period_end: string
+  status: string
+  locked_at: string | null
+}
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState<'orgs' | 'users' | 'audit' | 'periods'>('orgs');
+  const [activeTab, setActiveTab] = useState<'orgs' | 'users' | 'audit' | 'periods'>('orgs')
 
-  const { data: organizations } = useQuery({
+  const { data: organizations } = useQuery<Organization[]>({
     queryKey: ['organizations'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/organizations`);
-      return response.json();
+      const response = await fetch(`${API_BASE}/organizations`)
+      return response.json()
     },
-  });
+  })
 
-  const { data: users } = useQuery({
+  const { data: users } = useQuery<UserRecord[]>({
     queryKey: ['users'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/users`);
-      return response.json();
+      const response = await fetch(`${API_BASE}/users`)
+      return response.json()
     },
-  });
+  })
 
-  const { data: auditLogs } = useQuery({
+  const { data: auditLogs } = useQuery<AuditLog[]>({
     queryKey: ['audit-logs'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/audit-logs?limit=50`);
-      return response.json();
+      const response = await fetch(`${API_BASE}/audit-logs?limit=50`)
+      return response.json()
     },
-  });
+  })
 
-  const { data: periodLocks } = useQuery({
+  const { data: periodLocks } = useQuery<PeriodLock[]>({
     queryKey: ['period-locks'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/period-locks`);
-      return response.json();
+      const response = await fetch(`${API_BASE}/period-locks`)
+      return response.json()
     },
-  });
+  })
 
   const tabs = [
     { id: 'orgs', label: 'Organizations', icon: Building2 },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'audit', label: 'Audit Logs', icon: FileText },
     { id: 'periods', label: 'Period Locks', icon: Lock },
-  ];
+  ]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Shield className="w-7 h-7 text-red-600" />
+    <div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Shield size={24} color="#ef4444" />
           Admin Console
         </h1>
-        <p className="text-gray-500 mt-1">Manage organizations, users, roles, and system settings</p>
+        <p style={{ color: '#64748b' }}>Manage organizations, users, roles, and system settings</p>
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid #334155', marginBottom: '1.5rem' }}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            onClick={() => setActiveTab(tab.id as 'orgs' | 'users' | 'audit' | 'periods')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1rem',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === tab.id ? '2px solid #3b82f6' : '2px solid transparent',
+              color: activeTab === tab.id ? 'white' : '#64748b',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+            }}
           >
-            <tab.icon className="w-4 h-4" />
+            <tab.icon size={16} />
             {tab.label}
           </button>
         ))}
       </div>
 
       {activeTab === 'orgs' && (
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Organizations</h2>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Organizations</h2>
+            <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Plus size={16} />
               Add Organization
             </button>
           </div>
           
           {(organizations?.length || 0) === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Building2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">No organizations yet</p>
-              <p className="text-sm mt-1">Create your first organization to get started</p>
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+              <Building2 size={64} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+              <p style={{ fontSize: '1.125rem', fontWeight: 500 }}>No organizations yet</p>
+              <p style={{ fontSize: '0.875rem' }}>Create your first organization to get started</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
                 <thead>
-                  <tr className="text-left text-sm text-gray-500 border-b">
-                    <th className="pb-3 font-medium">Name</th>
-                    <th className="pb-3 font-medium">Slug</th>
-                    <th className="pb-3 font-medium">Plan</th>
-                    <th className="pb-3 font-medium">MFA Required</th>
-                    <th className="pb-3 font-medium">Status</th>
+                  <tr>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Plan</th>
+                    <th>MFA Required</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
-                <tbody className="text-sm">
-                  {organizations?.map((org: any) => (
-                    <tr key={org.id} className="border-b border-gray-50">
-                      <td className="py-3 font-medium text-gray-900">{org.name}</td>
-                      <td className="py-3 text-gray-600">{org.slug}</td>
-                      <td className="py-3">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                          {org.subscription_plan}
-                        </span>
+                <tbody>
+                  {organizations?.map((org) => (
+                    <tr key={org.id}>
+                      <td style={{ fontWeight: 500 }}>{org.name}</td>
+                      <td style={{ color: '#94a3b8' }}>{org.slug}</td>
+                      <td>
+                        <span className="badge badge-info">{org.subscription_plan}</span>
                       </td>
-                      <td className="py-3">{org.mfa_required ? 'Yes' : 'No'}</td>
-                      <td className="py-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          org.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                        }`}>
+                      <td>{org.mfa_required ? 'Yes' : 'No'}</td>
+                      <td>
+                        <span className={`badge badge-${org.is_active ? 'success' : 'secondary'}`}>
                           {org.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -128,54 +172,54 @@ export default function Admin() {
       )}
 
       {activeTab === 'users' && (
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Users</h2>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Users</h2>
+            <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Plus size={16} />
               Add User
             </button>
           </div>
           
           {(users?.length || 0) === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">No users yet</p>
-              <p className="text-sm mt-1">Add users to your organization</p>
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+              <User size={64} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+              <p style={{ fontSize: '1.125rem', fontWeight: 500 }}>No users yet</p>
+              <p style={{ fontSize: '0.875rem' }}>Add users to your organization</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
                 <thead>
-                  <tr className="text-left text-sm text-gray-500 border-b">
-                    <th className="pb-3 font-medium">Email</th>
-                    <th className="pb-3 font-medium">Name</th>
-                    <th className="pb-3 font-medium">Role</th>
-                    <th className="pb-3 font-medium">MFA</th>
-                    <th className="pb-3 font-medium">Last Login</th>
-                    <th className="pb-3 font-medium">Status</th>
+                  <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>MFA</th>
+                    <th>Last Login</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
-                <tbody className="text-sm">
-                  {users?.map((user: any) => (
-                    <tr key={user.id} className="border-b border-gray-50">
-                      <td className="py-3 font-medium text-gray-900">{user.email}</td>
-                      <td className="py-3 text-gray-600">{user.first_name} {user.last_name}</td>
-                      <td className="py-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          user.role === 'super_admin' ? 'bg-red-100 text-red-700' :
-                          user.role === 'org_admin' ? 'bg-purple-100 text-purple-700' :
-                          user.role === 'site_manager' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
+                <tbody>
+                  {users?.map((user) => (
+                    <tr key={user.id}>
+                      <td style={{ fontWeight: 500 }}>{user.email}</td>
+                      <td style={{ color: '#94a3b8' }}>{user.first_name} {user.last_name}</td>
+                      <td>
+                        <span className={`badge badge-${
+                          user.role === 'super_admin' ? 'danger' :
+                          user.role === 'org_admin' ? 'warning' :
+                          user.role === 'site_manager' ? 'info' : 'secondary'
                         }`}>
-                          {user.role}
+                          {user.role.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="py-3">{user.mfa_enabled ? '✓' : '-'}</td>
-                      <td className="py-3 text-gray-500">{user.last_login_at || 'Never'}</td>
-                      <td className="py-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          user.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                        }`}>
+                      <td>{user.mfa_enabled ? '✓' : '-'}</td>
+                      <td style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                        {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : 'Never'}
+                      </td>
+                      <td>
+                        <span className={`badge badge-${user.is_active ? 'success' : 'secondary'}`}>
                           {user.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -189,44 +233,47 @@ export default function Admin() {
       )}
 
       {activeTab === 'audit' && (
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Audit Logs</h2>
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Audit Logs</h2>
+          </div>
           
           {(auditLogs?.length || 0) === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">No audit logs yet</p>
-              <p className="text-sm mt-1">Actions will be logged here automatically</p>
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+              <FileText size={64} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+              <p style={{ fontSize: '1.125rem', fontWeight: 500 }}>No audit logs yet</p>
+              <p style={{ fontSize: '0.875rem' }}>Actions will be logged here automatically</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
                 <thead>
-                  <tr className="text-left text-sm text-gray-500 border-b">
-                    <th className="pb-3 font-medium">Timestamp</th>
-                    <th className="pb-3 font-medium">Action</th>
-                    <th className="pb-3 font-medium">Entity</th>
-                    <th className="pb-3 font-medium">User</th>
-                    <th className="pb-3 font-medium">IP Address</th>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>User</th>
+                    <th>IP Address</th>
                   </tr>
                 </thead>
-                <tbody className="text-sm">
-                  {auditLogs?.map((log: any) => (
-                    <tr key={log.id} className="border-b border-gray-50">
-                      <td className="py-3 text-gray-600">{new Date(log.created_at).toLocaleString()}</td>
-                      <td className="py-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          log.action === 'create' ? 'bg-green-100 text-green-700' :
-                          log.action === 'update' ? 'bg-blue-100 text-blue-700' :
-                          log.action === 'delete' ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'
+                <tbody>
+                  {auditLogs?.map((log) => (
+                    <tr key={log.id}>
+                      <td style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+                        {new Date(log.created_at).toLocaleString()}
+                      </td>
+                      <td>
+                        <span className={`badge badge-${
+                          log.action === 'create' ? 'success' :
+                          log.action === 'update' ? 'info' :
+                          log.action === 'delete' ? 'danger' : 'secondary'
                         }`}>
                           {log.action}
                         </span>
                       </td>
-                      <td className="py-3 text-gray-600">{log.entity_type} #{log.entity_id}</td>
-                      <td className="py-3 text-gray-600">User #{log.user_id || '-'}</td>
-                      <td className="py-3 text-gray-500">{log.ip_address || '-'}</td>
+                      <td style={{ color: '#94a3b8' }}>{log.entity_type} #{log.entity_id}</td>
+                      <td style={{ color: '#94a3b8' }}>User #{log.user_id || '-'}</td>
+                      <td style={{ color: '#64748b', fontSize: '0.875rem' }}>{log.ip_address || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -237,52 +284,54 @@ export default function Admin() {
       )}
 
       {activeTab === 'periods' && (
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Period Locks</h2>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Period Locks</h2>
+            <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Plus size={16} />
               Create Period Lock
             </button>
           </div>
           
           {(periodLocks?.length || 0) === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Lock className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">No period locks</p>
-              <p className="text-sm mt-1">Lock billing periods to prevent edits to historical data</p>
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+              <Lock size={64} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+              <p style={{ fontSize: '1.125rem', fontWeight: 500 }}>No period locks</p>
+              <p style={{ fontSize: '0.875rem' }}>Lock billing periods to prevent edits to historical data</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
                 <thead>
-                  <tr className="text-left text-sm text-gray-500 border-b">
-                    <th className="pb-3 font-medium">Period Type</th>
-                    <th className="pb-3 font-medium">Start</th>
-                    <th className="pb-3 font-medium">End</th>
-                    <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium">Locked At</th>
-                    <th className="pb-3 font-medium">Actions</th>
+                  <tr>
+                    <th>Period Type</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Status</th>
+                    <th>Locked At</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="text-sm">
-                  {periodLocks?.map((lock: any) => (
-                    <tr key={lock.id} className="border-b border-gray-50">
-                      <td className="py-3 font-medium text-gray-900">{lock.period_type}</td>
-                      <td className="py-3 text-gray-600">{lock.period_start}</td>
-                      <td className="py-3 text-gray-600">{lock.period_end}</td>
-                      <td className="py-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          lock.status === 'locked' ? 'bg-red-100 text-red-700' :
-                          lock.status === 'closed' ? 'bg-gray-100 text-gray-700' :
-                          'bg-green-100 text-green-700'
+                <tbody>
+                  {periodLocks?.map((lock) => (
+                    <tr key={lock.id}>
+                      <td style={{ fontWeight: 500 }}>{lock.period_type}</td>
+                      <td style={{ color: '#94a3b8' }}>{lock.period_start}</td>
+                      <td style={{ color: '#94a3b8' }}>{lock.period_end}</td>
+                      <td>
+                        <span className={`badge badge-${
+                          lock.status === 'locked' ? 'danger' :
+                          lock.status === 'closed' ? 'secondary' : 'success'
                         }`}>
                           {lock.status}
                         </span>
                       </td>
-                      <td className="py-3 text-gray-500">{lock.locked_at || '-'}</td>
-                      <td className="py-3">
+                      <td style={{ color: '#64748b', fontSize: '0.875rem' }}>{lock.locked_at || '-'}</td>
+                      <td>
                         {lock.status === 'open' && (
-                          <button className="text-red-600 hover:text-red-800 text-sm">Lock</button>
+                          <button className="btn btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                            Lock
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -294,5 +343,5 @@ export default function Admin() {
         </div>
       )}
     </div>
-  );
+  )
 }

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { FileText, Download, FileSpreadsheet, Building2, Gauge, Receipt, BarChart3 } from 'lucide-react'
+import { FileText, Download, FileSpreadsheet, Building2, Gauge, Receipt, BarChart3, Sun, Zap } from 'lucide-react'
 
 export default function Reports({ currentSite }: { currentSite: number | null }) {
   const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
@@ -48,6 +48,24 @@ export default function Reports({ currentSite }: { currentSite: number | null })
     color: '#ef4444',
     url: api.reports.energyAnalysisUrl(site.id),
     filename: `energy_analysis_${site.id}.pdf`
+  })) || []
+
+  const pvGenerationReports = sites?.map(site => ({
+    title: `${site.name} - PV Generation`,
+    description: 'Solar production, capacity factor, and performance ratio',
+    icon: Sun,
+    color: '#f59e0b',
+    url: `/api/v1/reports/pv-generation/${site.id}`,
+    filename: `pv_generation_${site.id}.pdf`
+  })) || []
+
+  const gridExportReports = sites?.map(site => ({
+    title: `${site.name} - Grid Export`,
+    description: 'Energy sold to grid, feed-in revenue, and export summary',
+    icon: Zap,
+    color: '#10b981',
+    url: `/api/v1/reports/grid-export/${site.id}`,
+    filename: `grid_export_${site.id}.pdf`
   })) || []
 
   const handleDownload = (url: string, filename: string) => {
@@ -162,7 +180,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
         )}
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div className="card-header">
           <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <BarChart3 size={20} color="#ef4444" />
@@ -172,6 +190,98 @@ export default function Reports({ currentSite }: { currentSite: number | null })
         {energyReports.length > 0 ? (
           <div className="grid grid-2" style={{ gap: '1rem' }}>
             {energyReports.map((report) => (
+              <div 
+                key={report.title} 
+                style={{ 
+                  padding: '1rem', 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <report.icon size={24} color={report.color} />
+                  <div>
+                    <div style={{ fontWeight: '500' }}>{report.title}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{report.description}</div>
+                  </div>
+                </div>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => handleDownload(report.url, report.filename)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                >
+                  <Download size={14} />
+                  PDF
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
+            No sites available. Create a site first to generate reports.
+          </p>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div className="card-header">
+          <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sun size={20} color="#f59e0b" />
+            Power Generation Reports (PDF)
+          </h2>
+        </div>
+        {pvGenerationReports.length > 0 ? (
+          <div className="grid grid-2" style={{ gap: '1rem' }}>
+            {pvGenerationReports.map((report) => (
+              <div 
+                key={report.title} 
+                style={{ 
+                  padding: '1rem', 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <report.icon size={24} color={report.color} />
+                  <div>
+                    <div style={{ fontWeight: '500' }}>{report.title}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{report.description}</div>
+                  </div>
+                </div>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => handleDownload(report.url, report.filename)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                >
+                  <Download size={14} />
+                  PDF
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
+            No sites available. Create a site first to generate reports.
+          </p>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Zap size={20} color="#10b981" />
+            Grid Export Reports (PDF)
+          </h2>
+        </div>
+        {gridExportReports.length > 0 ? (
+          <div className="grid grid-2" style={{ gap: '1rem' }}>
+            {gridExportReports.map((report) => (
               <div 
                 key={report.title} 
                 style={{ 
