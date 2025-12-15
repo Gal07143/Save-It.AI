@@ -176,6 +176,74 @@ export const api = {
       }),
     get: (jobId: number) => fetchApi<ForecastResponse>(`/forecasts/${jobId}`),
   },
+  bessVendors: {
+    list: () => fetchApi<BESSVendor[]>('/bess/vendors'),
+    get: (id: number) => fetchApi<BESSVendor>(`/bess/vendors/${id}`),
+  },
+  bessModels: {
+    list: (filters?: { vendorId?: number; chemistry?: string; minCapacity?: number; maxCapacity?: number }) => {
+      const params = new URLSearchParams()
+      if (filters?.vendorId) params.append('vendor_id', String(filters.vendorId))
+      if (filters?.chemistry) params.append('chemistry', filters.chemistry)
+      if (filters?.minCapacity) params.append('min_capacity_kwh', String(filters.minCapacity))
+      if (filters?.maxCapacity) params.append('max_capacity_kwh', String(filters.maxCapacity))
+      const query = params.toString()
+      return fetchApi<BESSModel[]>(`/bess/models${query ? `?${query}` : ''}`)
+    },
+    get: (id: number) => fetchApi<BESSModel>(`/bess/models/${id}`),
+  },
+  bessDatasets: {
+    list: (siteId?: number) => fetchApi<BESSDataset[]>(`/bess/datasets${siteId ? `?site_id=${siteId}` : ''}`),
+    get: (id: number) => fetchApi<BESSDataset>(`/bess/datasets/${id}`),
+    create: (data: Partial<BESSDataset>) => fetchApi<BESSDataset>('/bess/datasets', { method: 'POST', body: JSON.stringify(data) }),
+    uploadCsv: async (datasetId: number, file: File, options?: { timestampColumn?: string; demandColumn?: string }) => {
+      const token = getAuthToken()
+      const formData = new FormData()
+      formData.append('file', file)
+      if (options?.timestampColumn) formData.append('timestamp_column', options.timestampColumn)
+      if (options?.demandColumn) formData.append('demand_column', options.demandColumn)
+      
+      const headers: HeadersInit = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      
+      const response = await fetch(`${API_BASE}/bess/datasets/${datasetId}/upload-csv`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Upload failed' }))
+        throw new Error(error.detail || 'Upload failed')
+      }
+      return response.json()
+    },
+  },
+  bessRecommendations: {
+    get: (data: BESSRecommendationRequest) => 
+      fetchApi<BESSRecommendation[]>('/bess/recommendations', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  pvModules: {
+    list: (filters?: { manufacturer?: string; minPower?: number; maxPower?: number }) => {
+      const params = new URLSearchParams()
+      if (filters?.manufacturer) params.append('manufacturer', filters.manufacturer)
+      if (filters?.minPower) params.append('min_power_w', String(filters.minPower))
+      if (filters?.maxPower) params.append('max_power_w', String(filters.maxPower))
+      const query = params.toString()
+      return fetchApi<PVModule[]>(`/pv/modules${query ? `?${query}` : ''}`)
+    },
+  },
+  pvAssessments: {
+    list: (siteId?: number) => fetchApi<PVAssessment[]>(`/pv/assessments${siteId ? `?site_id=${siteId}` : ''}`),
+    get: (id: number) => fetchApi<PVAssessment>(`/pv/assessments/${id}`),
+    create: (data: PVAssessmentCreate) => fetchApi<PVAssessment>('/pv/assessments', { method: 'POST', body: JSON.stringify(data) }),
+    addSurface: (assessmentId: number, data: PVSurfaceCreate) => 
+      fetchApi<PVSurface>(`/pv/assessments/${assessmentId}/surfaces`, { method: 'POST', body: JSON.stringify(data) }),
+    getScenarios: (assessmentId: number) => fetchApi<PVDesignScenario[]>(`/pv/assessments/${assessmentId}/scenarios`),
+  },
+  pvDesign: {
+    calculate: (data: PVDesignRequest) => fetchApi<PVDesignScenario>('/pv/design', { method: 'POST', body: JSON.stringify(data) }),
+  },
 }
 
 export interface TokenResponse {
@@ -498,4 +566,175 @@ export interface ForecastPoint {
   lower_bound?: number
   upper_bound?: number
   confidence?: number
+}
+
+export interface BESSVendor {
+  id: number
+  name: string
+  country?: string
+  website?: string
+  description?: string
+  logo_url?: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface BESSModel {
+  id: number
+  vendor_id: number
+  model_name: string
+  model_number?: string
+  chemistry: string
+  capacity_kwh: number
+  power_rating_kw: number
+  voltage_nominal?: number
+  round_trip_efficiency: number
+  depth_of_discharge: number
+  cycle_life: number
+  warranty_years: number
+  dimensions_cm?: string
+  weight_kg?: number
+  price_usd?: number
+  price_per_kwh?: number
+  is_active: boolean
+  created_at: string
+  vendor?: BESSVendor
+}
+
+export interface BESSDataset {
+  id: number
+  site_id: number
+  name: string
+  description?: string
+  interval_minutes: number
+  start_date?: string
+  end_date?: string
+  total_records: number
+  total_consumption_kwh: number
+  peak_demand_kw?: number
+  avg_demand_kw?: number
+  file_name?: string
+  upload_status: string
+  created_at: string
+}
+
+export interface BESSRecommendationRequest {
+  site_id: number
+  dataset_id?: number
+  budget_min?: number
+  budget_max?: number
+  target_peak_reduction_percent?: number
+  preferred_chemistry?: string
+}
+
+export interface BESSRecommendation {
+  model_id: number
+  vendor_name: string
+  model_name: string
+  capacity_kwh: number
+  power_rating_kw: number
+  estimated_price?: number
+  estimated_annual_savings: number
+  estimated_payback_years: number
+  fit_score: number
+  reasoning: string
+}
+
+export interface PVModule {
+  id: number
+  manufacturer: string
+  model_name: string
+  power_rating_w: number
+  efficiency_percent: number
+  width_mm: number
+  height_mm: number
+  weight_kg?: number
+  cell_type: string
+  warranty_years: number
+  price_usd?: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface PVSurfaceCreate {
+  name: string
+  surface_type?: string
+  area_sqm: number
+  usable_area_sqm?: number
+  tilt_degrees?: number
+  azimuth_degrees?: number
+  shading_percent?: number
+  notes?: string
+}
+
+export interface PVSurface {
+  id: number
+  assessment_id: number
+  name: string
+  surface_type: string
+  area_sqm: number
+  usable_area_sqm?: number
+  tilt_degrees: number
+  azimuth_degrees: number
+  shading_percent: number
+  max_capacity_kw?: number
+  created_at: string
+}
+
+export interface PVAssessmentCreate {
+  site_id: number
+  name: string
+  latitude?: number
+  longitude?: number
+  notes?: string
+  surfaces?: PVSurfaceCreate[]
+}
+
+export interface PVAssessment {
+  id: number
+  site_id: number
+  name: string
+  assessment_date: string
+  latitude?: number
+  longitude?: number
+  annual_irradiance_kwh_m2?: number
+  avg_peak_sun_hours?: number
+  shading_factor: number
+  status: string
+  surfaces: PVSurface[]
+  created_at: string
+}
+
+export interface PVDesignRequest {
+  assessment_id: number
+  module_id?: number
+  target_capacity_kw?: number
+  max_panels?: number
+  electricity_rate?: number
+  export_rate?: number
+  self_consumption_percent?: number
+  capex_per_kw?: number
+  analysis_years?: number
+  discount_rate?: number
+}
+
+export interface PVDesignScenario {
+  id: number
+  assessment_id: number
+  module_id?: number
+  name: string
+  system_capacity_kw: number
+  num_panels: number
+  annual_production_kwh?: number
+  capacity_factor?: number
+  self_consumption_percent: number
+  export_percent: number
+  total_capex?: number
+  annual_savings?: number
+  npv?: number
+  irr?: number
+  payback_years?: number
+  lcoe?: number
+  co2_avoided_tons?: number
+  created_at: string
 }

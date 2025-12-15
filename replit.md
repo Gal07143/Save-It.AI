@@ -88,6 +88,20 @@ Base URL: `/api/v1`
 - Billing: `/tenants/{id}/generate-invoice`, `/invoices`
 - Integrations: `/data-sources` - Data source management
 
+### BESS Simulator APIs (Enhanced)
+- BESS Vendors: `/bess/vendors` - Vendor catalog (Tesla, BYD, LG, Samsung, CATL, Fluence)
+- BESS Models: `/bess/models` - Model specifications with filtering by vendor, chemistry, capacity
+- BESS Datasets: `/bess/datasets` - Create/list interval datasets for simulation
+- BESS CSV Upload: `/bess/datasets/{id}/upload-csv` - Upload 365-day interval data (30-min resolution)
+- BESS Recommendations: `/bess/recommendations` - Get equipment recommendations based on site requirements
+
+### PV Design APIs
+- PV Modules: `/pv/modules` - Module catalog (JinkoSolar, Canadian Solar, LONGi, Trina, SunPower, etc.)
+- PV Assessments: `/pv/assessments` - Create/manage site PV assessments
+- PV Surfaces: `/pv/assessments/{id}/surfaces` - Add roof/ground surfaces to assessments
+- PV Design: `/pv/design` - Calculate system design with ROI projections (NPV, IRR, LCOE)
+- PV Scenarios: `/pv/assessments/{id}/scenarios` - List design scenarios for an assessment
+
 ### Platform Foundation APIs (Phase 1)
 - Organizations: `/organizations` - Multi-tenant organization management
 - Users: `/users` - User CRUD with RBAC roles
@@ -130,6 +144,20 @@ Base URL: `/api/v1`
 - Site -> DataSources (1:N)
 - DataSource -> Measurements (1:N)
 - Site -> BatterySpecs (1:N)
+
+### BESS Simulator Models
+- BESSVendor -> BESSModels (1:N)
+- Site -> BESSDatasets (1:N)
+- BESSDataset -> BESSDataReadings (1:N)
+- Site -> BESSSimulationResults (1:N)
+
+### PV Design Models
+- Site -> PVAssessments (1:N)
+- PVAssessment -> PVSurfaces (1:N)
+- PVAssessment -> PVDesignScenarios (1:N)
+- Site -> SiteMaps (1:N)
+- SiteMap -> PlacementZones (1:N)
+- PVModuleCatalog (standalone reference table)
 
 ### Platform Foundation Models (Phase 1)
 - Organization -> Users (1:N)

@@ -498,6 +498,246 @@ class BatterySpecs(Base):
 
 
 # ============================================================================
+# BESS SIMULATOR MODELS (Enhanced)
+# ============================================================================
+
+class BESSVendor(Base):
+    """BESS Vendor catalog for equipment recommendations."""
+    __tablename__ = "bess_vendors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    country = Column(String(100), nullable=True)
+    website = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
+    logo_url = Column(String(500), nullable=True)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    models = relationship("BESSModel", back_populates="vendor", cascade="all, delete-orphan")
+
+
+class BESSModel(Base):
+    """BESS Model specifications from vendors."""
+    __tablename__ = "bess_models"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_id = Column(Integer, ForeignKey("bess_vendors.id"), nullable=False, index=True)
+    model_name = Column(String(255), nullable=False)
+    model_number = Column(String(100), nullable=True)
+    chemistry = Column(String(100), default="LFP")
+    capacity_kwh = Column(Float, nullable=False)
+    power_rating_kw = Column(Float, nullable=False)
+    voltage_nominal = Column(Float, nullable=True)
+    round_trip_efficiency = Column(Float, default=0.92)
+    depth_of_discharge = Column(Float, default=0.90)
+    cycle_life = Column(Integer, default=6000)
+    warranty_years = Column(Integer, default=10)
+    dimensions_cm = Column(String(100), nullable=True)
+    weight_kg = Column(Float, nullable=True)
+    operating_temp_min = Column(Float, default=-20)
+    operating_temp_max = Column(Float, default=50)
+    price_usd = Column(Float, nullable=True)
+    price_per_kwh = Column(Float, nullable=True)
+    datasheet_url = Column(String(500), nullable=True)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    vendor = relationship("BESSVendor", back_populates="models")
+
+
+class BESSDataset(Base):
+    """BESS Dataset for uploaded interval load data."""
+    __tablename__ = "bess_datasets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    interval_minutes = Column(Integer, default=30)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    total_records = Column(Integer, default=0)
+    total_consumption_kwh = Column(Float, default=0)
+    peak_demand_kw = Column(Float, nullable=True)
+    avg_demand_kw = Column(Float, nullable=True)
+    file_name = Column(String(255), nullable=True)
+    upload_status = Column(String(50), default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    readings = relationship("BESSDataReading", back_populates="dataset", cascade="all, delete-orphan")
+
+
+class BESSDataReading(Base):
+    """Individual interval readings for BESS simulation."""
+    __tablename__ = "bess_data_readings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dataset_id = Column(Integer, ForeignKey("bess_datasets.id"), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    demand_kw = Column(Float, nullable=False)
+    energy_kwh = Column(Float, nullable=True)
+    tariff_period = Column(String(20), default="standard")
+    rate_per_kwh = Column(Float, nullable=True)
+
+    dataset = relationship("BESSDataset", back_populates="readings")
+
+
+class BESSSimulationResult(Base):
+    """Stored results from BESS simulation runs."""
+    __tablename__ = "bess_simulation_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    dataset_id = Column(Integer, ForeignKey("bess_datasets.id"), nullable=True, index=True)
+    bess_model_id = Column(Integer, ForeignKey("bess_models.id"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    battery_capacity_kwh = Column(Float, nullable=False)
+    battery_power_kw = Column(Float, nullable=False)
+    annual_savings = Column(Float, nullable=False)
+    peak_shaving_savings = Column(Float, default=0)
+    arbitrage_savings = Column(Float, default=0)
+    npv = Column(Float, nullable=True)
+    irr = Column(Float, nullable=True)
+    payback_years = Column(Float, nullable=True)
+    capex = Column(Float, nullable=True)
+    simulation_data_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================================
+# PV DESIGN MODELS
+# ============================================================================
+
+class PVModuleCatalog(Base):
+    """PV Module catalog for system design."""
+    __tablename__ = "pv_module_catalog"
+
+    id = Column(Integer, primary_key=True, index=True)
+    manufacturer = Column(String(255), nullable=False, index=True)
+    model_name = Column(String(255), nullable=False)
+    power_rating_w = Column(Float, nullable=False)
+    efficiency_percent = Column(Float, nullable=False)
+    width_mm = Column(Float, nullable=False)
+    height_mm = Column(Float, nullable=False)
+    weight_kg = Column(Float, nullable=True)
+    cell_type = Column(String(100), default="Monocrystalline")
+    temp_coefficient = Column(Float, default=-0.35)
+    warranty_years = Column(Integer, default=25)
+    price_usd = Column(Float, nullable=True)
+    datasheet_url = Column(String(500), nullable=True)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PVAssessment(Base):
+    """PV Assessment for a site - stores roof/area analysis."""
+    __tablename__ = "pv_assessments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    assessment_date = Column(Date, default=date.today)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    annual_irradiance_kwh_m2 = Column(Float, nullable=True)
+    avg_peak_sun_hours = Column(Float, nullable=True)
+    shading_factor = Column(Float, default=1.0)
+    notes = Column(Text, nullable=True)
+    status = Column(String(50), default="draft")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    surfaces = relationship("PVSurface", back_populates="assessment", cascade="all, delete-orphan")
+    scenarios = relationship("PVDesignScenario", back_populates="assessment", cascade="all, delete-orphan")
+
+
+class PVSurface(Base):
+    """Rooftop or ground surface for PV installation."""
+    __tablename__ = "pv_surfaces"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assessment_id = Column(Integer, ForeignKey("pv_assessments.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    surface_type = Column(String(50), default="rooftop")
+    area_sqm = Column(Float, nullable=False)
+    usable_area_sqm = Column(Float, nullable=True)
+    tilt_degrees = Column(Float, default=15)
+    azimuth_degrees = Column(Float, default=180)
+    shading_percent = Column(Float, default=0)
+    max_capacity_kw = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    assessment = relationship("PVAssessment", back_populates="surfaces")
+
+
+class PVDesignScenario(Base):
+    """PV Design scenario with calculated outputs."""
+    __tablename__ = "pv_design_scenarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assessment_id = Column(Integer, ForeignKey("pv_assessments.id"), nullable=False, index=True)
+    module_id = Column(Integer, ForeignKey("pv_module_catalog.id"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    system_capacity_kw = Column(Float, nullable=False)
+    num_panels = Column(Integer, nullable=False)
+    annual_production_kwh = Column(Float, nullable=True)
+    capacity_factor = Column(Float, nullable=True)
+    self_consumption_percent = Column(Float, default=80)
+    export_percent = Column(Float, default=20)
+    total_capex = Column(Float, nullable=True)
+    annual_savings = Column(Float, nullable=True)
+    npv = Column(Float, nullable=True)
+    irr = Column(Float, nullable=True)
+    payback_years = Column(Float, nullable=True)
+    lcoe = Column(Float, nullable=True)
+    co2_avoided_tons = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    assessment = relationship("PVAssessment", back_populates="scenarios")
+
+
+class SiteMap(Base):
+    """Uploaded site maps for placement visualization."""
+    __tablename__ = "site_maps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_type = Column(String(50), default="image")
+    width_px = Column(Integer, nullable=True)
+    height_px = Column(Integer, nullable=True)
+    scale_m_per_px = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    zones = relationship("PlacementZone", back_populates="site_map", cascade="all, delete-orphan")
+
+
+class PlacementZone(Base):
+    """Zones marked on site maps for equipment placement."""
+    __tablename__ = "placement_zones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_map_id = Column(Integer, ForeignKey("site_maps.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    zone_type = Column(String(50), default="battery")
+    polygon_coords = Column(Text, nullable=True)
+    area_sqm = Column(Float, nullable=True)
+    max_weight_kg = Column(Float, nullable=True)
+    has_ventilation = Column(Integer, default=0)
+    has_fire_suppression = Column(Integer, default=0)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    site_map = relationship("SiteMap", back_populates="zones")
+
+
+# ============================================================================
 # PLATFORM FOUNDATION MODELS (Phase 1)
 # ============================================================================
 
@@ -1607,6 +1847,251 @@ class BESSSimulationResult(BaseModel):
     monthly_peak_reduction: List[float]
 
 
+# ============================================================================
+# BESS SIMULATOR SCHEMAS (Enhanced)
+# ============================================================================
+
+class BESSVendorResponse(BaseModel):
+    """Response schema for BESS vendor."""
+    id: int
+    name: str
+    country: Optional[str] = None
+    website: Optional[str] = None
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BESSModelResponse(BaseModel):
+    """Response schema for BESS model."""
+    id: int
+    vendor_id: int
+    model_name: str
+    model_number: Optional[str] = None
+    chemistry: str
+    capacity_kwh: float
+    power_rating_kw: float
+    voltage_nominal: Optional[float] = None
+    round_trip_efficiency: float
+    depth_of_discharge: float
+    cycle_life: int
+    warranty_years: int
+    dimensions_cm: Optional[str] = None
+    weight_kg: Optional[float] = None
+    price_usd: Optional[float] = None
+    price_per_kwh: Optional[float] = None
+    is_active: bool
+    created_at: datetime
+    vendor: Optional[BESSVendorResponse] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BESSDatasetCreate(BaseModel):
+    """Schema for creating a BESS dataset."""
+    site_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    interval_minutes: int = 30
+
+
+class BESSDatasetResponse(BaseModel):
+    """Response schema for BESS dataset."""
+    id: int
+    site_id: int
+    name: str
+    description: Optional[str] = None
+    interval_minutes: int
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    total_records: int
+    total_consumption_kwh: float
+    peak_demand_kw: Optional[float] = None
+    avg_demand_kw: Optional[float] = None
+    file_name: Optional[str] = None
+    upload_status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BESSDataUploadRequest(BaseModel):
+    """Request for uploading interval data."""
+    dataset_id: int
+    timestamp_column: str = "timestamp"
+    demand_column: str = "demand_kw"
+    energy_column: Optional[str] = None
+    date_format: str = "%Y-%m-%d %H:%M:%S"
+
+
+class BESSRecommendationRequest(BaseModel):
+    """Request for getting BESS recommendations."""
+    site_id: int
+    dataset_id: Optional[int] = None
+    budget_min: Optional[float] = None
+    budget_max: Optional[float] = None
+    target_peak_reduction_percent: Optional[float] = 20
+    preferred_chemistry: Optional[str] = None
+
+
+class BESSRecommendation(BaseModel):
+    """A single BESS recommendation."""
+    model_id: int
+    vendor_name: str
+    model_name: str
+    capacity_kwh: float
+    power_rating_kw: float
+    estimated_price: Optional[float] = None
+    estimated_annual_savings: float
+    estimated_payback_years: float
+    fit_score: float
+    reasoning: str
+
+
+# ============================================================================
+# PV DESIGN SCHEMAS
+# ============================================================================
+
+class PVModuleResponse(BaseModel):
+    """Response schema for PV module catalog."""
+    id: int
+    manufacturer: str
+    model_name: str
+    power_rating_w: float
+    efficiency_percent: float
+    width_mm: float
+    height_mm: float
+    weight_kg: Optional[float] = None
+    cell_type: str
+    warranty_years: int
+    price_usd: Optional[float] = None
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PVSurfaceCreate(BaseModel):
+    """Schema for creating a PV surface."""
+    name: str = Field(..., min_length=1, max_length=255)
+    surface_type: str = "rooftop"
+    area_sqm: float = Field(..., gt=0)
+    usable_area_sqm: Optional[float] = None
+    tilt_degrees: float = 15
+    azimuth_degrees: float = 180
+    shading_percent: float = 0
+    notes: Optional[str] = None
+
+
+class PVSurfaceResponse(BaseModel):
+    """Response schema for PV surface."""
+    id: int
+    assessment_id: int
+    name: str
+    surface_type: str
+    area_sqm: float
+    usable_area_sqm: Optional[float] = None
+    tilt_degrees: float
+    azimuth_degrees: float
+    shading_percent: float
+    max_capacity_kw: Optional[float] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PVAssessmentCreate(BaseModel):
+    """Schema for creating a PV assessment."""
+    site_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    notes: Optional[str] = None
+    surfaces: Optional[List[PVSurfaceCreate]] = None
+
+
+class PVAssessmentResponse(BaseModel):
+    """Response schema for PV assessment."""
+    id: int
+    site_id: int
+    name: str
+    assessment_date: date
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    annual_irradiance_kwh_m2: Optional[float] = None
+    avg_peak_sun_hours: Optional[float] = None
+    shading_factor: float
+    status: str
+    surfaces: List[PVSurfaceResponse] = []
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PVDesignRequest(BaseModel):
+    """Request for PV system design calculation."""
+    assessment_id: int
+    module_id: Optional[int] = None
+    target_capacity_kw: Optional[float] = None
+    max_panels: Optional[int] = None
+    electricity_rate: float = 0.12
+    export_rate: float = 0.05
+    self_consumption_percent: float = 80
+    capex_per_kw: float = 1000
+    analysis_years: int = 25
+    discount_rate: float = 0.06
+
+
+class PVDesignScenarioResponse(BaseModel):
+    """Response schema for PV design scenario."""
+    id: int
+    assessment_id: int
+    module_id: Optional[int] = None
+    name: str
+    system_capacity_kw: float
+    num_panels: int
+    annual_production_kwh: Optional[float] = None
+    capacity_factor: Optional[float] = None
+    self_consumption_percent: float
+    export_percent: float
+    total_capex: Optional[float] = None
+    annual_savings: Optional[float] = None
+    npv: Optional[float] = None
+    irr: Optional[float] = None
+    payback_years: Optional[float] = None
+    lcoe: Optional[float] = None
+    co2_avoided_tons: Optional[float] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SiteMapCreate(BaseModel):
+    """Schema for creating a site map."""
+    site_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    notes: Optional[str] = None
+
+
+class SiteMapResponse(BaseModel):
+    """Response schema for site map."""
+    id: int
+    site_id: int
+    name: str
+    file_name: str
+    file_path: str
+    file_type: str
+    width_px: Optional[int] = None
+    height_px: Optional[int] = None
+    scale_m_per_px: Optional[float] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DataSourceCreate(BaseModel):
     """Schema for creating a data source."""
     site_id: int
@@ -2088,6 +2573,89 @@ class PVSizingResponse(BaseModel):
 def init_db():
     """Initialize database tables."""
     Base.metadata.create_all(bind=engine)
+
+
+def seed_bess_catalog():
+    """Seed BESS vendor and model catalog with sample data."""
+    db = SessionLocal()
+    try:
+        existing = db.query(BESSVendor).first()
+        if existing:
+            return
+        
+        vendors_data = [
+            {"name": "Tesla Energy", "country": "USA", "website": "https://www.tesla.com/powerwall", "description": "Leading EV and energy storage manufacturer"},
+            {"name": "BYD", "country": "China", "website": "https://www.byd.com", "description": "Build Your Dreams - Global leader in batteries and EVs"},
+            {"name": "LG Energy Solution", "country": "South Korea", "website": "https://www.lgensol.com", "description": "Premium lithium-ion battery solutions"},
+            {"name": "Samsung SDI", "country": "South Korea", "website": "https://www.samsungsdi.com", "description": "Advanced energy storage solutions"},
+            {"name": "CATL", "country": "China", "website": "https://www.catl.com", "description": "Contemporary Amperex Technology - World's largest battery manufacturer"},
+            {"name": "Fluence", "country": "USA", "website": "https://fluenceenergy.com", "description": "Joint venture of Siemens and AES - utility-scale storage"},
+        ]
+        
+        vendor_objs = []
+        for v in vendors_data:
+            vendor = BESSVendor(**v)
+            db.add(vendor)
+            vendor_objs.append(vendor)
+        db.commit()
+        
+        models_data = [
+            {"vendor_idx": 0, "model_name": "Powerwall 3", "model_number": "PW3", "chemistry": "LFP", "capacity_kwh": 13.5, "power_rating_kw": 11.5, "round_trip_efficiency": 0.90, "cycle_life": 5000, "warranty_years": 10, "price_usd": 8500, "price_per_kwh": 630},
+            {"vendor_idx": 0, "model_name": "Megapack 2XL", "model_number": "MP2XL", "chemistry": "LFP", "capacity_kwh": 4000, "power_rating_kw": 2000, "round_trip_efficiency": 0.92, "cycle_life": 6000, "warranty_years": 15, "price_usd": 1600000, "price_per_kwh": 400},
+            {"vendor_idx": 1, "model_name": "Battery-Box Premium HVS", "model_number": "HVS-10.2", "chemistry": "LFP", "capacity_kwh": 10.2, "power_rating_kw": 10.0, "round_trip_efficiency": 0.96, "cycle_life": 8000, "warranty_years": 10, "price_usd": 7500, "price_per_kwh": 735},
+            {"vendor_idx": 1, "model_name": "BYD MC Cube-T", "model_number": "MCT-2900", "chemistry": "LFP", "capacity_kwh": 2900, "power_rating_kw": 1450, "round_trip_efficiency": 0.93, "cycle_life": 7000, "warranty_years": 15, "price_usd": 1100000, "price_per_kwh": 379},
+            {"vendor_idx": 2, "model_name": "RESU Prime 16H", "model_number": "RESU16H", "chemistry": "NMC", "capacity_kwh": 16.0, "power_rating_kw": 7.0, "round_trip_efficiency": 0.95, "cycle_life": 6000, "warranty_years": 10, "price_usd": 9600, "price_per_kwh": 600},
+            {"vendor_idx": 3, "model_name": "ESS All-in-One", "model_number": "ESS-AIO", "chemistry": "NMC", "capacity_kwh": 8.0, "power_rating_kw": 5.0, "round_trip_efficiency": 0.94, "cycle_life": 6000, "warranty_years": 10, "price_usd": 5600, "price_per_kwh": 700},
+            {"vendor_idx": 4, "model_name": "EnerOne Plus", "model_number": "E1P-280", "chemistry": "LFP", "capacity_kwh": 280, "power_rating_kw": 140, "round_trip_efficiency": 0.95, "cycle_life": 10000, "warranty_years": 15, "price_usd": 98000, "price_per_kwh": 350},
+            {"vendor_idx": 5, "model_name": "Gridstack Pro", "model_number": "GSP-4MW", "chemistry": "LFP", "capacity_kwh": 4000, "power_rating_kw": 4000, "round_trip_efficiency": 0.88, "cycle_life": 6000, "warranty_years": 20, "price_usd": 1800000, "price_per_kwh": 450},
+        ]
+        
+        for m in models_data:
+            vendor = vendor_objs[m.pop("vendor_idx")]
+            model = BESSModel(vendor_id=vendor.id, **m)
+            db.add(model)
+        
+        db.commit()
+        print("BESS catalog seeded successfully")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error seeding BESS catalog: {e}")
+    finally:
+        db.close()
+
+
+def seed_pv_catalog():
+    """Seed PV module catalog with sample data."""
+    db = SessionLocal()
+    try:
+        existing = db.query(PVModuleCatalog).first()
+        if existing:
+            return
+        
+        modules_data = [
+            {"manufacturer": "JinkoSolar", "model_name": "Tiger Neo N-type 580W", "power_rating_w": 580, "efficiency_percent": 22.26, "width_mm": 1134, "height_mm": 2278, "weight_kg": 28.5, "cell_type": "N-type TOPCon", "warranty_years": 30, "price_usd": 175},
+            {"manufacturer": "Canadian Solar", "model_name": "HiKu7 Mono 665W", "power_rating_w": 665, "efficiency_percent": 21.9, "width_mm": 1303, "height_mm": 2384, "weight_kg": 34.4, "cell_type": "Mono-PERC", "warranty_years": 25, "price_usd": 200},
+            {"manufacturer": "LONGi", "model_name": "Hi-MO 6 Explorer 580W", "power_rating_w": 580, "efficiency_percent": 22.8, "width_mm": 1134, "height_mm": 2256, "weight_kg": 27.5, "cell_type": "HPC", "warranty_years": 30, "price_usd": 185},
+            {"manufacturer": "Trina Solar", "model_name": "Vertex S+ 445W", "power_rating_w": 445, "efficiency_percent": 21.8, "width_mm": 1096, "height_mm": 1754, "weight_kg": 21.0, "cell_type": "N-type i-TOPCon", "warranty_years": 25, "price_usd": 140},
+            {"manufacturer": "SunPower", "model_name": "Maxeon 6 AC 445W", "power_rating_w": 445, "efficiency_percent": 22.8, "width_mm": 1046, "height_mm": 1690, "weight_kg": 19.0, "cell_type": "IBC", "warranty_years": 40, "price_usd": 300},
+            {"manufacturer": "REC Group", "model_name": "Alpha Pure-RX 480W", "power_rating_w": 480, "efficiency_percent": 22.2, "width_mm": 1160, "height_mm": 1821, "weight_kg": 22.5, "cell_type": "HJT", "warranty_years": 25, "price_usd": 195},
+            {"manufacturer": "Q CELLS", "model_name": "Q.PEAK DUO ML-G11 420W", "power_rating_w": 420, "efficiency_percent": 20.6, "width_mm": 1134, "height_mm": 1722, "weight_kg": 20.9, "cell_type": "Mono PERC Q.ANTUM", "warranty_years": 25, "price_usd": 130},
+            {"manufacturer": "JA Solar", "model_name": "DeepBlue 4.0 Pro 610W", "power_rating_w": 610, "efficiency_percent": 22.4, "width_mm": 1134, "height_mm": 2382, "weight_kg": 31.5, "cell_type": "N-type", "warranty_years": 30, "price_usd": 180},
+        ]
+        
+        for m in modules_data:
+            module = PVModuleCatalog(**m)
+            db.add(module)
+        
+        db.commit()
+        print("PV module catalog seeded successfully")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error seeding PV catalog: {e}")
+    finally:
+        db.close()
 
 
 def perform_gap_analysis(db, site_id: int) -> GapAnalysisResult:
@@ -3378,6 +3946,379 @@ def run_bess_simulation(inputs: BESSSimulationInput):
             detail=f"Tariff rates must have 8760 hourly values, got {len(inputs.tariff_rates)}"
         )
     return simulate_bess_operation(inputs)
+
+
+# ============================================================================
+# BESS VENDOR CATALOG ENDPOINTS
+# ============================================================================
+
+@app.get("/api/v1/bess/vendors", response_model=List[BESSVendorResponse], tags=["bess-catalog"])
+def list_bess_vendors(skip: int = 0, limit: int = 100, db=Depends(get_db)):
+    """List all BESS vendors in the catalog."""
+    return db.query(BESSVendor).filter(BESSVendor.is_active == 1).offset(skip).limit(limit).all()
+
+
+@app.get("/api/v1/bess/vendors/{vendor_id}", response_model=BESSVendorResponse, tags=["bess-catalog"])
+def get_bess_vendor(vendor_id: int, db=Depends(get_db)):
+    """Get a specific BESS vendor by ID."""
+    vendor = db.query(BESSVendor).filter(BESSVendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return vendor
+
+
+@app.get("/api/v1/bess/models", response_model=List[BESSModelResponse], tags=["bess-catalog"])
+def list_bess_models(
+    vendor_id: Optional[int] = None,
+    chemistry: Optional[str] = None,
+    min_capacity_kwh: Optional[float] = None,
+    max_capacity_kwh: Optional[float] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db=Depends(get_db)
+):
+    """List all BESS models with optional filters."""
+    query = db.query(BESSModel).filter(BESSModel.is_active == 1)
+    if vendor_id:
+        query = query.filter(BESSModel.vendor_id == vendor_id)
+    if chemistry:
+        query = query.filter(BESSModel.chemistry == chemistry)
+    if min_capacity_kwh:
+        query = query.filter(BESSModel.capacity_kwh >= min_capacity_kwh)
+    if max_capacity_kwh:
+        query = query.filter(BESSModel.capacity_kwh <= max_capacity_kwh)
+    return query.offset(skip).limit(limit).all()
+
+
+@app.get("/api/v1/bess/models/{model_id}", response_model=BESSModelResponse, tags=["bess-catalog"])
+def get_bess_model(model_id: int, db=Depends(get_db)):
+    """Get a specific BESS model by ID."""
+    model = db.query(BESSModel).filter(BESSModel.id == model_id).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="Model not found")
+    return model
+
+
+# ============================================================================
+# BESS DATASET ENDPOINTS (for interval data upload)
+# ============================================================================
+
+@app.post("/api/v1/bess/datasets", response_model=BESSDatasetResponse, tags=["bess-data"])
+def create_bess_dataset(dataset: BESSDatasetCreate, db=Depends(get_db)):
+    """Create a new BESS dataset for interval data upload."""
+    db_dataset = BESSDataset(**dataset.model_dump())
+    db.add(db_dataset)
+    db.commit()
+    db.refresh(db_dataset)
+    return db_dataset
+
+
+@app.get("/api/v1/bess/datasets", response_model=List[BESSDatasetResponse], tags=["bess-data"])
+def list_bess_datasets(site_id: Optional[int] = None, skip: int = 0, limit: int = 100, db=Depends(get_db)):
+    """List all BESS datasets for a site."""
+    query = db.query(BESSDataset)
+    if site_id:
+        query = query.filter(BESSDataset.site_id == site_id)
+    return query.order_by(BESSDataset.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@app.get("/api/v1/bess/datasets/{dataset_id}", response_model=BESSDatasetResponse, tags=["bess-data"])
+def get_bess_dataset(dataset_id: int, db=Depends(get_db)):
+    """Get a specific BESS dataset by ID."""
+    dataset = db.query(BESSDataset).filter(BESSDataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return dataset
+
+
+@app.post("/api/v1/bess/datasets/{dataset_id}/upload-csv", tags=["bess-data"])
+async def upload_bess_csv(
+    dataset_id: int,
+    file: UploadFile = File(...),
+    timestamp_column: str = Form("timestamp"),
+    demand_column: str = Form("demand_kw"),
+    date_format: str = Form("%Y-%m-%d %H:%M:%S"),
+    db=Depends(get_db)
+):
+    """Upload CSV file with interval meter readings for BESS simulation."""
+    import pandas as pd
+    import io
+    
+    dataset = db.query(BESSDataset).filter(BESSDataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    try:
+        contents = await file.read()
+        df = pd.read_csv(io.BytesIO(contents))
+        
+        if timestamp_column not in df.columns:
+            raise HTTPException(status_code=400, detail=f"Column '{timestamp_column}' not found in CSV")
+        if demand_column not in df.columns:
+            raise HTTPException(status_code=400, detail=f"Column '{demand_column}' not found in CSV")
+        
+        df[timestamp_column] = pd.to_datetime(df[timestamp_column], format=date_format, errors='coerce')
+        df = df.dropna(subset=[timestamp_column, demand_column])
+        
+        db.query(BESSDataReading).filter(BESSDataReading.dataset_id == dataset_id).delete()
+        
+        readings = []
+        for _, row in df.iterrows():
+            reading = BESSDataReading(
+                dataset_id=dataset_id,
+                timestamp=row[timestamp_column],
+                demand_kw=float(row[demand_column]),
+            )
+            readings.append(reading)
+        
+        db.bulk_save_objects(readings)
+        
+        dataset.total_records = len(readings)
+        dataset.file_name = file.filename
+        dataset.upload_status = "completed"
+        
+        if readings:
+            demands = [r.demand_kw for r in readings]
+            dataset.peak_demand_kw = max(demands)
+            dataset.avg_demand_kw = sum(demands) / len(demands)
+            dataset.total_consumption_kwh = sum(demands) * (dataset.interval_minutes / 60)
+            
+            timestamps = [r.timestamp for r in readings]
+            dataset.start_date = min(timestamps).date()
+            dataset.end_date = max(timestamps).date()
+        
+        db.commit()
+        db.refresh(dataset)
+        
+        return {
+            "message": "Upload successful",
+            "records_imported": len(readings),
+            "dataset_id": dataset_id,
+            "peak_demand_kw": dataset.peak_demand_kw,
+            "avg_demand_kw": dataset.avg_demand_kw,
+        }
+        
+    except Exception as e:
+        dataset.upload_status = "failed"
+        db.commit()
+        raise HTTPException(status_code=400, detail=f"Failed to process CSV: {str(e)}")
+
+
+@app.post("/api/v1/bess/recommendations", response_model=List[BESSRecommendation], tags=["bess-analysis"])
+def get_bess_recommendations(request: BESSRecommendationRequest, db=Depends(get_db)):
+    """Get BESS model recommendations based on site requirements."""
+    query = db.query(BESSModel).filter(BESSModel.is_active == 1)
+    
+    if request.preferred_chemistry:
+        query = query.filter(BESSModel.chemistry == request.preferred_chemistry)
+    
+    if request.budget_max:
+        query = query.filter(BESSModel.price_usd <= request.budget_max)
+    
+    models = query.all()
+    recommendations = []
+    
+    base_savings_per_kwh = 150
+    
+    for model in models[:5]:
+        vendor = db.query(BESSVendor).filter(BESSVendor.id == model.vendor_id).first()
+        
+        annual_savings = model.capacity_kwh * base_savings_per_kwh * model.round_trip_efficiency
+        price = model.price_usd or (model.capacity_kwh * 400)
+        payback = price / annual_savings if annual_savings > 0 else 99
+        
+        fit_score = min(100, max(0, 100 - (payback * 5)))
+        
+        recommendations.append(BESSRecommendation(
+            model_id=model.id,
+            vendor_name=vendor.name if vendor else "Unknown",
+            model_name=model.model_name,
+            capacity_kwh=model.capacity_kwh,
+            power_rating_kw=model.power_rating_kw,
+            estimated_price=price,
+            estimated_annual_savings=annual_savings,
+            estimated_payback_years=payback,
+            fit_score=fit_score,
+            reasoning=f"Based on {model.chemistry} chemistry with {model.cycle_life} cycle life and {model.warranty_years}-year warranty."
+        ))
+    
+    return sorted(recommendations, key=lambda x: x.fit_score, reverse=True)
+
+
+# ============================================================================
+# PV DESIGN ENDPOINTS
+# ============================================================================
+
+@app.get("/api/v1/pv/modules", response_model=List[PVModuleResponse], tags=["pv-catalog"])
+def list_pv_modules(
+    manufacturer: Optional[str] = None,
+    min_power_w: Optional[float] = None,
+    max_power_w: Optional[float] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db=Depends(get_db)
+):
+    """List all PV modules in the catalog."""
+    query = db.query(PVModuleCatalog).filter(PVModuleCatalog.is_active == 1)
+    if manufacturer:
+        query = query.filter(PVModuleCatalog.manufacturer.ilike(f"%{manufacturer}%"))
+    if min_power_w:
+        query = query.filter(PVModuleCatalog.power_rating_w >= min_power_w)
+    if max_power_w:
+        query = query.filter(PVModuleCatalog.power_rating_w <= max_power_w)
+    return query.offset(skip).limit(limit).all()
+
+
+@app.post("/api/v1/pv/assessments", response_model=PVAssessmentResponse, tags=["pv-design"])
+def create_pv_assessment(assessment: PVAssessmentCreate, db=Depends(get_db)):
+    """Create a new PV assessment for a site."""
+    assessment_data = assessment.model_dump(exclude={'surfaces'})
+    db_assessment = PVAssessment(**assessment_data)
+    db.add(db_assessment)
+    db.commit()
+    db.refresh(db_assessment)
+    
+    if assessment.surfaces:
+        for surface_data in assessment.surfaces:
+            db_surface = PVSurface(assessment_id=db_assessment.id, **surface_data.model_dump())
+            usable = surface_data.usable_area_sqm or (surface_data.area_sqm * (1 - surface_data.shading_percent / 100))
+            db_surface.usable_area_sqm = usable
+            db_surface.max_capacity_kw = usable * 0.2
+            db.add(db_surface)
+        db.commit()
+        db.refresh(db_assessment)
+    
+    return db_assessment
+
+
+@app.get("/api/v1/pv/assessments", response_model=List[PVAssessmentResponse], tags=["pv-design"])
+def list_pv_assessments(site_id: Optional[int] = None, skip: int = 0, limit: int = 100, db=Depends(get_db)):
+    """List all PV assessments for a site."""
+    query = db.query(PVAssessment)
+    if site_id:
+        query = query.filter(PVAssessment.site_id == site_id)
+    return query.order_by(PVAssessment.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@app.get("/api/v1/pv/assessments/{assessment_id}", response_model=PVAssessmentResponse, tags=["pv-design"])
+def get_pv_assessment(assessment_id: int, db=Depends(get_db)):
+    """Get a specific PV assessment by ID."""
+    assessment = db.query(PVAssessment).filter(PVAssessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    return assessment
+
+
+@app.post("/api/v1/pv/assessments/{assessment_id}/surfaces", response_model=PVSurfaceResponse, tags=["pv-design"])
+def add_pv_surface(assessment_id: int, surface: PVSurfaceCreate, db=Depends(get_db)):
+    """Add a surface to a PV assessment."""
+    assessment = db.query(PVAssessment).filter(PVAssessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    
+    db_surface = PVSurface(assessment_id=assessment_id, **surface.model_dump())
+    usable = surface.usable_area_sqm or (surface.area_sqm * (1 - surface.shading_percent / 100))
+    db_surface.usable_area_sqm = usable
+    db_surface.max_capacity_kw = usable * 0.2
+    db.add(db_surface)
+    db.commit()
+    db.refresh(db_surface)
+    return db_surface
+
+
+@app.post("/api/v1/pv/design", response_model=PVDesignScenarioResponse, tags=["pv-design"])
+def calculate_pv_design(request: PVDesignRequest, db=Depends(get_db)):
+    """Calculate PV system design with ROI projections."""
+    import numpy_financial as npf
+    
+    assessment = db.query(PVAssessment).filter(PVAssessment.id == request.assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    
+    total_usable_area = sum(s.usable_area_sqm or s.area_sqm for s in assessment.surfaces)
+    max_capacity = total_usable_area * 0.2
+    
+    module = None
+    if request.module_id:
+        module = db.query(PVModuleCatalog).filter(PVModuleCatalog.id == request.module_id).first()
+    
+    if not module:
+        module = db.query(PVModuleCatalog).filter(PVModuleCatalog.is_active == 1).first()
+    
+    panel_area_m2 = (module.width_mm * module.height_mm / 1_000_000) if module else 2.0
+    panel_power_kw = (module.power_rating_w / 1000) if module else 0.4
+    
+    if request.target_capacity_kw:
+        system_capacity = min(request.target_capacity_kw, max_capacity)
+    else:
+        system_capacity = max_capacity
+    
+    num_panels = int(system_capacity / panel_power_kw)
+    if request.max_panels:
+        num_panels = min(num_panels, request.max_panels)
+    
+    actual_capacity = num_panels * panel_power_kw
+    
+    peak_sun_hours = assessment.avg_peak_sun_hours or 4.5
+    pr = 0.80
+    annual_production = actual_capacity * peak_sun_hours * 365 * pr
+    capacity_factor = annual_production / (actual_capacity * 8760) if actual_capacity > 0 else 0
+    
+    self_consumed = annual_production * (request.self_consumption_percent / 100)
+    exported = annual_production * ((100 - request.self_consumption_percent) / 100)
+    
+    annual_savings = (self_consumed * request.electricity_rate) + (exported * request.export_rate)
+    
+    total_capex = actual_capacity * request.capex_per_kw
+    
+    cash_flows = [-total_capex]
+    for year in range(1, request.analysis_years + 1):
+        degraded_production = annual_production * (0.995 ** year)
+        year_savings = (degraded_production * request.self_consumption_percent / 100 * request.electricity_rate) + \
+                      (degraded_production * (100 - request.self_consumption_percent) / 100 * request.export_rate)
+        cash_flows.append(year_savings)
+    
+    npv = npf.npv(request.discount_rate, cash_flows)
+    
+    try:
+        irr = npf.irr(cash_flows)
+        irr = float(irr) if irr and not (irr != irr) else None
+    except:
+        irr = None
+    
+    payback = total_capex / annual_savings if annual_savings > 0 else 99
+    lcoe = total_capex / (annual_production * request.analysis_years) if annual_production > 0 else 0
+    co2_avoided = annual_production * 0.0004
+    
+    scenario = PVDesignScenario(
+        assessment_id=assessment.id,
+        module_id=module.id if module else None,
+        name=f"Design Option - {actual_capacity:.1f} kW",
+        system_capacity_kw=actual_capacity,
+        num_panels=num_panels,
+        annual_production_kwh=annual_production,
+        capacity_factor=capacity_factor,
+        self_consumption_percent=request.self_consumption_percent,
+        export_percent=100 - request.self_consumption_percent,
+        total_capex=total_capex,
+        annual_savings=annual_savings,
+        npv=npv,
+        irr=irr,
+        payback_years=payback,
+        lcoe=lcoe,
+        co2_avoided_tons=co2_avoided,
+    )
+    db.add(scenario)
+    db.commit()
+    db.refresh(scenario)
+    
+    return scenario
+
+
+@app.get("/api/v1/pv/assessments/{assessment_id}/scenarios", response_model=List[PVDesignScenarioResponse], tags=["pv-design"])
+def list_pv_scenarios(assessment_id: int, db=Depends(get_db)):
+    """List all design scenarios for a PV assessment."""
+    return db.query(PVDesignScenario).filter(PVDesignScenario.assessment_id == assessment_id).all()
 
 
 @app.post("/api/v1/tenants", response_model=TenantResponse, tags=["tenants"])
@@ -4820,4 +5761,7 @@ async def import_data_file(
 
 if __name__ == "__main__":
     import uvicorn
+    init_db()
+    seed_bess_catalog()
+    seed_pv_catalog()
     uvicorn.run(app, host="0.0.0.0", port=8000)
