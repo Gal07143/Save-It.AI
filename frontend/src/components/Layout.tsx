@@ -1,0 +1,119 @@
+import { Link, useLocation } from 'wouter'
+import { 
+  LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
+  Battery, Plug, Search, Bell, Settings, ChevronDown 
+} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { api, Site } from '../services/api'
+
+interface LayoutProps {
+  children: React.ReactNode
+  currentSite: number | null
+  onSiteChange: (siteId: number | null) => void
+}
+
+const navItems = [
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/sites', icon: Building2, label: 'Sites' },
+  { path: '/assets', icon: Network, label: 'Digital Twin' },
+  { path: '/meters', icon: Gauge, label: 'Meters' },
+  { path: '/bills', icon: Receipt, label: 'Bills' },
+  { path: '/tenants', icon: Users, label: 'Tenants' },
+  { path: '/bess', icon: Battery, label: 'BESS Simulator' },
+  { path: '/integrations', icon: Plug, label: 'Integrations' },
+  { path: '/gap-analysis', icon: Search, label: 'Gap Analysis' },
+  { path: '/notifications', icon: Bell, label: 'Notifications' },
+]
+
+export default function Layout({ children, currentSite, onSiteChange }: LayoutProps) {
+  const [location] = useLocation()
+  const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <aside style={{
+        width: '240px',
+        background: '#1e293b',
+        color: 'white',
+        padding: '1rem 0',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        <div style={{ padding: '0 1rem 1.5rem', borderBottom: '1px solid #334155' }}>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Battery size={24} color="#10b981" />
+            SAVE-IT.AI
+          </h1>
+        </div>
+
+        <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+          <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.5rem' }}>
+            Current Site
+          </label>
+          <select
+            value={currentSite || ''}
+            onChange={(e) => onSiteChange(e.target.value ? Number(e.target.value) : null)}
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              borderRadius: '0.375rem',
+              border: '1px solid #475569',
+              background: '#334155',
+              color: 'white',
+            }}
+          >
+            <option value="">All Sites</option>
+            {sites?.map((site) => (
+              <option key={site.id} value={site.id}>{site.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <nav style={{ flex: 1, padding: '1rem 0' }}>
+          {navItems.map((item) => {
+            const isActive = location === item.path
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  color: isActive ? 'white' : '#94a3b8',
+                  background: isActive ? '#334155' : 'transparent',
+                  borderLeft: isActive ? '3px solid #10b981' : '3px solid transparent',
+                  textDecoration: 'none',
+                  fontSize: '0.875rem',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <item.icon size={18} />
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        <div style={{ padding: '1rem', borderTop: '1px solid #334155' }}>
+          <a href="/api/v1/docs" target="_blank" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            color: '#94a3b8',
+            textDecoration: 'none',
+            fontSize: '0.875rem',
+          }}>
+            <Settings size={16} />
+            API Docs
+          </a>
+        </div>
+      </aside>
+
+      <main style={{ flex: 1, padding: '1.5rem', overflow: 'auto' }}>
+        {children}
+      </main>
+    </div>
+  )
+}
