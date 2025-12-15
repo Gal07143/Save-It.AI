@@ -167,6 +167,14 @@ Access API docs at `/docs` (Swagger UI).
 
 ## Recent Changes
 
+- 2025-12-15: PV Systems, Storage Units & Page Redesigns
+  - **PV Systems Page**: Real-time production monitoring, inverter status grid, panel string health, production charts (daily/monthly), efficiency metrics, weather-based predictions, system alerts
+  - **Storage Units Page**: SoC/SoH monitoring with gauge visualization, charge/discharge tracking, alarm configuration, dispatch scheduling, lifecycle/warranty tracking, savings analytics
+  - **Reports Enhancement**: Added Power Generation Reports (solar production, capacity factor) and Grid Export Reports (energy sold, feed-in revenue)
+  - **Page Redesigns (7 pages)**: Forecasting, AI Agents, Maintenance, Admin, Settings, Data Quality, Virtual Meters - all updated with dark theme CSS, proper card layouts, and improved UX
+  - **Navigation Updates**: Added PV Systems and Storage Units to sidebar with proper icons and routing
+  - **Future Improvements**: Real API integration for live meter readings, ML-based predictions, backend PDF generation endpoints
+
 - 2025-12-15: Site Dashboard & Gateway Integration
   - **Site Dashboard Integration**: Connected Sites page to Site Dashboard - clicking a site card navigates to live dashboard
   - **Power Flow Visualization**: Site Dashboard now fetches Digital Twin Builder asset tree and renders dynamic power flow

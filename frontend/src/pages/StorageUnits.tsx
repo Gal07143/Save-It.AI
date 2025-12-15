@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { 
   Battery, TrendingUp, AlertTriangle, 
   Activity, RefreshCw, Clock, ArrowUpRight, ArrowDownRight, Settings,
   Calendar, DollarSign, Gauge, CheckCircle, Bell
 } from 'lucide-react'
 import { Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts'
+
+const API_BASE = '/api/v1'
+
+interface Site { id: number; name: string }
+interface Asset { id: number; name: string; asset_type: string }
 
 const generateSocData = () => Array.from({ length: 24 }, (_, i) => {
   let soc = 50
@@ -32,8 +38,33 @@ export default function StorageUnits() {
   const [cycleHistory] = useState(generateCycleHistory())
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [selectedSite, setSelectedSite] = useState<number | null>(null)
   const [selectedUnit, setSelectedUnit] = useState(1)
   const [showAlarmConfig, setShowAlarmConfig] = useState(false)
+
+  const { data: sites } = useQuery<Site[]>({
+    queryKey: ['sites'],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/sites`)
+      return res.json()
+    }
+  })
+
+  const { data: assets } = useQuery<Asset[]>({
+    queryKey: ['assets', selectedSite],
+    queryFn: async () => {
+      const url = selectedSite ? `${API_BASE}/assets?site_id=${selectedSite}` : `${API_BASE}/assets`
+      const res = await fetch(url)
+      return res.json()
+    },
+    enabled: !!selectedSite
+  })
+
+  const batteryAssets = assets?.filter(a => 
+    a.asset_type?.toLowerCase().includes('battery') || 
+    a.asset_type?.toLowerCase().includes('bess') ||
+    a.asset_type?.toLowerCase().includes('storage')
+  ) || []
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -97,6 +128,18 @@ export default function StorageUnits() {
           <p style={{ color: '#64748b' }}>Monitor battery storage, dispatch scheduling, and alarms</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <select 
+            className="form-input" 
+            value={selectedSite || ''}
+            onChange={(e) => setSelectedSite(e.target.value ? Number(e.target.value) : null)}
+            style={{ padding: '0.5rem 1rem' }}
+          >
+            <option value="">Select a site...</option>
+            {sites?.map(site => (
+              <option key={site.id} value={site.id}>{site.name}</option>
+            ))}
+            {(!sites || sites.length === 0) && <option disabled>No sites available</option>}
+          </select>
           <select 
             className="form-input" 
             value={selectedUnit}

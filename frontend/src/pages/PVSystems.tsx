@@ -22,20 +22,47 @@ const generateMonthlyProduction = () => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun
   expected: Math.round(2200 + Math.sin((i + 3) / 6 * Math.PI) * 1400),
 }))
 
+interface Site { id: number; name: string }
+interface Asset { id: number; name: string; asset_type: string }
+interface Meter { id: number; meter_id: string; meter_type: string; site_id: number }
+
 export default function PVSystems() {
   const [dailyData, setDailyData] = useState(generateDailyProduction())
   const [monthlyData] = useState(generateMonthlyProduction())
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [selectedSystem, setSelectedSystem] = useState(1)
+  const [selectedSite, setSelectedSite] = useState<number | null>(null)
 
-  useQuery({ 
+  const { data: sites } = useQuery<Site[]>({ 
     queryKey: ['sites'], 
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/sites`)
       return res.json()
     }
   })
+
+  const { data: assets } = useQuery<Asset[]>({
+    queryKey: ['assets', selectedSite],
+    queryFn: async () => {
+      const url = selectedSite ? `${API_BASE}/assets?site_id=${selectedSite}` : `${API_BASE}/assets`
+      const res = await fetch(url)
+      return res.json()
+    },
+    enabled: !!selectedSite
+  })
+
+  const { data: meters } = useQuery<Meter[]>({
+    queryKey: ['meters', selectedSite],
+    queryFn: async () => {
+      const url = selectedSite ? `${API_BASE}/meters?site_id=${selectedSite}` : `${API_BASE}/meters`
+      const res = await fetch(url)
+      return res.json()
+    },
+    enabled: !!selectedSite
+  })
+
+  const pvAssets = assets?.filter(a => a.asset_type?.toLowerCase().includes('solar') || a.asset_type?.toLowerCase().includes('pv')) || []
+  const pvMeters = meters?.filter(m => m.meter_type?.toLowerCase().includes('generation') || m.meter_type?.toLowerCase().includes('solar')) || []
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -92,13 +119,15 @@ export default function PVSystems() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <select 
             className="form-input" 
-            value={selectedSystem}
-            onChange={(e) => setSelectedSystem(Number(e.target.value))}
+            value={selectedSite || ''}
+            onChange={(e) => setSelectedSite(e.target.value ? Number(e.target.value) : null)}
             style={{ padding: '0.5rem 1rem' }}
           >
-            <option value={1}>Rooftop Array - 175 kWp</option>
-            <option value={2}>Carport Array - 50 kWp</option>
-            <option value={3}>Ground Mount - 500 kWp</option>
+            <option value="">Select a site...</option>
+            {sites?.map(site => (
+              <option key={site.id} value={site.id}>{site.name}</option>
+            ))}
+            {(!sites || sites.length === 0) && <option disabled>No sites available</option>}
           </select>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', fontSize: '0.875rem' }}>
             <Clock size={14} />
