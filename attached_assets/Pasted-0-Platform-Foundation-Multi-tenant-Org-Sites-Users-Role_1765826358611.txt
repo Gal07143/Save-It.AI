@@ -1,0 +1,281 @@
+0) Platform Foundation
+
+Multi-tenant מלא: Org → Sites → Users/Roles
+
+RBAC + Least-Privilege + מדיניות 2FA (למנהלים/אישורי פעולות)
+
+Audit Log בלתי מחיק למשתמש רגיל (before/after לכל שינוי משמעותי)
+
+File Management: העלאה, גרסאות, סטטוסים, אחסון (S3/Obj storage)
+
+Periods: ניהול תקופות, Lock Period, Snapshots לראיות (Evidence)
+
+Notifications Center: Inbox פנימי + Email/Push/Webhook (WhatsApp אופציונלי)
+
+Branding/White-label בסיסי (לוגו, צבעים, PDF branded)
+
+Observability: structured logs + correlation_id, metrics, health checks
+
+Backups/restore, secrets management + rotation
+
+1) Integrations & Ingestion Layer
+1.1 Metering / MDM / AMR / Legacy
+
+קונקטורים: REST Pull, Webhooks, CSV/Excel, SFTP/FTP/S3, MQTT, DB read-only SQL
+
+Auto-discovery (כשאפשר) של מונים/נקודות + ניהול זהויות (external_id → internal_id)
+
+Mapping UI: שדות→סכמה אחידה (ts, kWh, kW, V, I, PF, THD וכו׳)
+
+Data Normalization: timezone, יחידות, scale/precision
+
+Idempotency + dedupe + retries + backfill היסטורי
+
+1.2 BMS/SCADA/Controllers
+
+Read-only default
+
+פרוטוקולים: Modbus TCP/RTU, MQTT (יעד: BACnet/IP, OPC-UA)
+
+Points Catalog: name/unit/source/poll rate
+
+Point ↔ Asset binding (קישור ל-Digital Twin)
+
+תשתית ל-Write (Phase D) עם guardrails (ראו סעיף 9)
+
+1.3 External Enrichment
+
+Weather/irradiance (ל-PV sizing ול-correlation)
+
+Tariff catalog/provider plans
+
+Places/Search enrichment ל-Detective (רק opt-in + audit)
+
+2) Data Model & Data Quality (Gates)
+
+סכמה אחידה לקריאות מונים/טלמטריה (canonical)
+
+Data Quality Engine:
+
+missing windows / coverage
+
+duplicates
+
+meter reset detection
+
+spikes/outliers
+
+Quality flags + confidence scores לכל נקודת דאטה/חלון
+
+Data Quality Dashboard + “Coverage OK” gate לפני כסף/בילינג/ROI
+
+Connectivity gaps labeling (סיבת חוסר דאטה)
+
+3) Digital Twin (Electrical Twin)
+
+Tree Builder Drag&Drop (שנאי→לוח→לוח→ענפים→מונים/עומסים)
+
+Import/Export Excel hierarchy
+
+Twin versioning + Approve/Lock + היסטוריית שינויים
+
+Meter/Point attachment ל-assets
+
+SLD upload + parsing (PDF/Image) → graph proposal + confidence (Phase B)
+
+Human review UI לתיקון קשרים/סוגים/שמות/תיוגים
+
+Gap Analysis:
+
+Missing Meter (בטווין ולא משדר)
+
+Unknown Meter (משדר ולא בטווין)
+
+Resolve flow: link/ignore/create task + owner
+
+4) Financial Engine (Bills + Audit)
+
+Bill upload (PDF) + OCR/Parsing
+
+חילוץ: תקופה, total kWh, סכומים, רכיבי חיוב
+
+תמיכה ברכיבים: energy, TOU splits, PF penalties, demand/capacity, fees/taxes
+
+M&V Audit: התאמת total_kWh לחשבון מול אגרגציה (סף 2% ברירת מחדל, configurable)
+
+Findings UI + evidence graphs + export (PDF/CSV)
+
+5) Tariff Engine + Supplier Simulation
+
+Tariff rulesets: country/provider/plan + valid_from/to history
+
+Plan types: אחיד / פסגה-שפל / עונתיות / חגים-סופ״ש
+
+Tenant tariff overrides (אופציונלי)
+
+Supplier/plan simulation על consumption היסטורי
+
+תוצאות: savings חודשי/שנתי + “Best plan” + 1-pager PDF
+
+6) Tenant Sub-Billing (הוצאת חשבונות לדיירים/לקוחות)
+
+Tenants/Customers + פרטי קשר/יחידות/מזהים
+
+Meter assignment:
+
+1:N או N:M weights
+
+מונים וירטואליים/יחסיים (ראו סעיף 10)
+
+Allocation rules:
+
+common areas (שטח/משקל/אחוז)
+
+losses allocation (שנאי/רשת)
+
+fixed/management fees
+
+Billing workflow:
+
+Generate → Review → Lock
+
+Adjustments/Credits לחודש הבא
+
+Invoice numbering + statuses (draft/sent/failed/locked)
+
+Output & Delivery:
+
+PDF branded לכל דייר עם breakdown
+
+email send + tracking + retries
+
+export CSV/Excel + webhook ל-ERP
+
+7) Engineering & ROI
+7.1 PV Sizing (בסיס)
+
+Inputs: roof_area, location, constraints, load profile
+
+Outputs: kWp מומלץ, ייצור צפוי, savings לפי תעריף
+
+PDF report עם הנחות + disclaimer
+
+7.2 BESS Analyzer (מלא)
+
+Inputs:
+
+load profile 15min/1h לשנה
+
+TOU + demand/capacity rules (אם רלוונטי)
+
+battery params: kWh/kW, efficiency, min/max SOC, cycle limits (אופציונלי)
+
+economics: CAPEX/OPEX, discount rate, lifetime, replacements (אופציונלי)
+
+dispatch policy: arbitrage/peak shaving/combined
+
+Simulation outputs:
+
+monthly/seasonal breakdown
+
+cash flow + cumulative
+
+Payback / NPV / IRR
+
+Optimization:
+
+sweep על kWh/kW → “optimal size” לפי maximize IRR / NPV / min payback
+
+Sensitivity analysis
+
+Export CFO-grade PDF (assumptions + disclaimer)
+
+7.3 Predictive Maintenance (Rules-first)
+
+Rules: overload >85%, PF degradation trend, PQ anomalies (אם קיים), טמפ’ חריגה
+
+Lifecycle: open→ack→resolved + notes/postmortem
+
+Evidence pack לכל התראה (גרפים/אירועים/נקודות)
+
+8) Insights, Reporting, Analytics
+
+Home: Insights Feed (Actionable insights במקום “גרפים בלבד”)
+
+Dashboards: consumption/PF/demand, MoM/YoY, coverage, anomalies
+
+Executive monthly summary
+
+Scheduled reporting + distribution templates (תוספת שוק)
+
+9) AI Agents & Approvals
+
+Energy Analyst Agent: הסבר חריגה + משמעות + מה לבדוק + ראיות
+
+Detective: unassigned load, היפותזה, פעולות משתמש (assign/reject/task)
+
+Recommendations/Approvals Inbox (גם בלי OT write)
+
+Explainability חובה: לכל המלצה יש נתונים/חישוב/מקור
+
+10) Market-Parity Add-Ons (Gap מהשוק)
+
+Virtual Meters & Expression Engine (A+B−C, weights, proration, true-ups)
+
+Multi-commodity schema (חשמל + מים/גז/אוויר דחוס) – לפחות תשתית
+
+Edge/Hybrid Gateway אופציונלי: offline buffering + local ingest + sync
+
+Forecasting + Dispatch Planning: תחזיות עומס/PV + תוכנית פעולה (recommendation first)
+
+Demand Response readiness: מודל DR events + performance reporting (עתידי)
+
+FDD Rules Library: ספריית תקלות/אי-יעילות לבניין + evidence
+
+ESG/Carbon layer (Scope-2): emissions factor + KPI + דוחות
+
+Connector Catalog/Templates (תבניות mapping מוכנות)
+
+11) Active Control (Phase D — בטוח בלבד)
+
+Automation rules (IF→Action)
+
+Safety Gate חובה:
+
+approval + 2FA
+
+device/command whitelist
+
+preconditions (מצב מערכת/חלון זמן/ספים/תקשורת/איכות נתונים)
+
+timeout + rollback
+
+audit מלא (request→approve→execute→result)
+
+Control targets בהדרגה:
+
+lighting dimming/zones
+
+HVAC setpoints
+
+EV load management caps (OCPP)
+
+limited BESS/PV setpoints
+
+12) Deployment, CI/CD, Testing
+
+Containers: API + Worker + DB + Redis + UI
+
+Environments: dev/staging/prod
+
+CI/CD: lint/tests/migrations/build images
+
+Testing:
+
+unit (tariff/audit/invoice/gap/BESS math)
+
+integration (bill→parse→audit, ingest→timeseries→reports)
+
+security (RBAC boundaries, secrets)
+
+OT safety (approval/whitelist/preconditions enforcement)
