@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useLocation } from 'wouter'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, Site } from '../services/api'
-import { Plus, Building2, MapPin } from 'lucide-react'
+import { api } from '../services/api'
+import { Plus, Building2, MapPin, ArrowRight, Gauge, Zap } from 'lucide-react'
 
 export default function Sites() {
+  const [, navigate] = useLocation()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({ name: '', address: '', city: '', country: '', timezone: 'UTC' })
@@ -93,18 +95,25 @@ export default function Sites() {
       ) : sites && sites.length > 0 ? (
         <div className="grid grid-3">
           {sites.map((site) => (
-            <div key={site.id} className="card">
+            <div 
+              key={site.id} 
+              className="card" 
+              style={{ cursor: 'pointer', transition: 'all 0.2s', border: '2px solid transparent' }}
+              onClick={() => navigate(`/site-dashboard/${site.id}`)}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#10b981'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
                 <div style={{
                   width: '48px',
                   height: '48px',
                   borderRadius: '0.5rem',
-                  background: '#1e40af20',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Building2 size={24} color="#1e40af" />
+                  <Building2 size={24} color="white" />
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{site.name}</h3>
@@ -117,6 +126,38 @@ export default function Sites() {
                   <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>
                     Timezone: {site.timezone}
                   </p>
+                </div>
+                <ArrowRight size={20} color="#10b981" />
+              </div>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(3, 1fr)', 
+                gap: '0.5rem', 
+                marginTop: '1rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid #e2e8f0'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', color: '#10b981' }}>
+                    <Gauge size={14} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>--</span>
+                  </div>
+                  <div style={{ fontSize: '0.625rem', color: '#94a3b8' }}>Meters</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', color: '#3b82f6' }}>
+                    <Zap size={14} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>--</span>
+                  </div>
+                  <div style={{ fontSize: '0.625rem', color: '#94a3b8' }}>kW Load</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', color: '#f59e0b' }}>
+                    <Building2 size={14} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>--</span>
+                  </div>
+                  <div style={{ fontSize: '0.625rem', color: '#94a3b8' }}>Assets</div>
                 </div>
               </div>
             </div>

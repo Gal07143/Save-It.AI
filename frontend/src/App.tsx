@@ -13,7 +13,7 @@ import Integrations from './pages/Integrations'
 import GapAnalysis from './pages/GapAnalysis'
 import Notifications from './pages/Notifications'
 import Tariffs from './pages/Tariffs'
-import CarbonESG from './pages/CarbonESG'
+import Gateways from './pages/Gateways'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import DataQuality from './pages/DataQuality'
@@ -91,11 +91,21 @@ function AppRoutes() {
         )}
       </Route>
       
+      <Route path="/site-dashboard/:id">
+        {(params) => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <SiteDashboard siteId={params.id ? parseInt(params.id) : null} />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
       <Route path="/site-dashboard">
         {() => (
           <ProtectedRoute>
             <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <SiteDashboard />
+              <SiteDashboard siteId={currentSite} />
             </Layout>
           </ProtectedRoute>
         )}
@@ -201,11 +211,11 @@ function AppRoutes() {
         )}
       </Route>
       
-      <Route path="/carbon">
+      <Route path="/gateways">
         {() => (
           <ProtectedRoute>
             <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <CarbonESG currentSite={currentSite} />
+              <Gateways />
             </Layout>
           </ProtectedRoute>
         )}

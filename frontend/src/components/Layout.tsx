@@ -1,12 +1,12 @@
 import { Link, useLocation } from 'wouter'
 import { 
   LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
-  Battery, Plug, Search, Bell, Settings, DollarSign, Leaf, FileText,
+  Battery, Plug, Search, Settings, DollarSign, FileText,
   ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield, LogOut, User,
   FileSpreadsheet, GitBranch, FileCheck, Zap, Activity
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { api, Site } from '../services/api'
+import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 
 interface LayoutProps {
@@ -31,7 +31,7 @@ const navItems = [
   { path: '/bess', icon: Battery, label: 'BESS Simulator' },
   { path: '/integrations', icon: Plug, label: 'Integrations' },
   { path: '/gap-analysis', icon: Search, label: 'Gap Analysis' },
-  { path: '/carbon', icon: Leaf, label: 'Carbon / ESG' },
+  { path: '/gateways', icon: Plug, label: 'Gateways' },
   { path: '/reports', icon: FileText, label: 'Reports' },
   { path: '/data-quality', icon: ShieldCheck, label: 'Data Quality' },
   { path: '/virtual-meters', icon: Calculator, label: 'Virtual Meters' },

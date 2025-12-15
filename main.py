@@ -275,11 +275,18 @@ class Tariff(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     provider_name = Column(String(255), nullable=True)
+    supplier = Column(String(255), nullable=True)
+    tariff_type = Column(String(50), default="flat")
     effective_from = Column(DateTime, nullable=True)
     effective_to = Column(DateTime, nullable=True)
     currency = Column(String(10), default="USD")
     fixed_charge = Column(Float, default=0.0)
+    base_rate = Column(Float, nullable=True)
+    peak_rate = Column(Float, nullable=True)
+    off_peak_rate = Column(Float, nullable=True)
+    demand_charge = Column(Float, nullable=True)
     demand_charge_per_kw = Column(Float, nullable=True)
+    export_rate = Column(Float, nullable=True)
     power_factor_threshold = Column(Float, nullable=True)
     power_factor_penalty_rate = Column(Float, nullable=True)
     is_active = Column(Integer, default=1)
@@ -2797,10 +2804,86 @@ def calculate_tenant_monthly_bill(
     return invoice
 
 
+def create_sample_tariffs(db):
+    """Create sample tariffs if none exist."""
+    existing = db.query(Tariff).first()
+    if existing:
+        return
+    
+    sample_tariffs = [
+        Tariff(
+            site_id=1,
+            name="Standard Commercial TOU",
+            supplier="National Grid",
+            tariff_type="tou",
+            currency="USD",
+            effective_from=datetime(2024, 1, 1),
+            effective_to=datetime(2025, 12, 31),
+            base_rate=0.12,
+            peak_rate=0.18,
+            off_peak_rate=0.08,
+            demand_charge=12.50,
+            fixed_charge=45.00
+        ),
+        Tariff(
+            site_id=1,
+            name="Green Energy Flat Rate",
+            supplier="EcoEnergy",
+            tariff_type="flat",
+            currency="USD",
+            effective_from=datetime(2024, 1, 1),
+            effective_to=datetime(2025, 12, 31),
+            base_rate=0.14,
+            fixed_charge=25.00
+        ),
+        Tariff(
+            site_id=1,
+            name="Industrial Peak Shave",
+            supplier="PowerCorp",
+            tariff_type="tou",
+            currency="USD",
+            effective_from=datetime(2024, 6, 1),
+            effective_to=datetime(2025, 5, 31),
+            base_rate=0.10,
+            peak_rate=0.22,
+            off_peak_rate=0.06,
+            demand_charge=18.00,
+            fixed_charge=75.00
+        ),
+        Tariff(
+            site_id=1,
+            name="Solar Net Metering",
+            supplier="SunPower Utility",
+            tariff_type="net_metering",
+            currency="USD",
+            effective_from=datetime(2024, 1, 1),
+            effective_to=datetime(2026, 12, 31),
+            base_rate=0.11,
+            export_rate=0.08,
+            fixed_charge=35.00
+        ),
+    ]
+    
+    for tariff in sample_tariffs:
+        db.add(tariff)
+    
+    try:
+        db.commit()
+        print("Created sample tariffs")
+    except Exception as e:
+        db.rollback()
+        print(f"Could not create sample tariffs: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     init_db()
+    db = SessionLocal()
+    try:
+        create_sample_tariffs(db)
+    finally:
+        db.close()
     yield
 
 

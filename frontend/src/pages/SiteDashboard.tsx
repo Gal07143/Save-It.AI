@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   Building2, Zap, TrendingDown, TrendingUp, AlertTriangle,
   Activity, Gauge, RefreshCw, Settings, Download,
-  ThermometerSun, DollarSign, Leaf, Clock
+  ThermometerSun, DollarSign, Leaf, Clock, ArrowLeft
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { useLocation } from 'wouter'
 import { api } from '../services/api'
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
 
@@ -25,8 +26,12 @@ interface PowerFlowEdge {
   losses: number
 }
 
-export default function SiteDashboard() {
-  const [selectedSite, setSelectedSite] = useState<number | null>(null)
+interface SiteDashboardProps {
+  siteId?: number | null
+}
+
+export default function SiteDashboard({ siteId }: SiteDashboardProps) {
+  const [, navigate] = useLocation()
   const [isLive, setIsLive] = useState(true)
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [animationPhase, setAnimationPhase] = useState(0)
@@ -41,11 +46,11 @@ export default function SiteDashboard() {
     queryFn: () => api.meters.list()
   })
 
-  useEffect(() => {
-    if (sites?.length && !selectedSite) {
-      setSelectedSite(sites[0].id)
-    }
-  }, [sites, selectedSite])
+  const { data: assetTree } = useQuery({
+    queryKey: ['assetTree', siteId],
+    queryFn: () => siteId ? api.assets.getTree(siteId) : Promise.resolve([]),
+    enabled: !!siteId
+  })
 
   useEffect(() => {
     if (!isLive) return
@@ -56,28 +61,109 @@ export default function SiteDashboard() {
     return () => clearInterval(interval)
   }, [isLive])
 
-  const currentSite = sites?.find(s => s.id === selectedSite)
+  const currentSite = sites?.find(s => s.id === siteId)
 
-  const powerFlowNodes: PowerFlowNode[] = [
-    { id: 'grid', name: 'Grid Supply', type: 'source', power: 450 + Math.random() * 50, status: 'active', x: 50, y: 200 },
-    { id: 'solar', name: 'Solar PV', type: 'source', power: 120 + Math.random() * 30, status: 'active', x: 50, y: 80 },
-    { id: 'battery', name: 'Battery Storage', type: 'storage', power: -25 + Math.random() * 50, status: 'active', x: 50, y: 320 },
-    { id: 'main_meter', name: 'Main Meter', type: 'meter', power: 545, status: 'active', x: 200, y: 200 },
-    { id: 'transformer', name: 'MV/LV Transformer', type: 'transformer', power: 530, status: 'active', x: 350, y: 200 },
-    { id: 'hvac', name: 'HVAC System', type: 'load', power: 180 + Math.random() * 20, status: 'active', x: 500, y: 80 },
-    { id: 'lighting', name: 'Lighting', type: 'load', power: 85 + Math.random() * 10, status: 'active', x: 500, y: 200 },
-    { id: 'equipment', name: 'Equipment', type: 'load', power: 220 + Math.random() * 25, status: 'active', x: 500, y: 320 },
-  ]
+  const flattenAssets = (assets: any[]): any[] => {
+    let result: any[] = []
+    for (const asset of assets) {
+      result.push(asset)
+      if (asset.children?.length) {
+        result = result.concat(flattenAssets(asset.children))
+      }
+    }
+    return result
+  }
 
-  const powerFlowEdges: PowerFlowEdge[] = [
-    { from: 'grid', to: 'main_meter', power: 450, losses: 0 },
-    { from: 'solar', to: 'main_meter', power: 120, losses: 2.4 },
-    { from: 'battery', to: 'main_meter', power: 25, losses: 0.5 },
-    { from: 'main_meter', to: 'transformer', power: 545, losses: 8.2 },
-    { from: 'transformer', to: 'hvac', power: 180, losses: 2.7 },
-    { from: 'transformer', to: 'lighting', power: 85, losses: 1.3 },
-    { from: 'transformer', to: 'equipment', power: 220, losses: 3.3 },
-  ]
+  const allAssets = useMemo(() => assetTree ? flattenAssets(assetTree) : [], [assetTree])
+
+  const getAssetPowerFlowType = (assetType: string): 'source' | 'load' | 'storage' | 'transformer' | 'meter' => {
+    const typeMap: Record<string, 'source' | 'load' | 'storage' | 'transformer' | 'meter'> = {
+      'grid_connection': 'source',
+      'solar_pv': 'source',
+      'generator': 'source',
+      'battery': 'storage',
+      'transformer': 'transformer',
+      'meter': 'meter',
+      'main_meter': 'meter',
+      'hvac': 'load',
+      'lighting': 'load',
+      'equipment': 'load',
+      'motor': 'load',
+      'panel': 'load',
+      'distribution_board': 'load',
+    }
+    return typeMap[assetType] || 'load'
+  }
+
+  const powerFlowNodes: PowerFlowNode[] = useMemo(() => {
+    if (allAssets.length > 0) {
+      const yPositions: Record<string, number> = { source: 80, meter: 200, transformer: 200, storage: 320, load: 200 }
+      const xGroups: Record<string, number> = { source: 50, meter: 200, transformer: 350, storage: 50, load: 500 }
+      const typeCounters: Record<string, number> = {}
+      
+      return allAssets.map((asset: any) => {
+        const type = getAssetPowerFlowType(asset.asset_type)
+        typeCounters[type] = (typeCounters[type] || 0) + 1
+        const yOffset = (typeCounters[type] - 1) * 100
+        
+        return {
+          id: `asset_${asset.id}`,
+          name: asset.name,
+          type,
+          power: 50 + Math.random() * 200,
+          status: 'active' as const,
+          x: xGroups[type] || 300,
+          y: (yPositions[type] || 200) + yOffset
+        }
+      })
+    }
+    return [
+      { id: 'grid', name: 'Grid Supply', type: 'source' as const, power: 450 + Math.random() * 50, status: 'active' as const, x: 50, y: 200 },
+      { id: 'solar', name: 'Solar PV', type: 'source' as const, power: 120 + Math.random() * 30, status: 'active' as const, x: 50, y: 80 },
+      { id: 'battery', name: 'Battery Storage', type: 'storage' as const, power: -25 + Math.random() * 50, status: 'active' as const, x: 50, y: 320 },
+      { id: 'main_meter', name: 'Main Meter', type: 'meter' as const, power: 545, status: 'active' as const, x: 200, y: 200 },
+      { id: 'transformer', name: 'MV/LV Transformer', type: 'transformer' as const, power: 530, status: 'active' as const, x: 350, y: 200 },
+      { id: 'hvac', name: 'HVAC System', type: 'load' as const, power: 180 + Math.random() * 20, status: 'active' as const, x: 500, y: 80 },
+      { id: 'lighting', name: 'Lighting', type: 'load' as const, power: 85 + Math.random() * 10, status: 'active' as const, x: 500, y: 200 },
+      { id: 'equipment', name: 'Equipment', type: 'load' as const, power: 220 + Math.random() * 25, status: 'active' as const, x: 500, y: 320 },
+    ]
+  }, [allAssets, animationPhase])
+
+  const powerFlowEdges: PowerFlowEdge[] = useMemo(() => {
+    if (allAssets.length > 0) {
+      const edges: PowerFlowEdge[] = []
+      const sources = powerFlowNodes.filter(n => n.type === 'source')
+      const meters = powerFlowNodes.filter(n => n.type === 'meter')
+      const transformers = powerFlowNodes.filter(n => n.type === 'transformer')
+      const loads = powerFlowNodes.filter(n => n.type === 'load')
+
+      sources.forEach(s => {
+        if (meters.length > 0) {
+          edges.push({ from: s.id, to: meters[0].id, power: s.power, losses: s.power * 0.02 })
+        }
+      })
+      meters.forEach(m => {
+        if (transformers.length > 0) {
+          edges.push({ from: m.id, to: transformers[0].id, power: m.power, losses: m.power * 0.015 })
+        }
+      })
+      transformers.forEach(t => {
+        loads.forEach((l) => {
+          edges.push({ from: t.id, to: l.id, power: l.power, losses: l.power * 0.01 })
+        })
+      })
+      return edges
+    }
+    return [
+      { from: 'grid', to: 'main_meter', power: 450, losses: 0 },
+      { from: 'solar', to: 'main_meter', power: 120, losses: 2.4 },
+      { from: 'battery', to: 'main_meter', power: 25, losses: 0.5 },
+      { from: 'main_meter', to: 'transformer', power: 545, losses: 8.2 },
+      { from: 'transformer', to: 'hvac', power: 180, losses: 2.7 },
+      { from: 'transformer', to: 'lighting', power: 85, losses: 1.3 },
+      { from: 'transformer', to: 'equipment', power: 220, losses: 3.3 },
+    ]
+  }, [allAssets, powerFlowNodes])
 
   const totalGeneration = powerFlowNodes.filter(n => n.type === 'source').reduce((sum, n) => sum + n.power, 0)
   const totalConsumption = powerFlowNodes.filter(n => n.type === 'load').reduce((sum, n) => sum + n.power, 0)
@@ -129,17 +215,13 @@ export default function SiteDashboard() {
           <p className="page-subtitle">Real-time power flow monitoring and site analytics</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <select
-            className="form-select"
-            value={selectedSite || ''}
-            onChange={(e) => setSelectedSite(Number(e.target.value))}
-            style={{ minWidth: '200px' }}
+          <button 
+            className="btn btn-outline"
+            onClick={() => navigate('/sites')}
           >
-            <option value="">Select Site</option>
-            {sites?.map(site => (
-              <option key={site.id} value={site.id}>{site.name}</option>
-            ))}
-          </select>
+            <ArrowLeft size={18} />
+            Back to Sites
+          </button>
           <button 
             className={`btn ${isLive ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => setIsLive(!isLive)}
@@ -154,7 +236,7 @@ export default function SiteDashboard() {
         </div>
       </div>
 
-      {!selectedSite ? (
+      {!siteId ? (
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <Building2 size={48} color="#64748b" style={{ margin: '0 auto 1rem' }} />
           <p style={{ color: '#94a3b8' }}>Please select a site to view its dashboard</p>
@@ -569,7 +651,7 @@ export default function SiteDashboard() {
               </div>
               <div>
                 <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>Total Meters</div>
-                <div style={{ fontWeight: 500 }}>{Array.isArray(meters) ? meters.filter((m: any) => m.site_id === selectedSite).length : 0}</div>
+                <div style={{ fontWeight: 500 }}>{Array.isArray(meters) ? meters.filter((m: any) => m.site_id === siteId).length : 0}</div>
               </div>
               <div>
                 <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>Contract Demand</div>
