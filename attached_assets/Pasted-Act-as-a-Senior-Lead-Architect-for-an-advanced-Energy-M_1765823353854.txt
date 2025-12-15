@@ -1,0 +1,50 @@
+Act as a Senior Lead Architect for an advanced Energy Management System (EMS).
+
+**Project:** SAVE-IT.AI - Enterprise Edition.
+**Core Goal:** Build a system that integrates with existing metering software/BMS, performs complex financial analysis for storage (BESS), and handles tenant sub-billing.
+
+### 1. Enhanced Tech Stack & Libraries
+- **Backend:** Python (FastAPI).
+- **Database:** PostgreSQL + TimescaleDB (MANDATORY for high-frequency meter data).
+- **Integrations:**
+  - `pymodbus` & `pybacnet` for BMS connectivity.
+  - `pandas` & `numpy_financial` (for IRR/NPV calculations).
+  - `reportlab` or `weasyprint` for generating PDF Invoices.
+- **Frontend:** React + Recharts (for complex cash flow/load profile charts).
+
+### 2. Key Modules to Implement (Priority Order)
+
+**A. Integration Layer (The Connector):**
+- Create an abstract `DataSource` class.
+- Implement drivers for:
+  1. `ModbusTCP` (Active polling).
+  2. `CSVImporter` (For legacy systems).
+  3. `ExternalAPI` (Template for connecting to software like SolarEdge/Schneider).
+- Implement a `DataNormalizer` service that converts all incoming data into a standard `Measurement` model (timestamp, value, unit, meter_id).
+
+**B. BESS Financial Analyzer (The Logic):**
+- Implement a simulation engine that takes `LoadProfile`, `Tariff`, and `BatterySpecs`.
+- Logic: Simulate energy flow for a full year (15-min intervals).
+- Calculate:
+  - Peak Shaving savings (Demand charge reduction).
+  - Arbitrage savings (Time-of-Use shifting).
+  - **Financial Metrics:** Use `numpy_financial.npv` and `irr` to output project feasibility metrics based on CAPEX/OPEX inputs.
+
+**C. Tenant Billing Engine:**
+- Database Models: `Tenant`, `LeaseContract` (defines tariff rules), `Invoice`.
+- Logic: `calculate_monthly_bill(tenant_id, month)` -> Returns line items (Consumption, Fixed Fees, Losses).
+- Output: Generate a professional PDF invoice from this data.
+
+**D. Digital Twin & Gap Analysis:**
+- Implement the Tree structure for Assets (SLD).
+- Implement the logic to compare `SLD_Assets` vs `Connected_DataSources` and flag discrepancies.
+
+### 3. Immediate Deliverable
+Please generate:
+1. The comprehensive `SQLAlchemy` models for the new **Tenant/Billing** and **Integration** schemas.
+2. The Python code for the **BESS Simulation Algorithm** (calculating savings based on TOU arbitrage).
+3. A skeleton structure for the **Modbus Polling Service**.
+
+---
+[Attach the System Spec Document Here]
+---

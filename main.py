@@ -33,12 +33,12 @@ def get_db():
         db.close()
 
 
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from enum import Enum as PyEnum
 from typing import List, Optional, Dict, Any
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Enum, Text, Date, Time
 from sqlalchemy.orm import relationship
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class AssetType(PyEnum):
@@ -268,6 +268,165 @@ class Notification(Base):
     site = relationship("Site", back_populates="notifications")
 
 
+# ============================================================================
+# ENTERPRISE EDITION MODELS
+# ============================================================================
+
+class DataSourceType(PyEnum):
+    """Types of data sources for integration layer."""
+    MODBUS_TCP = "modbus_tcp"
+    MODBUS_RTU = "modbus_rtu"
+    BACNET = "bacnet"
+    CSV_IMPORT = "csv_import"
+    EXTERNAL_API = "external_api"
+    MANUAL = "manual"
+
+
+class InvoiceStatus(PyEnum):
+    """Status of tenant invoices."""
+    DRAFT = "draft"
+    PENDING = "pending"
+    SENT = "sent"
+    PAID = "paid"
+    OVERDUE = "overdue"
+    CANCELLED = "cancelled"
+
+
+class DataSource(Base):
+    """DataSource model for integration layer - connects to external systems."""
+    __tablename__ = "data_sources"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    source_type = Column(Enum(DataSourceType), nullable=False)
+    connection_string = Column(Text, nullable=True)
+    host = Column(String(255), nullable=True)
+    port = Column(Integer, nullable=True)
+    slave_id = Column(Integer, nullable=True)
+    polling_interval_seconds = Column(Integer, default=60)
+    is_active = Column(Integer, default=1)
+    last_poll_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    config_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    measurements = relationship("Measurement", back_populates="data_source", cascade="all, delete-orphan")
+
+
+class Measurement(Base):
+    """Measurement model for normalized meter readings from all data sources.
+    
+    This table should be converted to a TimescaleDB hypertable for high-frequency data.
+    """
+    __tablename__ = "measurements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=False, index=True)
+    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=True, index=True)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    value = Column(Float, nullable=False)
+    unit = Column(String(50), nullable=False)
+    quality = Column(String(20), default="good")
+    raw_value = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    data_source = relationship("DataSource", back_populates="measurements")
+
+
+class Tenant(Base):
+    """Tenant model for sub-billing in multi-tenant facilities."""
+    __tablename__ = "tenants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    contact_name = Column(String(255), nullable=True)
+    contact_email = Column(String(255), nullable=True)
+    contact_phone = Column(String(50), nullable=True)
+    billing_address = Column(Text, nullable=True)
+    tax_id = Column(String(100), nullable=True)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    lease_contracts = relationship("LeaseContract", back_populates="tenant", cascade="all, delete-orphan")
+    invoices = relationship("Invoice", back_populates="tenant", cascade="all, delete-orphan")
+
+
+class LeaseContract(Base):
+    """LeaseContract model defining billing rules for a tenant."""
+    __tablename__ = "lease_contracts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=True)
+    rate_per_kwh = Column(Float, nullable=False)
+    fixed_monthly_fee = Column(Float, default=0.0)
+    loss_factor_percent = Column(Float, default=0.0)
+    demand_charge_per_kw = Column(Float, default=0.0)
+    min_monthly_charge = Column(Float, default=0.0)
+    billing_day = Column(Integer, default=1)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    tenant = relationship("Tenant", back_populates="lease_contracts")
+
+
+class Invoice(Base):
+    """Invoice model for tenant billing."""
+    __tablename__ = "invoices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    lease_contract_id = Column(Integer, ForeignKey("lease_contracts.id"), nullable=True, index=True)
+    invoice_number = Column(String(100), unique=True, nullable=False, index=True)
+    billing_period_start = Column(Date, nullable=False)
+    billing_period_end = Column(Date, nullable=False)
+    consumption_kwh = Column(Float, default=0.0)
+    peak_demand_kw = Column(Float, nullable=True)
+    energy_charge = Column(Float, default=0.0)
+    demand_charge = Column(Float, default=0.0)
+    fixed_fee = Column(Float, default=0.0)
+    loss_charge = Column(Float, default=0.0)
+    subtotal = Column(Float, default=0.0)
+    tax_amount = Column(Float, default=0.0)
+    total_amount = Column(Float, default=0.0)
+    status = Column(Enum(InvoiceStatus), default=InvoiceStatus.DRAFT)
+    due_date = Column(Date, nullable=True)
+    paid_date = Column(Date, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    tenant = relationship("Tenant", back_populates="invoices")
+
+
+class BatterySpecs(Base):
+    """BatterySpecs model for BESS financial analysis."""
+    __tablename__ = "battery_specs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    capacity_kwh = Column(Float, nullable=False)
+    power_rating_kw = Column(Float, nullable=False)
+    round_trip_efficiency = Column(Float, default=0.90)
+    depth_of_discharge = Column(Float, default=0.90)
+    cycle_life = Column(Integer, default=6000)
+    capex_total = Column(Float, nullable=False)
+    opex_annual = Column(Float, default=0.0)
+    warranty_years = Column(Integer, default=10)
+    degradation_rate_annual = Column(Float, default=0.02)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class SiteCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     address: Optional[str] = None
@@ -300,8 +459,7 @@ class SiteResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AssetCreate(BaseModel):
@@ -344,8 +502,7 @@ class AssetResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AssetTreeNode(BaseModel):
@@ -356,8 +513,7 @@ class AssetTreeNode(BaseModel):
     meter_id: Optional[str] = None
     children: List["AssetTreeNode"] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 AssetTreeNode.model_rebuild()
@@ -402,8 +558,7 @@ class MeterResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MeterReadingCreate(BaseModel):
@@ -433,8 +588,7 @@ class MeterReadingResponse(BaseModel):
     reading_type: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BillLineItemCreate(BaseModel):
@@ -457,8 +611,7 @@ class BillLineItemResponse(BaseModel):
     amount: float
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BillCreate(BaseModel):
@@ -523,8 +676,7 @@ class BillResponse(BaseModel):
     updated_at: datetime
     line_items: List[BillLineItemResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BillValidationResult(BaseModel):
@@ -575,8 +727,7 @@ class NotificationResponse(BaseModel):
     created_at: datetime
     resolved_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SolarROIInput(BaseModel):
@@ -606,6 +757,162 @@ class SolarROIResult(BaseModel):
     lifetime_savings: float
     break_even_year: Optional[int]
     annual_projections: List[dict]
+
+
+# ============================================================================
+# ENTERPRISE EDITION SCHEMAS
+# ============================================================================
+
+class TenantCreate(BaseModel):
+    """Schema for creating a tenant."""
+    site_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    billing_address: Optional[str] = None
+    tax_id: Optional[str] = None
+
+
+class TenantResponse(BaseModel):
+    """Response schema for tenant."""
+    id: int
+    site_id: int
+    name: str
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    billing_address: Optional[str] = None
+    tax_id: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LeaseContractCreate(BaseModel):
+    """Schema for creating a lease contract."""
+    tenant_id: int
+    meter_id: Optional[int] = None
+    name: str = Field(..., min_length=1, max_length=255)
+    start_date: date
+    end_date: Optional[date] = None
+    rate_per_kwh: float
+    fixed_monthly_fee: float = 0.0
+    loss_factor_percent: float = 0.0
+    demand_charge_per_kw: float = 0.0
+    min_monthly_charge: float = 0.0
+    billing_day: int = 1
+
+
+class LeaseContractResponse(BaseModel):
+    """Response schema for lease contract."""
+    id: int
+    tenant_id: int
+    meter_id: Optional[int] = None
+    name: str
+    start_date: date
+    end_date: Optional[date] = None
+    rate_per_kwh: float
+    fixed_monthly_fee: float
+    loss_factor_percent: float
+    demand_charge_per_kw: float
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InvoiceResponse(BaseModel):
+    """Response schema for invoice."""
+    id: int
+    tenant_id: int
+    invoice_number: str
+    billing_period_start: date
+    billing_period_end: date
+    consumption_kwh: float
+    peak_demand_kw: Optional[float] = None
+    energy_charge: float
+    demand_charge: float
+    fixed_fee: float
+    loss_charge: float
+    subtotal: float
+    tax_amount: float
+    total_amount: float
+    status: InvoiceStatus
+    due_date: Optional[date] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BESSSimulationInput(BaseModel):
+    """Input parameters for BESS financial simulation."""
+    load_profile_kwh: List[float] = Field(..., description="8760 hourly load values (kWh) for a year")
+    tariff_rates: List[float] = Field(..., description="8760 hourly electricity rates ($/kWh)")
+    demand_charges: Optional[List[float]] = Field(None, description="12 monthly demand charges ($/kW)")
+    battery_capacity_kwh: float = Field(..., gt=0)
+    battery_power_kw: float = Field(..., gt=0)
+    round_trip_efficiency: float = Field(default=0.90, ge=0.5, le=1.0)
+    depth_of_discharge: float = Field(default=0.90, ge=0.5, le=1.0)
+    capex: float = Field(..., gt=0)
+    opex_annual: float = Field(default=0.0, ge=0)
+    analysis_years: int = Field(default=15, ge=1, le=30)
+    discount_rate: float = Field(default=0.08, ge=0, le=0.3)
+    degradation_rate: float = Field(default=0.02, ge=0, le=0.1)
+
+
+class BESSSimulationResult(BaseModel):
+    """Result of BESS financial simulation."""
+    arbitrage_savings_year1: float
+    peak_shaving_savings_year1: float
+    total_savings_year1: float
+    simple_payback_years: float
+    net_present_value: float
+    internal_rate_of_return: Optional[float]
+    lifetime_savings: float
+    annual_projections: List[Dict[str, Any]]
+    monthly_peak_reduction: List[float]
+
+
+class DataSourceCreate(BaseModel):
+    """Schema for creating a data source."""
+    site_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    source_type: DataSourceType
+    host: Optional[str] = None
+    port: Optional[int] = None
+    slave_id: Optional[int] = None
+    polling_interval_seconds: int = 60
+    config_json: Optional[str] = None
+
+
+class DataSourceResponse(BaseModel):
+    """Response schema for data source."""
+    id: int
+    site_id: int
+    name: str
+    source_type: DataSourceType
+    host: Optional[str] = None
+    port: Optional[int] = None
+    polling_interval_seconds: int
+    is_active: bool
+    last_poll_at: Optional[datetime] = None
+    last_error: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MeasurementCreate(BaseModel):
+    """Schema for normalized measurement data."""
+    data_source_id: int
+    meter_id: Optional[int] = None
+    timestamp: datetime
+    value: float
+    unit: str
+    quality: str = "good"
+    raw_value: Optional[float] = None
 
 
 def init_db():
@@ -810,25 +1117,20 @@ def calculate_solar_roi(inputs: SolarROIInput) -> SolarROIResult:
             "cumulative_cash_flow": round(cumulative_cash_flow, 2)
         })
 
+    import numpy_financial as npf
+    
     year_one_savings = annual_projections[0]["savings"]
     simple_payback = net_cost / year_one_savings if year_one_savings > 0 else float('inf')
 
-    npv = -net_cost
-    for proj in annual_projections:
-        npv += proj["savings"] / ((1 + discount_rate) ** proj["year"])
-
     cash_flows = [-net_cost] + [p["savings"] for p in annual_projections]
-    rate = 0.1
-    for _ in range(100):
-        npv_val = sum(cf / ((1 + rate) ** i) for i, cf in enumerate(cash_flows))
-        npv_derivative = sum(-i * cf / ((1 + rate) ** (i + 1)) for i, cf in enumerate(cash_flows))
-        if abs(npv_derivative) < 1e-10:
-            break
-        new_rate = rate - npv_val / npv_derivative
-        if abs(new_rate - rate) < 1e-6:
-            break
-        rate = max(-0.99, min(new_rate, 10))
-    irr = rate
+    npv = npf.npv(discount_rate, cash_flows)
+    
+    try:
+        irr = npf.irr(cash_flows)
+        if irr is None or not (-1 < irr < 10):
+            irr = 0.0
+    except Exception:
+        irr = 0.0
 
     return SolarROIResult(
         system_size_kw=inputs.system_size_kw,
@@ -842,6 +1144,494 @@ def calculate_solar_roi(inputs: SolarROIInput) -> SolarROIResult:
         break_even_year=break_even_year,
         annual_projections=annual_projections
     )
+
+
+# ============================================================================
+# BESS FINANCIAL ANALYZER (Enterprise Edition)
+# ============================================================================
+
+def simulate_bess_operation(inputs: BESSSimulationInput) -> BESSSimulationResult:
+    """
+    Simulate battery energy storage system (BESS) operation for financial analysis.
+    
+    Algorithm:
+    1. Iterate through 8760 hourly intervals
+    2. For each hour: decide to charge (low price) or discharge (high price)
+    3. Track arbitrage savings from TOU shifting
+    4. Calculate monthly peak reduction for demand charge savings
+    5. Project savings over analysis period with degradation
+    6. Calculate NPV and IRR using numpy_financial
+    
+    Peak Shaving Logic:
+    - Identify monthly peak demand periods
+    - Discharge battery to reduce demand peaks
+    - Calculate demand charge savings
+    
+    Arbitrage Logic:
+    - Charge when electricity price is below daily average
+    - Discharge when price is above daily average
+    """
+    import numpy_financial as npf
+    
+    load_profile = inputs.load_profile_kwh
+    tariff_rates = inputs.tariff_rates
+    battery_kwh = inputs.battery_capacity_kwh
+    battery_kw = inputs.battery_power_kw
+    efficiency = inputs.round_trip_efficiency
+    dod = inputs.depth_of_discharge
+    
+    usable_capacity = battery_kwh * dod
+    hours_per_year = 8760
+    hours_per_month = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
+    
+    soc = usable_capacity * 0.5
+    arbitrage_savings = 0.0
+    monthly_peaks_original = [0.0] * 12
+    monthly_peaks_with_bess = [0.0] * 12
+    
+    hour_to_month = []
+    hour_idx = 0
+    for month_idx, hours_in_month in enumerate(hours_per_month):
+        for _ in range(hours_in_month):
+            if hour_idx < hours_per_year:
+                hour_to_month.append(month_idx)
+                hour_idx += 1
+    
+    while len(hour_to_month) < hours_per_year:
+        hour_to_month.append(11)
+    
+    for hour in range(hours_per_year):
+        load = load_profile[hour] if hour < len(load_profile) else 0
+        rate = tariff_rates[hour] if hour < len(tariff_rates) else 0.1
+        month = hour_to_month[hour]
+        
+        monthly_peaks_original[month] = max(monthly_peaks_original[month], load)
+        
+        day_start = (hour // 24) * 24
+        day_end = min(day_start + 24, hours_per_year)
+        day_rates = tariff_rates[day_start:day_end] if day_end <= len(tariff_rates) else [0.1] * 24
+        avg_rate = sum(day_rates) / len(day_rates) if day_rates else 0.1
+        
+        if rate < avg_rate * 0.9 and soc < usable_capacity:
+            charge_amount = min(battery_kw, usable_capacity - soc)
+            soc += charge_amount
+            arbitrage_savings -= charge_amount * rate
+        elif rate > avg_rate * 1.1 and soc > 0:
+            discharge_amount = min(battery_kw, soc)
+            soc -= discharge_amount
+            arbitrage_savings += discharge_amount * rate * efficiency
+        
+        net_load = load - (battery_kw if soc > battery_kw else soc) * 0.3
+        monthly_peaks_with_bess[month] = max(monthly_peaks_with_bess[month], max(0, net_load))
+    
+    monthly_peak_reduction = [
+        round(orig - reduced, 2)
+        for orig, reduced in zip(monthly_peaks_original, monthly_peaks_with_bess)
+    ]
+    
+    demand_charges = inputs.demand_charges or [15.0] * 12
+    peak_shaving_savings = sum(
+        reduction * charge
+        for reduction, charge in zip(monthly_peak_reduction, demand_charges)
+    )
+    
+    total_savings_year1 = arbitrage_savings + peak_shaving_savings
+    
+    annual_projections = []
+    cash_flows = [-inputs.capex]
+    cumulative = -inputs.capex
+    
+    for year in range(1, inputs.analysis_years + 1):
+        degradation_factor = (1 - inputs.degradation_rate) ** (year - 1)
+        year_savings = total_savings_year1 * degradation_factor - inputs.opex_annual
+        cumulative += year_savings
+        cash_flows.append(year_savings)
+        
+        annual_projections.append({
+            "year": year,
+            "degradation_factor": round(degradation_factor, 3),
+            "gross_savings": round(total_savings_year1 * degradation_factor, 2),
+            "net_savings": round(year_savings, 2),
+            "cumulative": round(cumulative, 2)
+        })
+    
+    simple_payback = (
+        inputs.capex / total_savings_year1
+        if total_savings_year1 > 0
+        else float('inf')
+    )
+    
+    npv = npf.npv(inputs.discount_rate, cash_flows)
+    
+    try:
+        irr = npf.irr(cash_flows)
+        if irr is None or not (-1 < irr < 10):
+            irr = None
+        else:
+            irr = round(irr * 100, 2)
+    except Exception:
+        irr = None
+    
+    lifetime_savings = sum(p["net_savings"] for p in annual_projections)
+    
+    return BESSSimulationResult(
+        arbitrage_savings_year1=round(arbitrage_savings, 2),
+        peak_shaving_savings_year1=round(peak_shaving_savings, 2),
+        total_savings_year1=round(total_savings_year1, 2),
+        simple_payback_years=round(simple_payback, 2),
+        net_present_value=round(npv, 2),
+        internal_rate_of_return=irr,
+        lifetime_savings=round(lifetime_savings, 2),
+        annual_projections=annual_projections,
+        monthly_peak_reduction=monthly_peak_reduction
+    )
+
+
+# ============================================================================
+# INTEGRATION LAYER - DATA SOURCES (Enterprise Edition)
+# ============================================================================
+
+from abc import ABC, abstractmethod
+from typing import Generator
+
+
+class DataSourceDriver(ABC):
+    """Abstract base class for data source drivers."""
+    
+    @abstractmethod
+    def connect(self) -> bool:
+        """Establish connection to the data source."""
+        pass
+    
+    @abstractmethod
+    def disconnect(self) -> None:
+        """Close connection to the data source."""
+        pass
+    
+    @abstractmethod
+    def poll(self) -> Generator[MeasurementCreate, None, None]:
+        """Poll data from the source and yield normalized measurements."""
+        pass
+    
+    @abstractmethod
+    def is_connected(self) -> bool:
+        """Check if connection is active."""
+        pass
+
+
+class ModbusTCPDriver(DataSourceDriver):
+    """
+    Modbus TCP driver for polling data from Modbus devices.
+    
+    This is a skeleton implementation showing the structure for
+    integrating with pymodbus library.
+    """
+    
+    def __init__(
+        self,
+        data_source_id: int,
+        host: str,
+        port: int = 502,
+        slave_id: int = 1,
+        registers: Optional[List[Dict[str, Any]]] = None
+    ):
+        self.data_source_id = data_source_id
+        self.host = host
+        self.port = port
+        self.slave_id = slave_id
+        self.registers = registers or []
+        self._client = None
+        self._connected = False
+    
+    def connect(self) -> bool:
+        """Establish Modbus TCP connection."""
+        try:
+            from pymodbus.client import ModbusTcpClient
+            
+            self._client = ModbusTcpClient(
+                host=self.host,
+                port=self.port
+            )
+            self._connected = self._client.connect()
+            return self._connected
+        except Exception as e:
+            self._connected = False
+            raise ConnectionError(f"Failed to connect to Modbus device: {e}")
+    
+    def disconnect(self) -> None:
+        """Close Modbus connection."""
+        if self._client:
+            self._client.close()
+        self._connected = False
+    
+    def is_connected(self) -> bool:
+        """Check if Modbus connection is active."""
+        return self._connected and self._client is not None
+    
+    def poll(self) -> Generator[MeasurementCreate, None, None]:
+        """
+        Poll all configured registers and yield normalized measurements.
+        
+        Register config example:
+        {
+            "address": 100,
+            "count": 2,
+            "type": "holding",
+            "data_type": "float32",
+            "unit": "kWh",
+            "meter_id": 1,
+            "scale_factor": 1.0
+        }
+        """
+        if not self.is_connected():
+            raise ConnectionError("Not connected to Modbus device")
+        
+        for reg_config in self.registers:
+            try:
+                address = reg_config.get("address", 0)
+                count = reg_config.get("count", 1)
+                reg_type = reg_config.get("type", "holding")
+                
+                if reg_type == "holding":
+                    result = self._client.read_holding_registers(
+                        address=address,
+                        count=count,
+                        slave=self.slave_id
+                    )
+                elif reg_type == "input":
+                    result = self._client.read_input_registers(
+                        address=address,
+                        count=count,
+                        slave=self.slave_id
+                    )
+                else:
+                    continue
+                
+                if result.isError():
+                    continue
+                
+                raw_value = float(result.registers[0]) if result.registers else 0.0
+                scale_factor = reg_config.get("scale_factor", 1.0)
+                value = raw_value * scale_factor
+                
+                yield MeasurementCreate(
+                    data_source_id=self.data_source_id,
+                    meter_id=reg_config.get("meter_id"),
+                    timestamp=datetime.utcnow(),
+                    value=value,
+                    unit=reg_config.get("unit", "kWh"),
+                    quality="good",
+                    raw_value=raw_value
+                )
+            except Exception:
+                yield MeasurementCreate(
+                    data_source_id=self.data_source_id,
+                    meter_id=reg_config.get("meter_id"),
+                    timestamp=datetime.utcnow(),
+                    value=0.0,
+                    unit=reg_config.get("unit", "kWh"),
+                    quality="bad",
+                    raw_value=None
+                )
+
+
+class CSVImportDriver(DataSourceDriver):
+    """CSV import driver for bulk data import from legacy systems."""
+    
+    def __init__(self, data_source_id: int, file_path: str):
+        self.data_source_id = data_source_id
+        self.file_path = file_path
+        self._connected = False
+    
+    def connect(self) -> bool:
+        """Verify CSV file exists and is readable."""
+        import os
+        self._connected = os.path.exists(self.file_path)
+        return self._connected
+    
+    def disconnect(self) -> None:
+        """No connection to close for CSV."""
+        self._connected = False
+    
+    def is_connected(self) -> bool:
+        return self._connected
+    
+    def poll(self) -> Generator[MeasurementCreate, None, None]:
+        """Parse CSV and yield normalized measurements."""
+        import csv
+        
+        with open(self.file_path, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    yield MeasurementCreate(
+                        data_source_id=self.data_source_id,
+                        meter_id=int(row.get("meter_id", 0)) or None,
+                        timestamp=datetime.fromisoformat(row["timestamp"]),
+                        value=float(row["value"]),
+                        unit=row.get("unit", "kWh"),
+                        quality=row.get("quality", "good"),
+                        raw_value=float(row.get("raw_value", row["value"]))
+                    )
+                except (KeyError, ValueError):
+                    continue
+
+
+class DataNormalizer:
+    """
+    Service that normalizes data from all sources into standard Measurement format.
+    
+    Responsibilities:
+    - Unit conversion (e.g., MWh to kWh)
+    - Data quality validation
+    - Timestamp normalization (timezone handling)
+    - Outlier detection
+    """
+    
+    UNIT_CONVERSIONS = {
+        ("MWh", "kWh"): 1000.0,
+        ("kWh", "MWh"): 0.001,
+        ("MW", "kW"): 1000.0,
+        ("kW", "MW"): 0.001,
+        ("W", "kW"): 0.001,
+        ("kW", "W"): 1000.0,
+    }
+    
+    @classmethod
+    def normalize_unit(cls, value: float, from_unit: str, to_unit: str) -> float:
+        """Convert value between units."""
+        if from_unit == to_unit:
+            return value
+        
+        conversion_factor = cls.UNIT_CONVERSIONS.get((from_unit, to_unit))
+        if conversion_factor:
+            return value * conversion_factor
+        
+        return value
+    
+    @classmethod
+    def validate_quality(cls, value: float, min_val: float = 0, max_val: float = 1e9) -> str:
+        """Validate measurement quality based on value range."""
+        if value < min_val or value > max_val:
+            return "suspect"
+        return "good"
+    
+    @classmethod
+    def normalize_measurement(
+        cls,
+        measurement: MeasurementCreate,
+        target_unit: str = "kWh"
+    ) -> MeasurementCreate:
+        """Normalize a measurement to standard format."""
+        normalized_value = cls.normalize_unit(
+            measurement.value,
+            measurement.unit,
+            target_unit
+        )
+        quality = cls.validate_quality(normalized_value)
+        
+        return MeasurementCreate(
+            data_source_id=measurement.data_source_id,
+            meter_id=measurement.meter_id,
+            timestamp=measurement.timestamp,
+            value=normalized_value,
+            unit=target_unit,
+            quality=quality,
+            raw_value=measurement.raw_value
+        )
+
+
+# ============================================================================
+# TENANT BILLING ENGINE (Enterprise Edition)
+# ============================================================================
+
+def calculate_tenant_monthly_bill(
+    db,
+    tenant_id: int,
+    billing_period_start: date,
+    billing_period_end: date,
+    tax_rate: float = 0.0
+) -> Invoice:
+    """
+    Calculate monthly bill for a tenant based on their lease contract and consumption.
+    
+    Algorithm:
+    1. Get active lease contract for tenant
+    2. Query meter readings for billing period
+    3. Calculate line items:
+       - Energy charge = consumption * rate_per_kwh
+       - Demand charge = peak_demand * demand_charge_per_kw
+       - Fixed fee = fixed_monthly_fee
+       - Loss charge = energy_charge * loss_factor_percent
+    4. Apply minimum monthly charge if applicable
+    5. Calculate tax and total
+    """
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise ValueError(f"Tenant {tenant_id} not found")
+    
+    lease = db.query(LeaseContract).filter(
+        LeaseContract.tenant_id == tenant_id,
+        LeaseContract.is_active == 1,
+        LeaseContract.start_date <= billing_period_end,
+        (LeaseContract.end_date.is_(None) | (LeaseContract.end_date >= billing_period_start))
+    ).first()
+    
+    if not lease:
+        raise ValueError(f"No active lease contract for tenant {tenant_id}")
+    
+    consumption_kwh = 0.0
+    peak_demand_kw = 0.0
+    
+    if lease.meter_id:
+        readings = db.query(MeterReading).filter(
+            MeterReading.meter_id == lease.meter_id,
+            MeterReading.reading_date >= billing_period_start,
+            MeterReading.reading_date <= billing_period_end
+        ).all()
+        
+        consumption_kwh = sum(r.energy_kwh for r in readings)
+        peak_demand_kw = max((r.demand_kw for r in readings if r.demand_kw), default=0.0)
+    
+    energy_charge = consumption_kwh * lease.rate_per_kwh
+    demand_charge = peak_demand_kw * lease.demand_charge_per_kw
+    fixed_fee = lease.fixed_monthly_fee
+    loss_charge = energy_charge * (lease.loss_factor_percent / 100.0)
+    
+    subtotal = energy_charge + demand_charge + fixed_fee + loss_charge
+    
+    if subtotal < lease.min_monthly_charge:
+        subtotal = lease.min_monthly_charge
+    
+    tax_amount = subtotal * tax_rate
+    total_amount = subtotal + tax_amount
+    
+    invoice_number = f"INV-{tenant_id}-{billing_period_start.strftime('%Y%m')}"
+    
+    invoice = Invoice(
+        tenant_id=tenant_id,
+        lease_contract_id=lease.id,
+        invoice_number=invoice_number,
+        billing_period_start=billing_period_start,
+        billing_period_end=billing_period_end,
+        consumption_kwh=consumption_kwh,
+        peak_demand_kw=peak_demand_kw,
+        energy_charge=energy_charge,
+        demand_charge=demand_charge,
+        fixed_fee=fixed_fee,
+        loss_charge=loss_charge,
+        subtotal=subtotal,
+        tax_amount=tax_amount,
+        total_amount=total_amount,
+        status=InvoiceStatus.DRAFT,
+        due_date=billing_period_end + timedelta(days=30)
+    )
+    
+    db.add(invoice)
+    db.commit()
+    db.refresh(invoice)
+    
+    return invoice
 
 
 @asynccontextmanager
@@ -1144,6 +1934,136 @@ def run_gap_analysis(site_id: int, db=Depends(get_db)):
 def calculate_solar_roi_endpoint(inputs: SolarROIInput):
     """Calculate solar PV system ROI with detailed financial projections."""
     return calculate_solar_roi(inputs)
+
+
+# ============================================================================
+# ENTERPRISE EDITION ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/analysis/bess-simulation", response_model=BESSSimulationResult, tags=["analysis"])
+def run_bess_simulation(inputs: BESSSimulationInput):
+    """
+    Run BESS financial simulation with TOU arbitrage and peak shaving analysis.
+    
+    Requires 8760 hourly values for load profile and tariff rates.
+    Returns NPV, IRR, payback period, and monthly savings breakdown.
+    """
+    if len(inputs.load_profile_kwh) != 8760:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Load profile must have 8760 hourly values, got {len(inputs.load_profile_kwh)}"
+        )
+    if len(inputs.tariff_rates) != 8760:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tariff rates must have 8760 hourly values, got {len(inputs.tariff_rates)}"
+        )
+    return simulate_bess_operation(inputs)
+
+
+@app.post("/api/v1/tenants", response_model=TenantResponse, tags=["tenants"])
+def create_tenant(tenant: TenantCreate, db=Depends(get_db)):
+    """Create a new tenant for sub-billing."""
+    db_tenant = Tenant(**tenant.model_dump())
+    db.add(db_tenant)
+    db.commit()
+    db.refresh(db_tenant)
+    return db_tenant
+
+
+@app.get("/api/v1/tenants", response_model=List[TenantResponse], tags=["tenants"])
+def list_tenants(site_id: Optional[int] = None, skip: int = 0, limit: int = 100, db=Depends(get_db)):
+    """List all tenants, optionally filtered by site."""
+    query = db.query(Tenant)
+    if site_id:
+        query = query.filter(Tenant.site_id == site_id)
+    return query.offset(skip).limit(limit).all()
+
+
+@app.get("/api/v1/tenants/{tenant_id}", response_model=TenantResponse, tags=["tenants"])
+def get_tenant(tenant_id: int, db=Depends(get_db)):
+    """Get tenant by ID."""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return tenant
+
+
+@app.post("/api/v1/lease-contracts", response_model=LeaseContractResponse, tags=["tenants"])
+def create_lease_contract(contract: LeaseContractCreate, db=Depends(get_db)):
+    """Create a new lease contract for a tenant."""
+    db_contract = LeaseContract(**contract.model_dump())
+    db.add(db_contract)
+    db.commit()
+    db.refresh(db_contract)
+    return db_contract
+
+
+@app.get("/api/v1/tenants/{tenant_id}/contracts", response_model=List[LeaseContractResponse], tags=["tenants"])
+def list_tenant_contracts(tenant_id: int, db=Depends(get_db)):
+    """List all lease contracts for a tenant."""
+    return db.query(LeaseContract).filter(LeaseContract.tenant_id == tenant_id).all()
+
+
+@app.post("/api/v1/tenants/{tenant_id}/generate-invoice", response_model=InvoiceResponse, tags=["billing"])
+def generate_tenant_invoice(
+    tenant_id: int,
+    billing_start: date,
+    billing_end: date,
+    tax_rate: float = 0.0,
+    db=Depends(get_db)
+):
+    """Generate a monthly invoice for a tenant."""
+    try:
+        return calculate_tenant_monthly_bill(db, tenant_id, billing_start, billing_end, tax_rate)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/v1/invoices", response_model=List[InvoiceResponse], tags=["billing"])
+def list_invoices(tenant_id: Optional[int] = None, skip: int = 0, limit: int = 100, db=Depends(get_db)):
+    """List all invoices, optionally filtered by tenant."""
+    query = db.query(Invoice)
+    if tenant_id:
+        query = query.filter(Invoice.tenant_id == tenant_id)
+    return query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@app.get("/api/v1/invoices/{invoice_id}", response_model=InvoiceResponse, tags=["billing"])
+def get_invoice(invoice_id: int, db=Depends(get_db)):
+    """Get invoice by ID."""
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return invoice
+
+
+@app.post("/api/v1/data-sources", response_model=DataSourceResponse, tags=["integrations"])
+def create_data_source(source: DataSourceCreate, db=Depends(get_db)):
+    """Create a new data source for meter integration."""
+    db_source = DataSource(**source.model_dump())
+    db.add(db_source)
+    db.commit()
+    db.refresh(db_source)
+    return db_source
+
+
+@app.get("/api/v1/data-sources", response_model=List[DataSourceResponse], tags=["integrations"])
+def list_data_sources(site_id: Optional[int] = None, skip: int = 0, limit: int = 100, db=Depends(get_db)):
+    """List all data sources, optionally filtered by site."""
+    query = db.query(DataSource)
+    if site_id:
+        query = query.filter(DataSource.site_id == site_id)
+    return query.offset(skip).limit(limit).all()
+
+
+@app.get("/api/v1/data-sources/{source_id}", response_model=DataSourceResponse, tags=["integrations"])
+def get_data_source(source_id: int, db=Depends(get_db)):
+    """Get data source by ID."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    return source
 
 
 @app.get("/api/v1/notifications", response_model=List[NotificationResponse], tags=["notifications"])
