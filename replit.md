@@ -167,6 +167,12 @@ Access API docs at `/docs` (Swagger UI).
 
 ## Recent Changes
 
+- 2025-12-15: Page-by-Page Feature Enhancements
+  - OCR Bill Scanning: Image upload with OpenAI Vision API for automatic bill data extraction
+  - Dashboard: YTD savings summary, energy efficiency score, real-time load indicator, energy mix chart
+  - Digital Twin Builder: Grid snap toggle, quick templates (Commercial, Solar+Battery, Industrial), Export to PNG
+  - Bills page: OCR modal with drag-drop upload, preview, auto-fill form
+
 - 2025-12-15: Phase 1-4 Backend & Frontend Implementation
   - Added Platform Foundation APIs (Organizations, Users, Audit Logs, Period Locks)
   - Added Data Quality Engine APIs (Dashboard, Issues, Resolution)
