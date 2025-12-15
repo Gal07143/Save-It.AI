@@ -91,12 +91,50 @@ const getContextualSuggestions = (path: string, data: any): Suggestion[] => {
     })
   }
   
-  if (path === '/storage-units' || path === '/bess') {
+  if (path === '/storage-units') {
     suggestions.push({
       id: 'bess-sim',
       type: 'tip',
       title: 'Battery Sizing Recommendation',
-      description: 'Upload your load profile to get optimal battery sizing recommendations.',
+      description: 'Use the BESS Simulator to get optimal battery sizing recommendations.',
+      action: 'Open Simulator',
+      actionPath: '/bess'
+    })
+  }
+  
+  if (path === '/bess') {
+    suggestions.push({
+      id: 'bess-upload',
+      type: 'action',
+      title: 'Upload Load Data',
+      description: 'Upload 365 days of interval data for accurate ROI projections.',
+    })
+    suggestions.push({
+      id: 'bess-vendors',
+      type: 'insight',
+      title: 'Browse Equipment Catalog',
+      description: '6 vendors with 8+ battery models available for simulation.',
+    })
+  }
+  
+  if (path === '/pv-design') {
+    suggestions.push({
+      id: 'pv-assessment',
+      type: 'action',
+      title: 'Create Site Assessment',
+      description: 'Add rooftop or ground surfaces to calculate maximum PV capacity.',
+    })
+    suggestions.push({
+      id: 'pv-modules',
+      type: 'tip',
+      title: 'Module Selection',
+      description: 'Compare 8+ PV modules from top manufacturers for your project.',
+    })
+    suggestions.push({
+      id: 'pv-roi',
+      type: 'insight',
+      title: 'ROI Projections',
+      description: 'Calculate NPV, IRR, and payback period with financial parameters.',
     })
   }
   

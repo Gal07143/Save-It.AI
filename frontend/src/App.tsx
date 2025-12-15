@@ -30,6 +30,7 @@ import SupplierComparison from './pages/SupplierComparison'
 import SiteDashboard from './pages/SiteDashboard'
 import PVSystems from './pages/PVSystems'
 import StorageUnits from './pages/StorageUnits'
+import PVDesign from './pages/PVDesign'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -348,6 +349,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
               <StorageUnits />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/pv-design">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <PVDesign />
             </Layout>
           </ProtectedRoute>
         )}

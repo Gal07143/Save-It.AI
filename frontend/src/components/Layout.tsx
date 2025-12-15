@@ -62,6 +62,7 @@ const navGroups: NavGroup[] = [
     icon: Sun,
     items: [
       { path: '/pv-systems', icon: Sun, label: 'PV Systems' },
+      { path: '/pv-design', icon: Calculator, label: 'PV Design' },
       { path: '/storage-units', icon: Battery, label: 'Storage Units' },
       { path: '/bess', icon: Battery, label: 'BESS Simulator' },
     ]
