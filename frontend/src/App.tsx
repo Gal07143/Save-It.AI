@@ -27,6 +27,7 @@ import DataIngestion from './pages/DataIngestion'
 import DigitalTwinBuilder from './pages/DigitalTwinBuilder'
 import MVAudit from './pages/MVAudit'
 import SupplierComparison from './pages/SupplierComparison'
+import SiteDashboard from './pages/SiteDashboard'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -85,6 +86,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
               <Sites />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/site-dashboard">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <SiteDashboard />
             </Layout>
           </ProtectedRoute>
         )}

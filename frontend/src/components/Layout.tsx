@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
   Battery, Plug, Search, Bell, Settings, DollarSign, Leaf, FileText,
   ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield, LogOut, User,
-  FileSpreadsheet, GitBranch, FileCheck, Zap
+  FileSpreadsheet, GitBranch, FileCheck, Zap, Activity
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api, Site } from '../services/api'
@@ -18,6 +18,7 @@ interface LayoutProps {
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/sites', icon: Building2, label: 'Sites' },
+  { path: '/site-dashboard', icon: Activity, label: 'Site Dashboard' },
   { path: '/assets', icon: Network, label: 'Digital Twin' },
   { path: '/twin-builder', icon: GitBranch, label: 'Twin Builder' },
   { path: '/meters', icon: Gauge, label: 'Meters' },

@@ -167,7 +167,13 @@ Access API docs at `/docs` (Swagger UI).
 
 ## Recent Changes
 
-- 2025-12-15: Page-by-Page Feature Enhancements
+- 2025-12-15: Comprehensive Page Enhancements (Round 2)
+  - **Site Dashboard**: Live power flow diagram with animated SVG, losses breakdown, asset status monitor, 24-hour load profile
+  - **Data Ingestion**: File preview before import, import history with rollback, scheduled imports (SFTP/API/Email), validation rules config
+  - **M&V Audit**: Drill-down modal with daily breakdown, PDF export, configurable thresholds, anomaly flags, auditor notes, status distribution
+  - **Supplier Comparison**: Contract terms, exit fees, switching bonuses, net Year 1 savings, green energy filter, carbon intensity comparison
+
+- 2025-12-15: Page-by-Page Feature Enhancements (Round 1)
   - OCR Bill Scanning: Image upload with OpenAI Vision API for automatic bill data extraction
   - Dashboard: YTD savings summary, energy efficiency score, real-time load indicator, energy mix chart
   - Digital Twin Builder: Grid snap toggle, quick templates (Commercial, Solar+Battery, Industrial), Export to PNG
