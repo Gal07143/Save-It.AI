@@ -118,6 +118,15 @@ Access API docs at `/docs` (Swagger UI).
 
 ## Recent Changes
 
+- 2025-12-15: Data Import/Export & Reporting Features
+  - Added Excel export endpoints for Sites, Meters, Bills (openpyxl)
+  - Added PDF report generation for Site Summary and Energy Analysis (reportlab)
+  - Created Reports & Exports page with download functionality
+  - Created Tariff Management page with TOU, Flat Rate, Tiered/Block, and Demand Charges support
+  - Created Carbon Footprint & ESG Reporting page with Scope 1/2/3 emissions tracking
+  - Created Settings page with organization, localization, notifications, and automation preferences
+  - Fixed Bill model attribute names (period_start/period_end)
+
 - 2025-12-15: Enterprise Edition Features
   - Added BESS Financial Analyzer with TOU arbitrage simulation
   - Added Tenant Billing Engine with invoice generation
