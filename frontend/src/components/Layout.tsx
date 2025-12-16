@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
   Battery, Plug, Search, Settings, DollarSign, FileText,
   ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield, LogOut, User,
-  FileSpreadsheet, GitBranch, FileCheck, Zap, Activity, Sun,
+  FileSpreadsheet, GitBranch, FileCheck, Zap, Activity, Sun, Bell,
   ChevronDown, ChevronRight, Menu, X, Command, Sparkles
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -33,6 +33,7 @@ const navGroups: NavGroup[] = [
       { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
       { path: '/sites', icon: Building2, label: 'Sites' },
       { path: '/site-dashboard', icon: Activity, label: 'Site Dashboard' },
+      { path: '/notifications', icon: Bell, label: 'Notifications' },
     ]
   },
   {
@@ -71,6 +72,7 @@ const navGroups: NavGroup[] = [
     label: 'Analysis & AI',
     icon: Bot,
     items: [
+      { path: '/ai-agents', icon: Bot, label: 'AI Agents' },
       { path: '/gap-analysis', icon: Search, label: 'Gap Analysis' },
       { path: '/forecasting', icon: TrendingUp, label: 'Forecasting' },
       { path: '/data-quality', icon: ShieldCheck, label: 'Data Quality' },
