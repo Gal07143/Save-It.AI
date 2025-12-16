@@ -195,6 +195,14 @@ Access API docs at `/docs` (Swagger UI).
 
 ## Recent Changes
 
+- 2025-12-16: Digital Twin AI Import & Multi-Level Hierarchy
+  - **AI Panel Diagram Import**: Upload panel diagram images/PDFs and AI automatically extracts electrical asset structure using OpenAI Vision API
+  - **Backend Endpoint**: POST /api/v1/analysis/panel-diagram - analyzes diagrams and returns hierarchical asset data
+  - **Auto-Generation**: Extracted assets automatically placed on canvas with proper parent-child connections
+  - **Multi-Level Layout**: Level-based positioning algorithm for complex hierarchies (Main Panel → Sub-Panels → Loads)
+  - **Hierarchy Tree Sidebar**: Collapsible/expandable tree view showing all asset levels with node counts
+  - **Upload Modal**: Drag-drop interface with file preview, analysis status, and error handling
+
 - 2025-12-15: PV Systems, Storage Units & Page Redesigns
   - **PV Systems Page**: Real-time production monitoring, inverter status grid, panel string health, production charts (daily/monthly), efficiency metrics, weather-based predictions, system alerts
   - **Storage Units Page**: SoC/SoH monitoring with gauge visualization, charge/discharge tracking, alarm configuration, dispatch scheduling, lifecycle/warranty tracking, savings analytics
