@@ -2,10 +2,11 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { 
   Network, Trash2, Save, Undo, Redo, ZoomIn, ZoomOut,
   Zap, Battery, Sun, Building2, Gauge, Box, X, Edit2,
-  Grid3X3, Download, Layers
+  Grid3X3, Download, Layers, Upload, FileImage, Loader2,
+  ChevronRight, ChevronDown, FolderTree
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../services/api'
+import { api, PanelAssetExtracted } from '../services/api'
 
 interface AssetNode {
   id: string
@@ -55,6 +56,13 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
   const [showPalette] = useState(true)
   const [gridSnap, setGridSnap] = useState(true)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [showHierarchy, setShowHierarchy] = useState(true)
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const GRID_SIZE = 20
   
@@ -110,6 +118,149 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
     }))
     setNodes([...nodes, ...newNodes])
     setShowTemplates(false)
+  }
+  
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setUploadFile(file)
+      setAnalysisError(null)
+    }
+  }
+  
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file && (file.type.startsWith('image/') || file.type === 'application/pdf')) {
+      setUploadFile(file)
+      setAnalysisError(null)
+    }
+  }
+  
+  const analyzeDiagram = async () => {
+    if (!uploadFile) return
+    
+    setIsAnalyzing(true)
+    setAnalysisError(null)
+    
+    try {
+      const result = await api.analysis.analyzePanelDiagram(uploadFile)
+      
+      if (result.success && result.assets.length > 0) {
+        generateNodesFromAssets(result.assets)
+        setShowUploadModal(false)
+        setUploadFile(null)
+      } else {
+        setAnalysisError(result.error || 'No assets detected in the diagram')
+      }
+    } catch (error) {
+      setAnalysisError((error as Error).message)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+  
+  const generateNodesFromAssets = (assets: PanelAssetExtracted[]) => {
+    saveToHistory()
+    
+    const newNodes: AssetNode[] = []
+    const newConnections: Connection[] = []
+    const nameToId: Record<string, string> = {}
+    
+    const levelMap: Record<string, number> = {}
+    const childrenMap: Record<string, string[]> = {}
+    
+    assets.forEach(asset => {
+      childrenMap[asset.name] = asset.children || []
+    })
+    
+    const calculateLevel = (name: string, visited = new Set<string>()): number => {
+      if (visited.has(name)) return 0
+      visited.add(name)
+      
+      const asset = assets.find(a => a.name === name)
+      if (!asset || !asset.parent_name) return 0
+      return 1 + calculateLevel(asset.parent_name, visited)
+    }
+    
+    assets.forEach(asset => {
+      levelMap[asset.name] = calculateLevel(asset.name)
+    })
+    
+    const nodesByLevel: Record<number, PanelAssetExtracted[]> = {}
+    assets.forEach(asset => {
+      const level = levelMap[asset.name]
+      if (!nodesByLevel[level]) nodesByLevel[level] = []
+      nodesByLevel[level].push(asset)
+    })
+    
+    const LEVEL_HEIGHT = 140
+    const NODE_WIDTH = 140
+    const NODE_SPACING = 20
+    const CANVAS_CENTER = 500
+    
+    assets.forEach((asset, index) => {
+      const level = levelMap[asset.name]
+      const nodesAtLevel = nodesByLevel[level]
+      const positionInLevel = nodesAtLevel.indexOf(asset)
+      const totalWidth = nodesAtLevel.length * (NODE_WIDTH + NODE_SPACING)
+      const startX = CANVAS_CENTER - totalWidth / 2
+      
+      const id = `node-${Date.now()}-${index}`
+      nameToId[asset.name] = id
+      
+      newNodes.push({
+        id,
+        name: asset.name,
+        type: asset.type || 'consumer',
+        x: startX + positionInLevel * (NODE_WIDTH + NODE_SPACING),
+        y: 50 + level * LEVEL_HEIGHT,
+        parentId: null,
+        children: [],
+        ratedCapacity: asset.rated_capacity_kw,
+        ratedVoltage: asset.rated_voltage
+      })
+    })
+    
+    assets.forEach(asset => {
+      if (asset.parent_name && nameToId[asset.parent_name]) {
+        const fromId = nameToId[asset.parent_name]
+        const toId = nameToId[asset.name]
+        newConnections.push({ from: fromId, to: toId })
+        
+        const nodeIndex = newNodes.findIndex(n => n.id === toId)
+        if (nodeIndex >= 0) {
+          newNodes[nodeIndex].parentId = fromId
+        }
+      }
+    })
+    
+    setNodes([...nodes, ...newNodes])
+    setConnections([...connections, ...newConnections])
+    
+    const allNodeIds = new Set(newNodes.map(n => n.id))
+    setExpandedNodes(allNodeIds)
+  }
+  
+  const toggleNodeExpand = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev)
+      if (next.has(nodeId)) {
+        next.delete(nodeId)
+      } else {
+        next.add(nodeId)
+      }
+      return next
+    })
+  }
+  
+  const getHierarchyTree = (): AssetNode[] => {
+    const roots = nodes.filter(n => !n.parentId)
+    return roots
+  }
+  
+  const getChildren = (nodeId: string): AssetNode[] => {
+    return nodes.filter(n => n.parentId === nodeId)
   }
   
   const exportToPNG = async () => {
@@ -430,6 +581,23 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
             title="Load Template"
           >
             <Layers size={18} />
+          </button>
+          <button 
+            className="btn btn-secondary"
+            onClick={() => setShowUploadModal(true)}
+            style={{ padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+            title="Upload Panel Diagram"
+          >
+            <Upload size={18} />
+            AI Import
+          </button>
+          <button 
+            className={`btn ${showHierarchy ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setShowHierarchy(!showHierarchy)}
+            style={{ padding: '0.5rem' }}
+            title="Toggle Hierarchy View"
+          >
+            <FolderTree size={18} />
           </button>
           <button 
             className="btn btn-outline"
@@ -796,6 +964,284 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
               </button>
             </div>
           </div>
+        </div>
+      )}
+      
+      {showUploadModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="card" style={{ width: '500px', maxWidth: '90vw', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileImage size={24} color="#10b981" />
+                  AI Panel Diagram Import
+                </h2>
+                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                  Upload a panel diagram image or PDF to auto-generate your digital twin
+                </p>
+              </div>
+              <button 
+                className="btn btn-ghost" 
+                onClick={() => { setShowUploadModal(false); setUploadFile(null); setAnalysisError(null) }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              accept="image/*,.pdf"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
+            
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: '2px dashed #475569',
+                borderRadius: '12px',
+                padding: '2rem',
+                textAlign: 'center',
+                cursor: 'pointer',
+                background: uploadFile ? '#1e3a5f' : '#1e293b',
+                transition: 'all 0.2s'
+              }}
+            >
+              {uploadFile ? (
+                <div>
+                  <FileImage size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
+                  <p style={{ fontWeight: 600, color: '#f8fafc' }}>{uploadFile.name}</p>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                    {(uploadFile.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <Upload size={48} color="#64748b" style={{ margin: '0 auto 1rem' }} />
+                  <p style={{ fontWeight: 600, color: '#f8fafc' }}>Drop panel diagram here</p>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                    or click to browse (PNG, JPG, PDF)
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            {analysisError && (
+              <div style={{ 
+                marginTop: '1rem', 
+                padding: '0.75rem', 
+                background: 'rgba(239, 68, 68, 0.1)', 
+                border: '1px solid #ef4444',
+                borderRadius: '8px',
+                color: '#fca5a5',
+                fontSize: '0.875rem'
+              }}>
+                {analysisError}
+              </div>
+            )}
+            
+            <div style={{ 
+              marginTop: '1.5rem', 
+              padding: '1rem', 
+              background: '#0f172a', 
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              color: '#94a3b8'
+            }}>
+              <strong style={{ color: '#f8fafc' }}>What AI will extract:</strong>
+              <ul style={{ marginTop: '0.5rem', marginLeft: '1.25rem' }}>
+                <li>Main panels, sub-panels, distribution boards</li>
+                <li>Transformers, breakers, generators</li>
+                <li>Individual loads and consumers</li>
+                <li>Parent-child connections (hierarchy)</li>
+                <li>Rated capacities and voltages</li>
+              </ul>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+              <button 
+                className="btn btn-outline" 
+                onClick={() => { setShowUploadModal(false); setUploadFile(null); setAnalysisError(null) }} 
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={analyzeDiagram}
+                disabled={!uploadFile || isAnalyzing}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Zap size={18} />
+                    Generate Digital Twin
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showHierarchy && nodes.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          right: '1.5rem',
+          top: '8rem',
+          width: '280px',
+          maxHeight: 'calc(100vh - 12rem)',
+          background: '#1e293b',
+          borderRadius: '12px',
+          border: '1px solid #334155',
+          overflow: 'hidden',
+          zIndex: 100
+        }}>
+          <div style={{ 
+            padding: '0.75rem 1rem', 
+            borderBottom: '1px solid #334155',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FolderTree size={16} color="#10b981" />
+              Hierarchy ({nodes.length} assets)
+            </h3>
+            <button className="btn btn-ghost" onClick={() => setShowHierarchy(false)} style={{ padding: '0.25rem' }}>
+              <X size={14} />
+            </button>
+          </div>
+          <div style={{ padding: '0.5rem', maxHeight: 'calc(100vh - 16rem)', overflowY: 'auto' }}>
+            {getHierarchyTree().map(node => (
+              <HierarchyNode 
+                key={node.id} 
+                node={node} 
+                level={0}
+                expandedNodes={expandedNodes}
+                toggleExpand={toggleNodeExpand}
+                getChildren={getChildren}
+                getNodeColor={getNodeColor}
+                selectedNode={selectedNode}
+                setSelectedNode={setSelectedNode}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function HierarchyNode({ 
+  node, 
+  level, 
+  expandedNodes, 
+  toggleExpand, 
+  getChildren, 
+  getNodeColor,
+  selectedNode,
+  setSelectedNode
+}: {
+  node: AssetNode
+  level: number
+  expandedNodes: Set<string>
+  toggleExpand: (id: string) => void
+  getChildren: (id: string) => AssetNode[]
+  getNodeColor: (type: string) => string
+  selectedNode: string | null
+  setSelectedNode: (id: string | null) => void
+}) {
+  const children = getChildren(node.id)
+  const hasChildren = children.length > 0
+  const isExpanded = expandedNodes.has(node.id)
+  const isSelected = selectedNode === node.id
+  
+  return (
+    <div>
+      <div 
+        onClick={() => setSelectedNode(node.id)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          padding: '0.375rem 0.5rem',
+          paddingLeft: `${0.5 + level * 1}rem`,
+          borderRadius: '6px',
+          cursor: 'pointer',
+          background: isSelected ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+          fontSize: '0.8125rem'
+        }}
+      >
+        {hasChildren ? (
+          <button 
+            onClick={(e) => { e.stopPropagation(); toggleExpand(node.id) }}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              padding: 0, 
+              cursor: 'pointer',
+              color: '#64748b',
+              display: 'flex'
+            }}
+          >
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        ) : (
+          <span style={{ width: '14px' }} />
+        )}
+        <span style={{
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          background: getNodeColor(node.type),
+          flexShrink: 0
+        }} />
+        <span style={{ 
+          color: isSelected ? '#10b981' : '#f8fafc',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {node.name}
+        </span>
+        {hasChildren && (
+          <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: 'auto' }}>
+            {children.length}
+          </span>
+        )}
+      </div>
+      {isExpanded && hasChildren && (
+        <div>
+          {children.map(child => (
+            <HierarchyNode
+              key={child.id}
+              node={child}
+              level={level + 1}
+              expandedNodes={expandedNodes}
+              toggleExpand={toggleExpand}
+              getChildren={getChildren}
+              getNodeColor={getNodeColor}
+              selectedNode={selectedNode}
+              setSelectedNode={setSelectedNode}
+            />
+          ))}
         </div>
       )}
     </div>

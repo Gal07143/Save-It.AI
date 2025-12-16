@@ -96,6 +96,29 @@ export const api = {
     gapAnalysis: (siteId: number) => fetchApi<GapAnalysisResult>(`/analysis/gap-analysis/${siteId}`),
     solarRoi: (data: SolarROIInput) => fetchApi<SolarROIResult>('/analysis/solar-roi', { method: 'POST', body: JSON.stringify(data) }),
     bessSimulation: (data: BESSSimulationInput) => fetchApi<BESSSimulationResult>('/analysis/bess-simulation', { method: 'POST', body: JSON.stringify(data) }),
+    analyzePanelDiagram: async (file: File): Promise<PanelDiagramResult> => {
+      const token = getAuthToken()
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const headers: HeadersInit = {}
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      
+      const response = await fetch(`${API_BASE}/analysis/panel-diagram`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Analysis failed' }))
+        throw new Error(error.detail || 'Analysis failed')
+      }
+      
+      return response.json()
+    },
   },
   tenants: {
     list: (siteId?: number) => fetchApi<Tenant[]>(`/tenants${siteId ? `?site_id=${siteId}` : ''}`),
@@ -343,6 +366,24 @@ export interface OCRBillResult {
   peak_demand_kw?: number
   line_items?: Array<{ description: string; amount: number; quantity?: number }>
   raw_text?: string
+  error?: string
+}
+
+export interface PanelAssetExtracted {
+  name: string
+  type: string
+  rated_capacity_kw?: number
+  rated_voltage?: number
+  parent_name?: string
+  children: string[]
+}
+
+export interface PanelDiagramResult {
+  success: boolean
+  assets: PanelAssetExtracted[]
+  hierarchy_levels: number
+  total_assets: number
+  raw_analysis?: string
   error?: string
 }
 

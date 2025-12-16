@@ -3888,6 +3888,152 @@ Respond ONLY with valid JSON, no additional text."""
         )
 
 
+# Panel Diagram Analysis Schema
+class PanelAssetExtracted(BaseModel):
+    name: str
+    type: str  # main_breaker, transformer, sub_panel, distribution_board, consumer, solar_inverter, battery_storage, generator
+    rated_capacity_kw: Optional[float] = None
+    rated_voltage: Optional[float] = None
+    parent_name: Optional[str] = None  # Name of parent asset for hierarchy
+    children: List[str] = []  # Names of child assets
+
+class PanelDiagramResult(BaseModel):
+    success: bool
+    assets: List[PanelAssetExtracted] = []
+    hierarchy_levels: int = 0
+    total_assets: int = 0
+    raw_analysis: Optional[str] = None
+    error: Optional[str] = None
+
+
+@app.post("/api/v1/analysis/panel-diagram", response_model=PanelDiagramResult, tags=["analysis"])
+async def analyze_panel_diagram(file: UploadFile = File(...)):
+    """
+    Analyze a panel diagram image/PDF using AI to extract the electrical asset hierarchy.
+    Returns structured asset data that can be used to auto-generate a digital twin.
+    """
+    import base64
+    
+    # Read and encode the file
+    content = await file.read()
+    base64_image = base64.b64encode(content).decode('utf-8')
+    
+    # Determine content type
+    content_type = file.content_type or "image/png"
+    if file.filename:
+        if file.filename.lower().endswith('.pdf'):
+            content_type = "application/pdf"
+        elif file.filename.lower().endswith('.png'):
+            content_type = "image/png"
+        elif file.filename.lower().endswith(('.jpg', '.jpeg')):
+            content_type = "image/jpeg"
+    
+    analysis_prompt = """Analyze this electrical panel diagram / Single Line Diagram (SLD) and extract all electrical assets and their hierarchical relationships.
+
+For each asset found, identify:
+1. Name/Label (e.g., "Main LV Panel", "DB-1", "Load 5A")
+2. Type - classify as one of: main_breaker, transformer, sub_panel, distribution_board, consumer, solar_inverter, battery_storage, generator
+3. Rated capacity in kW if shown
+4. Rated voltage if shown
+5. Parent asset (what it connects to upstream)
+6. Child assets (what connects to it downstream)
+
+Return a JSON object with this exact structure:
+{
+    "assets": [
+        {
+            "name": "Main LV Panel",
+            "type": "main_breaker",
+            "rated_capacity_kw": 500,
+            "rated_voltage": 400,
+            "parent_name": null,
+            "children": ["DB-1", "DB-2", "DB-3", "DB-4"]
+        },
+        {
+            "name": "DB-1",
+            "type": "distribution_board",
+            "rated_capacity_kw": 100,
+            "rated_voltage": 400,
+            "parent_name": "Main LV Panel",
+            "children": ["Load 1A", "Load 1B", "Load 1C", "Load 1D", "Load 1E"]
+        },
+        ...
+    ],
+    "hierarchy_levels": 3,
+    "total_assets": 25
+}
+
+Extract ALL assets visible in the diagram, including individual loads/consumers at the lowest level.
+Preserve the exact naming from the diagram where visible.
+If a panel shows multiple identical loads (e.g., 5 lighting circuits), list each one separately."""
+
+    try:
+        from openai import OpenAI
+        client = OpenAI()
+        
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": analysis_prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{content_type};base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_completion_tokens=4096
+        )
+        
+        result_text = response.choices[0].message.content or ""
+        
+        # Clean up markdown code blocks
+        if result_text.startswith("```"):
+            result_text = result_text.split("```")[1]
+            if result_text.startswith("json"):
+                result_text = result_text[4:]
+        result_text = result_text.strip()
+        
+        import json
+        import re
+        try:
+            extracted_data = json.loads(result_text)
+        except json.JSONDecodeError:
+            json_match = re.search(r'\{[\s\S]*\}', result_text)
+            if json_match:
+                extracted_data = json.loads(json_match.group())
+            else:
+                return PanelDiagramResult(
+                    success=False,
+                    error="Failed to parse analysis response as JSON",
+                    raw_analysis=result_text
+                )
+        
+        assets = [PanelAssetExtracted(**a) for a in extracted_data.get("assets", [])]
+        
+        return PanelDiagramResult(
+            success=True,
+            assets=assets,
+            hierarchy_levels=extracted_data.get("hierarchy_levels", 0),
+            total_assets=len(assets),
+            raw_analysis=result_text
+        )
+        
+    except Exception as e:
+        return PanelDiagramResult(
+            success=False,
+            error=f"Panel diagram analysis failed: {str(e)}"
+        )
+
+
 @app.get("/api/v1/tariffs", response_model=List[TariffResponse], tags=["tariffs"])
 def list_tariffs(site_id: Optional[int] = None, skip: int = 0, limit: int = 100, db=Depends(get_db)):
     """List all tariffs, optionally filtered by site."""
