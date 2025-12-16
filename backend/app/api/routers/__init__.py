@@ -1,1 +1,70 @@
-"""API routers package."""
+"""API Routers - Export all domain-specific API routers."""
+from backend.app.api.routers.sites import router as sites_router
+from backend.app.api.routers.assets import router as assets_router
+from backend.app.api.routers.meters import router as meters_router
+from backend.app.api.routers.bills import router as bills_router
+from backend.app.api.routers.notifications import router as notifications_router
+from backend.app.api.routers.analysis import router as analysis_router
+from backend.app.api.routers.tariffs import router as tariffs_router
+from backend.app.api.routers.bess import router as bess_router
+from backend.app.api.routers.pv import router as pv_router
+from backend.app.api.routers.tenants import router as tenants_router
+from backend.app.api.routers.integrations import router as integrations_router
+from backend.app.api.routers.admin import router as admin_router
+from backend.app.api.routers.data_quality import router as data_quality_router
+from backend.app.api.routers.virtual_meters import router as virtual_meters_router
+from backend.app.api.routers.maintenance import router as maintenance_router
+from backend.app.api.routers.ai_agents import router as ai_agents_router
+from backend.app.api.routers.forecasting import router as forecasting_router
+from backend.app.api.routers.control import router as control_router
+from backend.app.api.routers.auth import router as auth_router
+from backend.app.api.routers.reports import router as reports_router
+from backend.app.api.routers.ingestion import router as ingestion_router
+
+__all__ = [
+    "sites_router",
+    "assets_router",
+    "meters_router",
+    "bills_router",
+    "notifications_router",
+    "analysis_router",
+    "tariffs_router",
+    "bess_router",
+    "pv_router",
+    "tenants_router",
+    "integrations_router",
+    "admin_router",
+    "data_quality_router",
+    "virtual_meters_router",
+    "maintenance_router",
+    "ai_agents_router",
+    "forecasting_router",
+    "control_router",
+    "auth_router",
+    "reports_router",
+    "ingestion_router",
+]
+
+all_routers = [
+    sites_router,
+    assets_router,
+    meters_router,
+    bills_router,
+    notifications_router,
+    analysis_router,
+    tariffs_router,
+    bess_router,
+    pv_router,
+    tenants_router,
+    integrations_router,
+    admin_router,
+    data_quality_router,
+    virtual_meters_router,
+    maintenance_router,
+    ai_agents_router,
+    forecasting_router,
+    control_router,
+    auth_router,
+    reports_router,
+    ingestion_router,
+]

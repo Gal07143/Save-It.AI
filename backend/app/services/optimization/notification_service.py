@@ -9,9 +9,9 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 
-from backend.app.models.notification import Notification, NotificationType
-from backend.app.models.site import Site
-from backend.app.schemas.notification import NotificationCreate, NotificationResponse
+from backend.app.models import Notification, Site
+from backend.app.models.base import NotificationType
+from backend.app.schemas import NotificationCreate, NotificationResponse
 
 
 class NotificationService:

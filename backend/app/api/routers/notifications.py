@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models.notification import Notification
-from backend.app.schemas.notification import NotificationResponse
+from backend.app.models import Notification
+from backend.app.schemas import NotificationResponse
 from backend.app.services.optimization.notification_service import NotificationService
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
 
 @router.get("/", response_model=List[NotificationResponse])

@@ -1,15 +1,111 @@
 """SQLAlchemy database models."""
-from backend.app.models.site import Site
-from backend.app.models.asset import Asset, AssetType
-from backend.app.models.meter import Meter, MeterReading
-from backend.app.models.bill import Bill, BillLineItem
-from backend.app.models.tariff import Tariff, TariffRate
-from backend.app.models.notification import Notification, NotificationType
+from backend.app.models.base import (
+    AssetType,
+    NotificationType,
+)
+
+from backend.app.models.core import (
+    Site,
+    Asset,
+    Meter,
+    MeterReading,
+    Bill,
+    BillLineItem,
+    Tariff,
+    TariffRate,
+    Notification,
+)
+
+from backend.app.models.enterprise import (
+    DataSourceType,
+    InvoiceStatus,
+    DataSource,
+    Measurement,
+    Tenant,
+    LeaseContract,
+    Invoice,
+    BatterySpecs,
+)
+
+from backend.app.models.bess import (
+    BESSVendor,
+    BESSModel,
+    BESSDataset,
+    BESSDataReading,
+    BESSSimulationResult,
+)
+
+from backend.app.models.pv import (
+    PVModuleCatalog,
+    PVAssessment,
+    PVSurface,
+    PVDesignScenario,
+    SiteMap,
+    PlacementZone,
+)
+
+from backend.app.models.platform import (
+    UserRole,
+    AuditAction,
+    FileStatus,
+    PeriodStatus,
+    NotificationChannel,
+    Organization,
+    User,
+    OrgSite,
+    UserSitePermission,
+    AuditLog,
+    FileAsset,
+    PeriodLock,
+    NotificationTemplate,
+    NotificationPreference,
+    NotificationDelivery,
+)
+
+from backend.app.models.data_quality import (
+    QualityIssueType,
+    DataQualityRule,
+    QualityIssue,
+    MeterQualitySummary,
+)
+
+from backend.app.models.virtual_meters import (
+    VirtualMeterType,
+    VirtualMeter,
+    VirtualMeterComponent,
+    AllocationRule,
+)
+
+from backend.app.models.maintenance import (
+    MaintenanceRuleType,
+    MaintenanceCondition,
+    MaintenanceRule,
+    AssetCondition,
+    MaintenanceAlert,
+)
+
+from backend.app.models.ai_forecasting import (
+    AgentType,
+    AgentSession,
+    AgentMessage,
+    Recommendation,
+    ForecastJob,
+    ForecastSeries,
+)
+
+from backend.app.models.control import (
+    ControlRuleType,
+    SafetyGateStatus,
+    ControlRule,
+    SafetyGate,
+    ControlCommand,
+)
 
 __all__ = [
+    "AssetType",
+    "NotificationType",
     "Site",
     "Asset",
-    "AssetType",
     "Meter",
     "MeterReading",
     "Bill",
@@ -17,5 +113,62 @@ __all__ = [
     "Tariff",
     "TariffRate",
     "Notification",
-    "NotificationType",
+    "DataSourceType",
+    "InvoiceStatus",
+    "DataSource",
+    "Measurement",
+    "Tenant",
+    "LeaseContract",
+    "Invoice",
+    "BatterySpecs",
+    "BESSVendor",
+    "BESSModel",
+    "BESSDataset",
+    "BESSDataReading",
+    "BESSSimulationResult",
+    "PVModuleCatalog",
+    "PVAssessment",
+    "PVSurface",
+    "PVDesignScenario",
+    "SiteMap",
+    "PlacementZone",
+    "UserRole",
+    "AuditAction",
+    "FileStatus",
+    "PeriodStatus",
+    "NotificationChannel",
+    "Organization",
+    "User",
+    "OrgSite",
+    "UserSitePermission",
+    "AuditLog",
+    "FileAsset",
+    "PeriodLock",
+    "NotificationTemplate",
+    "NotificationPreference",
+    "NotificationDelivery",
+    "QualityIssueType",
+    "DataQualityRule",
+    "QualityIssue",
+    "MeterQualitySummary",
+    "VirtualMeterType",
+    "VirtualMeter",
+    "VirtualMeterComponent",
+    "AllocationRule",
+    "MaintenanceRuleType",
+    "MaintenanceCondition",
+    "MaintenanceRule",
+    "AssetCondition",
+    "MaintenanceAlert",
+    "AgentType",
+    "AgentSession",
+    "AgentMessage",
+    "Recommendation",
+    "ForecastJob",
+    "ForecastSeries",
+    "ControlRuleType",
+    "SafetyGateStatus",
+    "ControlRule",
+    "SafetyGate",
+    "ControlCommand",
 ]

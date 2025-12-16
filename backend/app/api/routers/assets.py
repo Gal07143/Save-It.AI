@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models.asset import Asset
-from backend.app.schemas.asset import AssetCreate, AssetUpdate, AssetResponse, AssetTreeNode
+from backend.app.models import Asset
+from backend.app.schemas import AssetCreate, AssetUpdate, AssetResponse, AssetTreeNode
 
-router = APIRouter(prefix="/assets", tags=["assets"])
+router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
 
 
 @router.get("/", response_model=List[AssetResponse])

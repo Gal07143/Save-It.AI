@@ -5,13 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models.meter import Meter, MeterReading
-from backend.app.schemas.meter import (
+from backend.app.models import Meter, MeterReading
+from backend.app.schemas import (
     MeterCreate, MeterUpdate, MeterResponse,
     MeterReadingCreate, MeterReadingResponse
 )
 
-router = APIRouter(prefix="/meters", tags=["meters"])
+router = APIRouter(prefix="/api/v1/meters", tags=["meters"])
 
 
 @router.get("/", response_model=List[MeterResponse])

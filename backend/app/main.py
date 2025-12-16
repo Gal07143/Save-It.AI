@@ -5,26 +5,46 @@ An AI-driven energy management platform that combines financial analysis
 with electrical engineering (SLD/Digital Twin) to optimize energy usage
 for B2B clients.
 """
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from backend.app.core.database import init_db
-from backend.app.api.routers import sites, assets, meters, bills, analysis, notifications
+from backend.app.core.database import Base, engine
+from backend.app.api.routers import all_routers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events."""
-    init_db()
+    """Application lifespan events - create all database tables."""
+    from backend.app.models import (
+        Site, Asset, Meter, MeterReading, Bill, BillLineItem, Tariff, TariffRate, Notification,
+        DataSource, Measurement, Tenant, LeaseContract, Invoice, BatterySpecs,
+        BESSVendor, BESSModel, BESSDataset, BESSDataReading, BESSSimulationResult,
+        PVModuleCatalog, PVAssessment, PVSurface, PVDesignScenario, SiteMap, PlacementZone,
+        Organization, User, OrgSite, UserSitePermission, AuditLog, FileAsset, PeriodLock,
+        NotificationTemplate, NotificationPreference, NotificationDelivery,
+        DataQualityRule, QualityIssue, MeterQualitySummary,
+        VirtualMeter, VirtualMeterComponent, AllocationRule,
+        MaintenanceRule, AssetCondition, MaintenanceAlert,
+        AgentSession, AgentMessage, Recommendation, ForecastJob, ForecastSeries,
+        ControlRule, SafetyGate, ControlCommand
+    )
+    Base.metadata.create_all(bind=engine)
     yield
 
 
 app = FastAPI(
     title="SAVE-IT.AI",
     description="AI-driven energy management platform for B2B clients",
-    version="0.1.0",
-    lifespan=lifespan
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 app.add_middleware(
@@ -35,12 +55,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(sites.router, prefix="/api/v1")
-app.include_router(assets.router, prefix="/api/v1")
-app.include_router(meters.router, prefix="/api/v1")
-app.include_router(bills.router, prefix="/api/v1")
-app.include_router(analysis.router, prefix="/api/v1")
-app.include_router(notifications.router, prefix="/api/v1")
+for router in all_routers:
+    app.include_router(router)
 
 
 @app.get("/")
@@ -48,7 +64,7 @@ def root():
     """Root endpoint."""
     return {
         "name": "SAVE-IT.AI",
-        "version": "0.1.0",
+        "version": "1.0.0",
         "description": "AI-driven energy management platform",
         "docs_url": "/docs",
         "api_prefix": "/api/v1"
@@ -59,3 +75,8 @@ def root():
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

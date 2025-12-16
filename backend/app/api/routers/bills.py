@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models.bill import Bill, BillLineItem
-from backend.app.schemas.bill import BillCreate, BillUpdate, BillResponse, BillValidationResult
+from backend.app.models import Bill, BillLineItem
+from backend.app.schemas import BillCreate, BillUpdate, BillResponse, BillValidationResult
 from backend.app.services.financial.bill_validation import BillValidationService
 
-router = APIRouter(prefix="/bills", tags=["bills"])
+router = APIRouter(prefix="/api/v1/bills", tags=["bills"])
 
 
 @router.get("/", response_model=List[BillResponse])

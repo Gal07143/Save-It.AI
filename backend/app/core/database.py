@@ -18,9 +18,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def init_db():
-    """Initialize database tables."""
-    from backend.app.models import site, asset, meter, bill, tariff, notification
-    Base.metadata.create_all(bind=engine)

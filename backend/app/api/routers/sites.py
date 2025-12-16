@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models.site import Site
-from backend.app.schemas.site import SiteCreate, SiteUpdate, SiteResponse
+from backend.app.models import Site
+from backend.app.schemas import SiteCreate, SiteUpdate, SiteResponse
 
-router = APIRouter(prefix="/sites", tags=["sites"])
+router = APIRouter(prefix="/api/v1/sites", tags=["sites"])
 
 
 @router.get("/", response_model=List[SiteResponse])

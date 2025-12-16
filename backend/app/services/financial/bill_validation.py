@@ -9,10 +9,8 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from backend.app.models.bill import Bill
-from backend.app.models.meter import Meter, MeterReading
-from backend.app.models.site import Site
-from backend.app.schemas.bill import BillCreate, BillValidationResult
+from backend.app.models import Bill, Meter, MeterReading, Site
+from backend.app.schemas import BillValidationResult
 
 
 class BillValidationService:
