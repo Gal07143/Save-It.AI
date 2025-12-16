@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Users, Plus, FileText, Mail } from 'lucide-react'
+import { Plus, FileText, Mail } from 'lucide-react'
 
-export default function Tenants() {
+interface TenantsProps {
+  currentSite?: number | null
+}
+
+export default function Tenants({ currentSite: _currentSite }: TenantsProps) {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [showInvoiceForm, setShowInvoiceForm] = useState<number | null>(null)

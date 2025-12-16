@@ -61,8 +61,9 @@ export default function PVSystems() {
     enabled: !!selectedSite
   })
 
-  const pvAssets = assets?.filter(a => a.asset_type?.toLowerCase().includes('solar') || a.asset_type?.toLowerCase().includes('pv')) || []
-  const pvMeters = meters?.filter(m => m.meter_type?.toLowerCase().includes('generation') || m.meter_type?.toLowerCase().includes('solar')) || []
+  // These filters are available for future API integration
+  void assets?.filter(a => a.asset_type?.toLowerCase().includes('solar') || a.asset_type?.toLowerCase().includes('pv'))
+  void meters?.filter(m => m.meter_type?.toLowerCase().includes('generation') || m.meter_type?.toLowerCase().includes('solar'))
 
   useEffect(() => {
     const interval = setInterval(() => {

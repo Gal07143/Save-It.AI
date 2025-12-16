@@ -5,7 +5,7 @@ import {
   Battery, Plug, Search, Settings, DollarSign, FileText,
   ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield, LogOut, User,
   FileSpreadsheet, GitBranch, FileCheck, Zap, Activity, Sun, Bell,
-  ChevronDown, ChevronRight, Menu, X, Command, Sparkles
+  ChevronDown, ChevronRight, Menu, X, Command
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'

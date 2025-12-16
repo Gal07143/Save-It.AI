@@ -3,6 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { api, AssetTreeNode } from '../services/api'
 import { ChevronRight, ChevronDown, Network, Gauge, AlertCircle } from 'lucide-react'
 
+interface AssetsProps {
+  currentSite?: number | null
+}
+
 const assetTypeIcons: Record<string, string> = {
   main_breaker: '🔌',
   sub_panel: '📦',
@@ -68,7 +72,7 @@ function TreeNode({ node, depth = 0 }: { node: AssetTreeNode; depth?: number }) 
   )
 }
 
-export default function Assets() {
+export default function Assets({ currentSite: _currentSite }: AssetsProps) {
   const [selectedSite, setSelectedSite] = useState<number | null>(null)
   
   const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })

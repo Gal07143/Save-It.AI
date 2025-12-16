@@ -25,7 +25,11 @@ interface MeterWithConnectivity {
   }
 }
 
-export default function Meters() {
+interface MetersProps {
+  currentSite?: number | null
+}
+
+export default function Meters({ currentSite: _currentSite }: MetersProps) {
   const queryClient = useQueryClient()
   const { data: meters, isLoading } = useQuery({ queryKey: ['meters'], queryFn: () => api.meters.list() })
   const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })

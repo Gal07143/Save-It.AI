@@ -4,7 +4,11 @@ import { api, GapAnalysisResult } from '../services/api'
 import { Search, AlertTriangle, CheckCircle, Target } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
-export default function GapAnalysis() {
+interface GapAnalysisProps {
+  currentSite?: number | null
+}
+
+export default function GapAnalysis({ currentSite: _propSite }: GapAnalysisProps) {
   const [selectedSite, setSelectedSite] = useState<number | null>(null)
   const [result, setResult] = useState<GapAnalysisResult | null>(null)
 

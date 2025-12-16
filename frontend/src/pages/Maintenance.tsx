@@ -20,7 +20,7 @@ export default function Maintenance() {
     },
   })
 
-  const { data: conditions } = useQuery({
+  const { data: _conditions } = useQuery({
     queryKey: ['asset-conditions'],
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/maintenance/asset-conditions`)

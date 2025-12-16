@@ -8,7 +8,11 @@ const severityConfig: Record<string, { icon: any; color: string; bg: string }> =
   info: { icon: Info, color: '#2563eb', bg: '#dbeafe' },
 }
 
-export default function Notifications() {
+interface NotificationsProps {
+  currentSite?: number | null
+}
+
+export default function Notifications({ currentSite: _currentSite }: NotificationsProps) {
   const queryClient = useQueryClient()
   
   const { data: notifications, isLoading } = useQuery({ 

@@ -60,11 +60,12 @@ export default function StorageUnits() {
     enabled: !!selectedSite
   })
 
-  const batteryAssets = assets?.filter(a => 
+  // This filter is available for future API integration
+  void assets?.filter(a => 
     a.asset_type?.toLowerCase().includes('battery') || 
     a.asset_type?.toLowerCase().includes('bess') ||
     a.asset_type?.toLowerCase().includes('storage')
-  ) || []
+  )
 
   useEffect(() => {
     const interval = setInterval(() => {

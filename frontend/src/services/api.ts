@@ -492,6 +492,7 @@ export interface Notification {
   is_read: boolean
   is_resolved: boolean
   created_at: string
+  agent_name?: string
 }
 
 export interface Tariff {

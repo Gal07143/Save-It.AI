@@ -17,7 +17,11 @@ interface NewBillForm {
   account_number?: string
 }
 
-export default function Bills() {
+interface BillsProps {
+  currentSite?: number | null
+}
+
+export default function Bills({ currentSite: _currentSite }: BillsProps) {
   const queryClient = useQueryClient()
   const [validatingId, setValidatingId] = useState<number | null>(null)
   const [validationResult, setValidationResult] = useState<any>(null)

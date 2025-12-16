@@ -3,9 +3,9 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { api, PVModule, PVAssessment, PVDesignScenario, PVSurfaceCreate } from '../services/api'
 import { 
   Sun, Plus, Calculator, MapPin, Layers, DollarSign, 
-  TrendingUp, Leaf, ChevronRight, X, Check, Trash2, Edit2
+  TrendingUp, Leaf, ChevronRight, X, Check
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 type TabType = 'assessments' | 'modules' | 'design'
 

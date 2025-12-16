@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { Upload, File, X, CheckCircle, AlertCircle, Loader } from 'lucide-react'
+import { Upload, File, X, AlertCircle } from 'lucide-react'
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void
@@ -22,7 +22,7 @@ export default function FileUpload({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number>(0)
-  const [isUploading, setIsUploading] = useState(false)
+  const [_isUploading, _setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const validateFile = (file: File): string | null => {
@@ -188,7 +188,7 @@ export default function FileUpload({
             </button>
           </div>
           
-          {isUploading && (
+          {_isUploading && (
             <div style={{ marginTop: '1rem' }}>
               <div style={{
                 height: '4px',

@@ -11,7 +11,11 @@ const sourceTypeLabels: Record<string, string> = {
   manual: 'Manual Entry',
 }
 
-export default function Integrations() {
+interface IntegrationsProps {
+  currentSite?: number | null
+}
+
+export default function Integrations({ currentSite: _currentSite }: IntegrationsProps) {
   const { data: dataSources, isLoading } = useQuery({ 
     queryKey: ['data-sources'], 
     queryFn: () => api.dataSources.list() 
