@@ -11,7 +11,7 @@ from backend.app.services.optimization.notification_service import NotificationS
 router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
 
-@router.get("/", response_model=List[NotificationResponse])
+@router.get("", response_model=List[NotificationResponse])
 def list_notifications(
     site_id: Optional[int] = None,
     unread_only: bool = False,

@@ -10,7 +10,7 @@ from backend.app.schemas import AssetCreate, AssetUpdate, AssetResponse, AssetTr
 router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
 
 
-@router.get("/", response_model=List[AssetResponse])
+@router.get("", response_model=List[AssetResponse])
 def list_assets(
     site_id: Optional[int] = None,
     skip: int = 0,
@@ -56,7 +56,7 @@ def get_asset(asset_id: int, db: Session = Depends(get_db)):
     return asset
 
 
-@router.post("/", response_model=AssetResponse)
+@router.post("", response_model=AssetResponse)
 def create_asset(asset: AssetCreate, db: Session = Depends(get_db)):
     """Create a new asset."""
     db_asset = Asset(

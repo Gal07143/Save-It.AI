@@ -15,7 +15,7 @@ from backend.app.schemas import (
 router = APIRouter(prefix="/api/v1/forecasts", tags=["forecasting"])
 
 
-@router.post("/", response_model=ForecastResponse)
+@router.post("", response_model=ForecastResponse)
 def create_forecast(request: ForecastRequest, db: Session = Depends(get_db)):
     """Create a new forecast job."""
     job = ForecastJob(

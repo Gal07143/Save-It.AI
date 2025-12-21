@@ -10,7 +10,7 @@ from backend.app.schemas import DataSourceCreate, DataSourceResponse
 router = APIRouter(prefix="/api/v1/data-sources", tags=["integrations"])
 
 
-@router.post("/", response_model=DataSourceResponse)
+@router.post("", response_model=DataSourceResponse)
 def create_data_source(source: DataSourceCreate, db: Session = Depends(get_db)):
     """Create a new data source for meter integration."""
     db_source = DataSource(**source.model_dump())
@@ -20,7 +20,7 @@ def create_data_source(source: DataSourceCreate, db: Session = Depends(get_db)):
     return db_source
 
 
-@router.get("/", response_model=List[DataSourceResponse])
+@router.get("", response_model=List[DataSourceResponse])
 def list_data_sources(
     site_id: Optional[int] = None,
     skip: int = 0,

@@ -11,7 +11,7 @@ from backend.app.services.financial.bill_validation import BillValidationService
 router = APIRouter(prefix="/api/v1/bills", tags=["bills"])
 
 
-@router.get("/", response_model=List[BillResponse])
+@router.get("", response_model=List[BillResponse])
 def list_bills(
     site_id: Optional[int] = None,
     skip: int = 0,
@@ -35,7 +35,7 @@ def get_bill(bill_id: int, db: Session = Depends(get_db)):
     return bill
 
 
-@router.post("/", response_model=BillResponse)
+@router.post("", response_model=BillResponse)
 def create_bill(bill: BillCreate, db: Session = Depends(get_db)):
     """Create a new bill."""
     bill_data = bill.model_dump(exclude={'line_items'})

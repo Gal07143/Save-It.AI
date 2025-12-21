@@ -10,7 +10,7 @@ from backend.app.schemas import SiteCreate, SiteUpdate, SiteResponse
 router = APIRouter(prefix="/api/v1/sites", tags=["sites"])
 
 
-@router.get("/", response_model=List[SiteResponse])
+@router.get("", response_model=List[SiteResponse])
 def list_sites(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """Get all sites."""
     sites = db.query(Site).offset(skip).limit(limit).all()
@@ -26,7 +26,7 @@ def get_site(site_id: int, db: Session = Depends(get_db)):
     return site
 
 
-@router.post("/", response_model=SiteResponse)
+@router.post("", response_model=SiteResponse)
 def create_site(site: SiteCreate, db: Session = Depends(get_db)):
     """Create a new site."""
     db_site = Site(**site.model_dump())

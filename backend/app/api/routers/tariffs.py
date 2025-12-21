@@ -10,7 +10,7 @@ from backend.app.schemas import TariffCreate, TariffUpdate, TariffResponse
 router = APIRouter(prefix="/api/v1/tariffs", tags=["tariffs"])
 
 
-@router.get("/", response_model=List[TariffResponse])
+@router.get("", response_model=List[TariffResponse])
 def list_tariffs(
     site_id: Optional[int] = None,
     skip: int = 0,
@@ -33,7 +33,7 @@ def get_tariff(tariff_id: int, db: Session = Depends(get_db)):
     return tariff
 
 
-@router.post("/", response_model=TariffResponse)
+@router.post("", response_model=TariffResponse)
 def create_tariff(tariff: TariffCreate, db: Session = Depends(get_db)):
     """Create a new tariff schedule."""
     tariff_data = tariff.model_dump()

@@ -10,7 +10,7 @@ from backend.app.schemas import VirtualMeterCreate, VirtualMeterResponse
 router = APIRouter(prefix="/api/v1/virtual-meters", tags=["virtual-meters"])
 
 
-@router.get("/", response_model=List[VirtualMeterResponse])
+@router.get("", response_model=List[VirtualMeterResponse])
 def list_virtual_meters(site_id: Optional[int] = None, db: Session = Depends(get_db)):
     """List virtual meters."""
     query = db.query(VirtualMeter)
@@ -19,7 +19,7 @@ def list_virtual_meters(site_id: Optional[int] = None, db: Session = Depends(get
     return query.all()
 
 
-@router.post("/", response_model=VirtualMeterResponse)
+@router.post("", response_model=VirtualMeterResponse)
 def create_virtual_meter(vm: VirtualMeterCreate, db: Session = Depends(get_db)):
     """Create a virtual meter with components."""
     db_vm = VirtualMeter(

@@ -14,7 +14,7 @@ from backend.app.schemas import (
 router = APIRouter(prefix="/api/v1/meters", tags=["meters"])
 
 
-@router.get("/", response_model=List[MeterResponse])
+@router.get("", response_model=List[MeterResponse])
 def list_meters(
     site_id: Optional[int] = None,
     active_only: bool = True,
@@ -41,7 +41,7 @@ def get_meter(meter_id: int, db: Session = Depends(get_db)):
     return meter
 
 
-@router.post("/", response_model=MeterResponse)
+@router.post("", response_model=MeterResponse)
 def create_meter(meter: MeterCreate, db: Session = Depends(get_db)):
     """Create a new meter."""
     existing = db.query(Meter).filter(Meter.meter_id == meter.meter_id).first()
