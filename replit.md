@@ -91,7 +91,7 @@ frontend/src/
 
 ## Development Roadmap (105 Tasks)
 
-### Phase 1: Core Fixes (12 tasks) - IN PROGRESS (8/12 complete)
+### Phase 1: Core Fixes (12 tasks) - COMPLETE ✅
 1. ✅ Auto-seed device templates on startup
 2. ✅ Meter delete button with confirmation dialog
 3. ✅ Add gateway_id + MQTT/HTTPS to DataSource model & schemas
@@ -99,10 +99,10 @@ frontend/src/
 5. ✅ Solar inverter templates (SMA, SolarEdge, Huawei, Fronius, Sungrow)
 6. ✅ BESS templates (Tesla, BYD, LG RESU, Pylontech)
 7. ✅ Meter linking in Apply Template
-8. Export/import template buttons
-9. data_source_id on PV/BESS assets
-10. Site Configuration section
-11. Connection health notifications
+8. ✅ Export/import template buttons (JSON file download/upload)
+9. ✅ data_source_id on PV/BESS assets
+10. ✅ Site Configuration section (with placeholder energy settings)
+11. ✅ Connection health notifications (API endpoints for CONNECTION_ERROR/CONNECTION_RESTORED)
 12. ✅ formatNumber utility (3 decimals)
 
 ### Phase 2: Device Onboarding Wizard (4 tasks)
