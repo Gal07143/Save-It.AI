@@ -9,9 +9,13 @@ class DataSourceType(str, Enum):
     """Types of data sources for integration layer."""
     MODBUS_TCP = "modbus_tcp"
     MODBUS_RTU = "modbus_rtu"
+    MQTT = "mqtt"
+    HTTPS_WEBHOOK = "https_webhook"
     BACNET = "bacnet"
     CSV_IMPORT = "csv_import"
     EXTERNAL_API = "external_api"
+    DIRECT_INVERTER = "direct_inverter"
+    DIRECT_BESS = "direct_bess"
     MANUAL = "manual"
 
 
@@ -28,6 +32,7 @@ class InvoiceStatus(str, Enum):
 class DataSourceCreate(BaseModel):
     """Schema for creating a data source."""
     site_id: int
+    gateway_id: Optional[int] = None
     name: str = Field(..., min_length=1, max_length=255)
     source_type: DataSourceType
     host: Optional[str] = None
@@ -35,20 +40,57 @@ class DataSourceCreate(BaseModel):
     slave_id: Optional[int] = None
     polling_interval_seconds: int = 60
     config_json: Optional[str] = None
+    mqtt_broker_url: Optional[str] = None
+    mqtt_topic: Optional[str] = None
+    mqtt_username: Optional[str] = None
+    mqtt_password: Optional[str] = None
+    mqtt_port: Optional[int] = None
+    mqtt_use_tls: Optional[int] = 0
+    webhook_url: Optional[str] = None
+    webhook_api_key: Optional[str] = None
+    webhook_auth_type: Optional[str] = None
+
+
+class DataSourceUpdate(BaseModel):
+    """Schema for updating a data source."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    gateway_id: Optional[int] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    slave_id: Optional[int] = None
+    polling_interval_seconds: Optional[int] = None
+    is_active: Optional[int] = None
+    mqtt_broker_url: Optional[str] = None
+    mqtt_topic: Optional[str] = None
+    mqtt_username: Optional[str] = None
+    mqtt_password: Optional[str] = None
+    mqtt_port: Optional[int] = None
+    mqtt_use_tls: Optional[int] = None
+    webhook_url: Optional[str] = None
+    webhook_api_key: Optional[str] = None
+    webhook_auth_type: Optional[str] = None
 
 
 class DataSourceResponse(BaseModel):
     """Response schema for data source."""
     id: int
     site_id: int
+    gateway_id: Optional[int] = None
     name: str
     source_type: DataSourceType
     host: Optional[str] = None
     port: Optional[int] = None
+    slave_id: Optional[int] = None
     polling_interval_seconds: int
     is_active: bool
     last_poll_at: Optional[datetime] = None
     last_error: Optional[str] = None
+    mqtt_broker_url: Optional[str] = None
+    mqtt_topic: Optional[str] = None
+    mqtt_port: Optional[int] = None
+    mqtt_use_tls: Optional[int] = None
+    webhook_url: Optional[str] = None
+    webhook_auth_type: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

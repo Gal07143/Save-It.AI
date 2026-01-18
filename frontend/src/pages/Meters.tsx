@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { 
   Gauge, CheckCircle, XCircle, Clock, Plus, Wifi, WifiOff, 
-  Settings, RefreshCw, Link2, Radio, AlertTriangle
+  Settings, RefreshCw, Link2, Radio, AlertTriangle, Trash2
 } from 'lucide-react'
 
 interface MeterWithConnectivity {
@@ -36,7 +36,9 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
   
   const [showAddMeter, setShowAddMeter] = useState(false)
   const [showConnectModal, setShowConnectModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [selectedMeter, setSelectedMeter] = useState<MeterWithConnectivity | null>(null)
+  const [meterToDelete, setMeterToDelete] = useState<MeterWithConnectivity | null>(null)
   
   const [newMeter, setNewMeter] = useState({
     meter_id: '',
@@ -83,8 +85,35 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
     }
   })
 
+  const deleteMeterMutation = useMutation({
+    mutationFn: async (meterId: number) => {
+      const response = await fetch(`/api/v1/meters/${meterId}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error('Failed to delete meter')
+      if (response.status === 204) return { success: true }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meters'] })
+      setShowDeleteConfirm(false)
+      setMeterToDelete(null)
+    }
+  })
+
   const handleAddMeter = () => {
     createMeterMutation.mutate(newMeter)
+  }
+
+  const handleDeleteMeter = () => {
+    if (meterToDelete) {
+      deleteMeterMutation.mutate(meterToDelete.id)
+    }
+  }
+
+  const confirmDelete = (meter: MeterWithConnectivity) => {
+    setMeterToDelete(meter)
+    setShowDeleteConfirm(true)
   }
 
   const handleConnect = () => {
@@ -277,6 +306,14 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                         title="Settings"
                       >
                         <Settings size={14} />
+                      </button>
+                      <button 
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => confirmDelete(meter)}
+                        title="Delete Meter"
+                        style={{ color: '#ef4444' }}
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
@@ -502,6 +539,53 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                 disabled={!connectionConfig.address}
               >
                 Save Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && meterToDelete && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3 style={{ color: '#ef4444' }}>Delete Meter</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                <div style={{ 
+                  width: '64px', 
+                  height: '64px', 
+                  borderRadius: '50%', 
+                  background: '#fef2f2', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  margin: '0 auto 1rem'
+                }}>
+                  <Trash2 size={32} color="#ef4444" />
+                </div>
+                <p style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
+                  Are you sure you want to delete <strong>{meterToDelete.name}</strong>?
+                </p>
+                <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                  Meter ID: <code style={{ background: '#f1f5f9', padding: '0.125rem 0.375rem', borderRadius: '4px' }}>{meterToDelete.meter_id}</code>
+                </p>
+                <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '1rem' }}>
+                  This action cannot be undone. All readings and data associated with this meter will be permanently deleted.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+              <button 
+                className="btn" 
+                style={{ background: '#ef4444', color: 'white' }}
+                onClick={handleDeleteMeter}
+                disabled={deleteMeterMutation.isPending}
+              >
+                {deleteMeterMutation.isPending ? 'Deleting...' : 'Delete Meter'}
               </button>
             </div>
           </div>

@@ -10,9 +10,13 @@ import {
 const sourceTypeLabels: Record<string, string> = {
   modbus_tcp: 'Modbus TCP',
   modbus_rtu: 'Modbus RTU',
+  mqtt: 'MQTT',
+  https_webhook: 'HTTPS Webhook',
   bacnet: 'BACnet',
   csv_import: 'CSV Import',
   external_api: 'External API',
+  direct_inverter: 'Direct Inverter',
+  direct_bess: 'Direct BESS',
   manual: 'Manual Entry',
 }
 
@@ -34,6 +38,35 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [showApplyTemplate, setShowApplyTemplate] = useState(false)
   const [applyTemplateId, setApplyTemplateId] = useState<number | null>(null)
   const [applyDataSourceId, setApplyDataSourceId] = useState<number | null>(null)
+  
+  const [newSource, setNewSource] = useState({
+    name: '',
+    site_id: '',
+    gateway_id: '',
+    source_type: 'modbus_tcp',
+    host: '',
+    port: 502,
+    slave_id: 1,
+    polling_interval_seconds: 60,
+    mqtt_broker_url: '',
+    mqtt_topic: '',
+    mqtt_username: '',
+    mqtt_password: '',
+    mqtt_port: 1883,
+    mqtt_use_tls: false,
+    webhook_url: '',
+    webhook_api_key: '',
+    webhook_auth_type: 'bearer'
+  })
+
+  const [newGateway, setNewGateway] = useState({
+    name: '',
+    site_id: '',
+    ip_address: '',
+    description: '',
+    firmware_version: '',
+    heartbeat_interval_seconds: 60
+  })
   
   const queryClient = useQueryClient()
 
@@ -123,6 +156,76 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       alert(`Template applied! Created ${data.registers_created} registers.`)
     }
   })
+
+  const createDataSourceMutation = useMutation({
+    mutationFn: async (data: typeof newSource) => {
+      const payload: any = {
+        name: data.name,
+        site_id: parseInt(data.site_id),
+        source_type: data.source_type,
+        polling_interval_seconds: data.polling_interval_seconds,
+        is_active: 1
+      }
+      if (data.gateway_id) {
+        payload.gateway_id = parseInt(data.gateway_id)
+      }
+      if (data.source_type === 'modbus_tcp' || data.source_type === 'modbus_rtu') {
+        payload.host = data.host
+        payload.port = data.port
+        payload.slave_id = data.slave_id
+      } else if (data.source_type === 'mqtt') {
+        payload.mqtt_broker_url = data.mqtt_broker_url
+        payload.mqtt_topic = data.mqtt_topic
+        payload.mqtt_username = data.mqtt_username || null
+        payload.mqtt_password = data.mqtt_password || null
+        payload.mqtt_port = data.mqtt_port
+        payload.mqtt_use_tls = data.mqtt_use_tls ? 1 : 0
+      } else if (data.source_type === 'https_webhook') {
+        payload.webhook_url = data.webhook_url
+        payload.webhook_api_key = data.webhook_api_key || null
+        payload.webhook_auth_type = data.webhook_auth_type
+      }
+      const res = await fetch('/api/v1/data-sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) throw new Error('Failed to create data source')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['data-sources'] })
+      setShowAddSource(false)
+      setNewSource({
+        name: '', site_id: '', gateway_id: '', source_type: 'modbus_tcp', host: '', port: 502, slave_id: 1,
+        polling_interval_seconds: 60, mqtt_broker_url: '', mqtt_topic: '', mqtt_username: '',
+        mqtt_password: '', mqtt_port: 1883, mqtt_use_tls: false, webhook_url: '', webhook_api_key: '',
+        webhook_auth_type: 'bearer'
+      })
+    }
+  })
+
+  const createGatewayMutation = useMutation({
+    mutationFn: async (data: typeof newGateway) => {
+      const res = await fetch('/api/v1/gateways', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          site_id: parseInt(data.site_id)
+        })
+      })
+      if (!res.ok) throw new Error('Failed to create gateway')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gateways'] })
+      setShowAddGateway(false)
+      setNewGateway({ name: '', site_id: '', ip_address: '', description: '', firmware_version: '', heartbeat_interval_seconds: 60 })
+    }
+  })
+
+  const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
 
   const renderGateways = () => (
     <div className="card">
@@ -716,6 +819,304 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                 disabled={applyTemplateMutation.isPending || !applyDataSourceId || !applyTemplateId}
               >
                 {applyTemplateMutation.isPending ? 'Applying...' : 'Apply Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddSource && (
+        <div className="modal-overlay" onClick={() => setShowAddSource(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>Add Data Source</h3>
+              <button className="btn btn-sm" onClick={() => setShowAddSource(false)}>X</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Name</label>
+                <input
+                  type="text"
+                  value={newSource.name}
+                  onChange={e => setNewSource({ ...newSource, name: e.target.value })}
+                  placeholder="e.g., Main Panel Modbus"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Site</label>
+                <select
+                  value={newSource.site_id}
+                  onChange={e => setNewSource({ ...newSource, site_id: e.target.value })}
+                >
+                  <option value="">Select Site</option>
+                  {sites?.map((site: any) => (
+                    <option key={site.id} value={site.id}>{site.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Protocol Type</label>
+                <select
+                  value={newSource.source_type}
+                  onChange={e => setNewSource({ ...newSource, source_type: e.target.value })}
+                >
+                  <option value="modbus_tcp">Modbus TCP</option>
+                  <option value="modbus_rtu">Modbus RTU</option>
+                  <option value="mqtt">MQTT</option>
+                  <option value="https_webhook">HTTPS Webhook</option>
+                  <option value="csv_import">CSV Import</option>
+                  <option value="external_api">External API</option>
+                  <option value="direct_inverter">Direct Inverter</option>
+                  <option value="direct_bess">Direct BESS</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Gateway (Optional)</label>
+                <select
+                  value={newSource.gateway_id}
+                  onChange={e => setNewSource({ ...newSource, gateway_id: e.target.value })}
+                >
+                  <option value="">Direct Connection (No Gateway)</option>
+                  {gateways?.filter((gw: any) => !newSource.site_id || gw.site_id === parseInt(newSource.site_id)).map((gw: any) => (
+                    <option key={gw.id} value={gw.id}>{gw.name} ({gw.ip_address || 'No IP'})</option>
+                  ))}
+                </select>
+                <small style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                  Connect through a gateway for aggregated data collection
+                </small>
+              </div>
+
+              {(newSource.source_type === 'modbus_tcp' || newSource.source_type === 'modbus_rtu') && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Host / IP Address</label>
+                    <input
+                      type="text"
+                      value={newSource.host}
+                      onChange={e => setNewSource({ ...newSource, host: e.target.value })}
+                      placeholder="192.168.1.100"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Port</label>
+                      <input
+                        type="number"
+                        value={newSource.port}
+                        onChange={e => setNewSource({ ...newSource, port: parseInt(e.target.value) })}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Slave ID</label>
+                      <input
+                        type="number"
+                        value={newSource.slave_id}
+                        onChange={e => setNewSource({ ...newSource, slave_id: parseInt(e.target.value) })}
+                        min={1} max={247}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {newSource.source_type === 'mqtt' && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Broker URL</label>
+                    <input
+                      type="text"
+                      value={newSource.mqtt_broker_url}
+                      onChange={e => setNewSource({ ...newSource, mqtt_broker_url: e.target.value })}
+                      placeholder="mqtt://broker.example.com"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Port</label>
+                      <input
+                        type="number"
+                        value={newSource.mqtt_port}
+                        onChange={e => setNewSource({ ...newSource, mqtt_port: parseInt(e.target.value) })}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Topic</label>
+                      <input
+                        type="text"
+                        value={newSource.mqtt_topic}
+                        onChange={e => setNewSource({ ...newSource, mqtt_topic: e.target.value })}
+                        placeholder="devices/meter1/#"
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Username (optional)</label>
+                      <input
+                        type="text"
+                        value={newSource.mqtt_username}
+                        onChange={e => setNewSource({ ...newSource, mqtt_username: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Password (optional)</label>
+                      <input
+                        type="password"
+                        value={newSource.mqtt_password}
+                        onChange={e => setNewSource({ ...newSource, mqtt_password: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={newSource.mqtt_use_tls}
+                        onChange={e => setNewSource({ ...newSource, mqtt_use_tls: e.target.checked })}
+                      />
+                      Use TLS/SSL
+                    </label>
+                  </div>
+                </>
+              )}
+
+              {newSource.source_type === 'https_webhook' && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Webhook URL</label>
+                    <input
+                      type="text"
+                      value={newSource.webhook_url}
+                      onChange={e => setNewSource({ ...newSource, webhook_url: e.target.value })}
+                      placeholder="https://api.example.com/webhook"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">Auth Type</label>
+                      <select
+                        value={newSource.webhook_auth_type}
+                        onChange={e => setNewSource({ ...newSource, webhook_auth_type: e.target.value })}
+                      >
+                        <option value="bearer">Bearer Token</option>
+                        <option value="api_key">API Key</option>
+                        <option value="basic">Basic Auth</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">API Key / Token</label>
+                      <input
+                        type="password"
+                        value={newSource.webhook_api_key}
+                        onChange={e => setNewSource({ ...newSource, webhook_api_key: e.target.value })}
+                        placeholder="Your API key"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">Polling Interval (seconds)</label>
+                <input
+                  type="number"
+                  value={newSource.polling_interval_seconds}
+                  onChange={e => setNewSource({ ...newSource, polling_interval_seconds: parseInt(e.target.value) })}
+                  min={10}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowAddSource(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => createDataSourceMutation.mutate(newSource)}
+                disabled={!newSource.name || !newSource.site_id || createDataSourceMutation.isPending}
+              >
+                {createDataSourceMutation.isPending ? 'Creating...' : 'Create Data Source'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddGateway && (
+        <div className="modal-overlay" onClick={() => setShowAddGateway(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Add Gateway</h3>
+              <button className="btn btn-sm" onClick={() => setShowAddGateway(false)}>X</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Name</label>
+                <input
+                  type="text"
+                  value={newGateway.name}
+                  onChange={e => setNewGateway({ ...newGateway, name: e.target.value })}
+                  placeholder="e.g., Main Building Gateway"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Site</label>
+                <select
+                  value={newGateway.site_id}
+                  onChange={e => setNewGateway({ ...newGateway, site_id: e.target.value })}
+                >
+                  <option value="">Select Site</option>
+                  {sites?.map((site: any) => (
+                    <option key={site.id} value={site.id}>{site.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">IP Address</label>
+                <input
+                  type="text"
+                  value={newGateway.ip_address}
+                  onChange={e => setNewGateway({ ...newGateway, ip_address: e.target.value })}
+                  placeholder="192.168.1.10"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <input
+                  type="text"
+                  value={newGateway.description}
+                  onChange={e => setNewGateway({ ...newGateway, description: e.target.value })}
+                  placeholder="Optional description"
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Firmware Version</label>
+                  <input
+                    type="text"
+                    value={newGateway.firmware_version}
+                    onChange={e => setNewGateway({ ...newGateway, firmware_version: e.target.value })}
+                    placeholder="v1.0.0"
+                  />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Heartbeat Interval (s)</label>
+                  <input
+                    type="number"
+                    value={newGateway.heartbeat_interval_seconds}
+                    onChange={e => setNewGateway({ ...newGateway, heartbeat_interval_seconds: parseInt(e.target.value) })}
+                    min={10}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowAddGateway(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => createGatewayMutation.mutate(newGateway)}
+                disabled={!newGateway.name || !newGateway.site_id || createGatewayMutation.isPending}
+              >
+                {createGatewayMutation.isPending ? 'Creating...' : 'Create Gateway'}
               </button>
             </div>
           </div>
