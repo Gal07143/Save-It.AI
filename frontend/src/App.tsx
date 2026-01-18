@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Sites from './pages/Sites'
-import Assets from './pages/Assets'
 import Meters from './pages/Meters'
 import Bills from './pages/Bills'
 import Tenants from './pages/Tenants'
@@ -24,13 +23,13 @@ import Forecasting from './pages/Forecasting'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
 import DataIngestion from './pages/DataIngestion'
-import DigitalTwinBuilder from './pages/DigitalTwinBuilder'
 import MVAudit from './pages/MVAudit'
 import SupplierComparison from './pages/SupplierComparison'
 import SiteDashboard from './pages/SiteDashboard'
-import PVSystems from './pages/PVSystems'
-import StorageUnits from './pages/StorageUnits'
 import PVDesign from './pages/PVDesign'
+import CarbonESG from './pages/CarbonESG'
+import EnergyAssets from './pages/EnergyAssets'
+import DigitalTwin from './pages/DigitalTwin'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -115,23 +114,11 @@ function AppRoutes() {
       </Route>
       
       <Route path="/assets">
-        {() => (
-          <ProtectedRoute>
-            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <Assets currentSite={currentSite} />
-            </Layout>
-          </ProtectedRoute>
-        )}
+        {() => <Redirect to="/digital-twin" />}
       </Route>
       
       <Route path="/twin-builder">
-        {() => (
-          <ProtectedRoute>
-            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <DigitalTwinBuilder currentSite={currentSite} />
-            </Layout>
-          </ProtectedRoute>
-        )}
+        {() => <Redirect to="/digital-twin" />}
       </Route>
       
       <Route path="/meters">
@@ -335,23 +322,11 @@ function AppRoutes() {
       </Route>
       
       <Route path="/pv-systems">
-        {() => (
-          <ProtectedRoute>
-            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <PVSystems />
-            </Layout>
-          </ProtectedRoute>
-        )}
+        {() => <Redirect to="/energy-assets" />}
       </Route>
       
       <Route path="/storage-units">
-        {() => (
-          <ProtectedRoute>
-            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <StorageUnits />
-            </Layout>
-          </ProtectedRoute>
-        )}
+        {() => <Redirect to="/energy-assets" />}
       </Route>
       
       <Route path="/pv-design">
@@ -359,6 +334,36 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
               <PVDesign />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/carbon-esg">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <CarbonESG currentSite={currentSite} />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/energy-assets">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <EnergyAssets currentSite={currentSite} />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/digital-twin">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <DigitalTwin currentSite={currentSite} />
             </Layout>
           </ProtectedRoute>
         )}

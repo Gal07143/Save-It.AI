@@ -36,7 +36,15 @@ The SAVE-IT.AI platform is built on a modern tech stack, featuring a FastAPI bac
 -   **Control Engine**: Management of automation rules and command execution tracking.
 -   **UI/UX**: React frontend with 27 application pages and reusable components, designed with a dark theme, card layouts, and improved user experience. Includes dynamic power flow visualizations and detailed dashboards for sites, PV systems, and storage units.
 
-## Recent Changes (December 2025)
+## Recent Changes
+
+### UI/UX Improvements (Jan 18, 2026)
+- **Carbon/ESG Page**: Added to navigation under "Data & Reports" with Leaf icon
+- **Energy Assets**: New consolidated page combining PV Systems + Storage Units with tabbed interface
+- **Digital Twin**: Merged view + builder into single page with View/Build toggle
+- **Site Setup Wizard**: New 4-step onboarding wizard (Create Site → Add Assets → Add Meters → Upload Bill)
+- **Navigation Consolidation**: Reduced menu items by combining related pages
+- **Legacy Route Redirects**: Old routes (/assets, /twin-builder, /pv-systems, /storage-units) redirect to new consolidated pages
 
 ### Backend Restructuring (Dec 16, 2025)
 - Refactored monolithic 5,913-line main.py into clean modular architecture

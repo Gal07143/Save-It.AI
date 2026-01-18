@@ -4,8 +4,8 @@ import {
   LayoutDashboard, Building2, Network, Gauge, Receipt, Users, 
   Battery, Plug, Search, Settings, DollarSign, FileText,
   ShieldCheck, Calculator, Wrench, Bot, TrendingUp, Shield, LogOut, User,
-  FileSpreadsheet, GitBranch, FileCheck, Zap, Activity, Sun, Bell,
-  ChevronDown, ChevronRight, Menu, X, Command
+  FileSpreadsheet, FileCheck, Zap, Activity, Sun, Bell,
+  ChevronDown, ChevronRight, Menu, X, Command, Leaf
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
@@ -40,8 +40,7 @@ const navGroups: NavGroup[] = [
     label: 'Assets & Metering',
     icon: Network,
     items: [
-      { path: '/assets', icon: Network, label: 'Digital Twin' },
-      { path: '/twin-builder', icon: GitBranch, label: 'Twin Builder' },
+      { path: '/digital-twin', icon: Network, label: 'Digital Twin' },
       { path: '/meters', icon: Gauge, label: 'Meters' },
       { path: '/virtual-meters', icon: Calculator, label: 'Virtual Meters' },
       { path: '/gateways', icon: Plug, label: 'Gateways' },
@@ -62,9 +61,8 @@ const navGroups: NavGroup[] = [
     label: 'Energy Systems',
     icon: Sun,
     items: [
-      { path: '/pv-systems', icon: Sun, label: 'PV Systems' },
+      { path: '/energy-assets', icon: Zap, label: 'Energy Assets' },
       { path: '/pv-design', icon: Calculator, label: 'PV Design' },
-      { path: '/storage-units', icon: Battery, label: 'Storage Units' },
       { path: '/bess', icon: Battery, label: 'BESS Simulator' },
     ]
   },
@@ -86,6 +84,7 @@ const navGroups: NavGroup[] = [
       { path: '/data-ingestion', icon: FileSpreadsheet, label: 'Data Ingestion' },
       { path: '/integrations', icon: Plug, label: 'Integrations' },
       { path: '/reports', icon: FileText, label: 'Reports' },
+      { path: '/carbon-esg', icon: Leaf, label: 'Carbon & ESG' },
     ]
   },
   {

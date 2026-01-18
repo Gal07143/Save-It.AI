@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { useLocation } from 'wouter'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Plus, Building2, MapPin, ArrowRight, Gauge, Zap } from 'lucide-react'
+import { Plus, Building2, MapPin, ArrowRight, Gauge, Zap, Sparkles } from 'lucide-react'
+import SiteSetupWizard from '../components/SiteSetupWizard'
 
 export default function Sites() {
   const [, navigate] = useLocation()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
   const [formData, setFormData] = useState({ name: '', address: '', city: '', country: '', timezone: 'UTC' })
 
   const { data: sites, isLoading } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
@@ -33,10 +35,26 @@ export default function Sites() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Sites</h1>
           <p style={{ color: '#64748b' }}>Manage your facilities and locations</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          <Plus size={18} />
-          Add Site
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn" 
+            onClick={() => setShowWizard(true)}
+            style={{ 
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <Sparkles size={18} />
+            Quick Setup
+          </button>
+          <button className="btn btn-outline" onClick={() => setShowForm(!showForm)}>
+            <Plus size={18} />
+            Add Site
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -168,12 +186,38 @@ export default function Sites() {
           <Building2 size={48} color="#94a3b8" style={{ margin: '0 auto 1rem' }} />
           <h3 style={{ marginBottom: '0.5rem' }}>No Sites Yet</h3>
           <p style={{ color: '#64748b', marginBottom: '1rem' }}>Create your first site to get started</p>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            <Plus size={18} />
-            Add Site
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <button 
+              className="btn" 
+              onClick={() => setShowWizard(true)}
+              style={{ 
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Sparkles size={18} />
+              Quick Setup
+            </button>
+            <button className="btn btn-outline" onClick={() => setShowForm(true)}>
+              <Plus size={18} />
+              Add Site
+            </button>
+          </div>
         </div>
       )}
+      
+      <SiteSetupWizard 
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        onComplete={(siteId) => {
+          setShowWizard(false)
+          queryClient.invalidateQueries({ queryKey: ['sites'] })
+          navigate(`/site-dashboard/${siteId}`)
+        }}
+      />
     </div>
   )
 }
