@@ -40,7 +40,9 @@ The SAVE-IT.AI platform is built on a modern tech stack, featuring a FastAPI bac
 
 ### Device & Integration Layer (Jan 18, 2026)
 - **Gateway Management**: Data collection devices that aggregate multiple meters with status tracking
-- **Device Templates**: Pre-configured register maps for 6 common meters (Schneider PM5560, ABB B24, Eastron SDM630, Siemens PAC3200, Janitza UMG 604, Carlo Gavazzi EM340)
+- **Device Templates**: Pre-configured register maps for 16 devices (6 meters, 5 solar inverters, 4 BESS, 1 additional meter)
+- **Template Export/Import**: Export templates to JSON files and import custom templates from JSON
+- **Meter Linking**: Optional meter linking in Apply Template workflow for data collection
 - **Modbus Register Configuration**: Full register management with address, data type, byte order, scaling
 - **Connection Testing**: Test Modbus TCP connections before deployment
 - **Live Data Preview**: Read current register values with quality indicators
