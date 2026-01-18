@@ -122,8 +122,10 @@ frontend/src/
 - Creates DataSource and applies template registers on completion
 - Accessed via emerald "Device Wizard" button on Integrations page
 
-### Phase 3: Advanced Device Features (14 tasks)
-17-30: Bulk import, health dashboard, validation, retry logic, grouping, firmware, QR codes, cloning, status page
+### Phase 3: Advanced Device Features (14 tasks) - IN PROGRESS (2/14)
+17. ✅ Bulk device import - CSV upload with validation, template auto-apply, per-row error reporting
+18. ✅ Device health dashboard - Status aggregation (online/offline/error/unknown), 24h success rates, response times
+19-30: Data validation rules, retry logic, device grouping, firmware tracking, QR codes, cloning, status page
 
 ### Phase 4: Backend (15 tasks)
 31-45: Rate limiting, API auth, audit logging, caching, job queue, health checks, backups, TimescaleDB, GDPR
