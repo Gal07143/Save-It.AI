@@ -25,3 +25,6 @@ class NotificationType(PyEnum):
     SOLAR_ROI_UPDATE = "solar_roi_update"
     MAINTENANCE_REQUIRED = "maintenance_required"
     OPTIMIZATION_SUGGESTION = "optimization_suggestion"
+    CONNECTION_ERROR = "connection_error"
+    CONNECTION_RESTORED = "connection_restored"
+    DATA_QUALITY_ISSUE = "data_quality_issue"

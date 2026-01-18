@@ -218,6 +218,91 @@ class NotificationService:
             }
         )
 
+    def create_connection_error_alert(
+        self,
+        site_id: int,
+        data_source_id: int,
+        data_source_name: str,
+        error_message: str,
+        consecutive_failures: int = 1
+    ) -> Notification:
+        """
+        Create a notification for a data source connection error.
+        
+        Args:
+            site_id: The site ID
+            data_source_id: The data source ID
+            data_source_name: Name of the data source
+            error_message: Error message from the connection attempt
+            consecutive_failures: Number of consecutive failures
+            
+        Returns:
+            Created Notification
+        """
+        severity = "critical" if consecutive_failures >= 5 else "warning"
+        title = f"Connection Failed: {data_source_name}"
+        message = (
+            f"Data source '{data_source_name}' (ID: {data_source_id}) failed to connect. "
+            f"Error: {error_message}. "
+            f"This is failure #{consecutive_failures}. "
+            "Please check network connectivity and device status."
+        )
+
+        return self.create_notification(
+            site_id=site_id,
+            notification_type=NotificationType.CONNECTION_ERROR,
+            title=title,
+            message=message,
+            severity=severity,
+            agent_name="ConnectionHealthAgent",
+            metadata={
+                "data_source_id": data_source_id,
+                "data_source_name": data_source_name,
+                "error_message": error_message,
+                "consecutive_failures": consecutive_failures
+            }
+        )
+
+    def create_connection_restored_alert(
+        self,
+        site_id: int,
+        data_source_id: int,
+        data_source_name: str,
+        downtime_minutes: int = 0
+    ) -> Notification:
+        """
+        Create a notification when a data source connection is restored.
+        
+        Args:
+            site_id: The site ID
+            data_source_id: The data source ID
+            data_source_name: Name of the data source
+            downtime_minutes: Duration of the connection outage
+            
+        Returns:
+            Created Notification
+        """
+        title = f"Connection Restored: {data_source_name}"
+        message = (
+            f"Data source '{data_source_name}' (ID: {data_source_id}) is now connected. "
+        )
+        if downtime_minutes > 0:
+            message += f"Connection was down for approximately {downtime_minutes} minutes."
+
+        return self.create_notification(
+            site_id=site_id,
+            notification_type=NotificationType.CONNECTION_RESTORED,
+            title=title,
+            message=message,
+            severity="info",
+            agent_name="ConnectionHealthAgent",
+            metadata={
+                "data_source_id": data_source_id,
+                "data_source_name": data_source_name,
+                "downtime_minutes": downtime_minutes
+            }
+        )
+
     def get_unread_notifications(
         self, site_id: int, limit: int = 50
     ) -> List[Notification]:

@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { 
   Building2, Zap, TrendingDown, TrendingUp, AlertTriangle,
   Activity, Gauge, RefreshCw, Settings, Download,
-  ThermometerSun, DollarSign, Leaf, Clock, ArrowLeft
+  ThermometerSun, DollarSign, Leaf, Clock, ArrowLeft, X, Save
 } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'wouter'
 import { api } from '../services/api'
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
@@ -35,10 +35,41 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
   const [isLive, setIsLive] = useState(true)
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [animationPhase, setAnimationPhase] = useState(0)
+  const [showSiteConfig, setShowSiteConfig] = useState(false)
+  const [siteConfig, setSiteConfig] = useState({
+    name: '',
+    address: '',
+    city: '',
+    country: '',
+    timezone: 'UTC',
+    contract_demand_kva: '',
+    power_factor_target: '0.95',
+    peak_demand_threshold_kw: '',
+    billing_day: '1'
+  })
+  const queryClient = useQueryClient()
 
   const { data: sites } = useQuery({
     queryKey: ['sites'],
     queryFn: api.sites.list
+  })
+
+  const updateSiteMutation = useMutation({
+    mutationFn: (data: { id: number; updates: Partial<typeof siteConfig> }) => 
+      api.sites.update(data.id, {
+        name: data.updates.name,
+        address: data.updates.address,
+        city: data.updates.city,
+        country: data.updates.country,
+        timezone: data.updates.timezone
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sites'] })
+      setShowSiteConfig(false)
+    },
+    onError: (error: Error) => {
+      alert(`Failed to update site: ${error.message}`)
+    }
   })
 
   const { data: meters } = useQuery({
@@ -631,7 +662,25 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
                 <Gauge size={18} style={{ marginRight: '0.5rem', color: '#6366f1' }} />
                 Site Information
               </h3>
-              <button className="btn btn-ghost btn-sm">
+              <button 
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  if (currentSite) {
+                    setSiteConfig({
+                      name: currentSite.name || '',
+                      address: currentSite.address || '',
+                      city: currentSite.city || '',
+                      country: currentSite.country || '',
+                      timezone: currentSite.timezone || 'UTC',
+                      contract_demand_kva: '',
+                      power_factor_target: '0.95',
+                      peak_demand_threshold_kw: '',
+                      billing_day: '1'
+                    })
+                    setShowSiteConfig(true)
+                  }
+                }}
+              >
                 <Settings size={16} />
                 Configure
               </button>
@@ -672,6 +721,155 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
             </div>
           </div>
         </>
+      )}
+
+      {showSiteConfig && currentSite && (
+        <div className="modal-overlay" onClick={() => setShowSiteConfig(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>
+                <Settings size={20} style={{ marginRight: '0.5rem' }} />
+                Site Configuration
+              </h3>
+              <button className="btn btn-sm" onClick={() => setShowSiteConfig(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Site Name</label>
+                  <input
+                    type="text"
+                    value={siteConfig.name}
+                    onChange={e => setSiteConfig({ ...siteConfig, name: e.target.value })}
+                    placeholder="Site name"
+                  />
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">Address</label>
+                  <input
+                    type="text"
+                    value={siteConfig.address}
+                    onChange={e => setSiteConfig({ ...siteConfig, address: e.target.value })}
+                    placeholder="Street address"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">City</label>
+                  <input
+                    type="text"
+                    value={siteConfig.city}
+                    onChange={e => setSiteConfig({ ...siteConfig, city: e.target.value })}
+                    placeholder="City"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Country</label>
+                  <input
+                    type="text"
+                    value={siteConfig.country}
+                    onChange={e => setSiteConfig({ ...siteConfig, country: e.target.value })}
+                    placeholder="Country"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Timezone</label>
+                  <select
+                    value={siteConfig.timezone}
+                    onChange={e => setSiteConfig({ ...siteConfig, timezone: e.target.value })}
+                  >
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">America/New_York</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles</option>
+                    <option value="America/Chicago">America/Chicago</option>
+                    <option value="Europe/London">Europe/London</option>
+                    <option value="Europe/Paris">Europe/Paris</option>
+                    <option value="Europe/Berlin">Europe/Berlin</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo</option>
+                    <option value="Asia/Shanghai">Asia/Shanghai</option>
+                    <option value="Asia/Singapore">Asia/Singapore</option>
+                    <option value="Asia/Dubai">Asia/Dubai</option>
+                    <option value="Australia/Sydney">Australia/Sydney</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Billing Day of Month</label>
+                  <select
+                    value={siteConfig.billing_day}
+                    onChange={e => setSiteConfig({ ...siteConfig, billing_day: e.target.value })}
+                  >
+                    {Array.from({ length: 28 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>{i + 1}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div style={{ borderTop: '1px solid #334155', marginTop: '1.5rem', paddingTop: '1.5rem' }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: '#94a3b8' }}>
+                  Energy Settings
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '1rem' }}>
+                  These settings are for display purposes and threshold alerts (coming soon).
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Contract Demand (kVA)</label>
+                    <input
+                      type="number"
+                      value={siteConfig.contract_demand_kva}
+                      onChange={e => setSiteConfig({ ...siteConfig, contract_demand_kva: e.target.value })}
+                      placeholder="e.g., 1000"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Peak Demand Threshold (kW)</label>
+                    <input
+                      type="number"
+                      value={siteConfig.peak_demand_threshold_kw}
+                      onChange={e => setSiteConfig({ ...siteConfig, peak_demand_threshold_kw: e.target.value })}
+                      placeholder="Alert when exceeded"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Power Factor Target</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.8"
+                      max="1"
+                      value={siteConfig.power_factor_target}
+                      onChange={e => setSiteConfig({ ...siteConfig, power_factor_target: e.target.value })}
+                      placeholder="0.95"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
+                <button className="btn" onClick={() => setShowSiteConfig(false)}>
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    if (currentSite) {
+                      updateSiteMutation.mutate({
+                        id: currentSite.id,
+                        updates: siteConfig
+                      })
+                    }
+                  }}
+                  disabled={updateSiteMutation.isPending}
+                >
+                  <Save size={16} />
+                  {updateSiteMutation.isPending ? 'Saving...' : 'Save Configuration'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <style>{`

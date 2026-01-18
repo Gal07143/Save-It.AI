@@ -50,6 +50,7 @@ export const api = {
     list: () => fetchApi<Site[]>('/sites'),
     get: (id: number) => fetchApi<Site>(`/sites/${id}`),
     create: (data: Partial<Site>) => fetchApi<Site>('/sites', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<Site>) => fetchApi<Site>(`/sites/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   },
   assets: {
     list: (siteId?: number) => fetchApi<Asset[]>(`/assets${siteId ? `?site_id=${siteId}` : ''}`),
