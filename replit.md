@@ -38,6 +38,15 @@ The SAVE-IT.AI platform is built on a modern tech stack, featuring a FastAPI bac
 
 ## Recent Changes
 
+### Device & Integration Layer (Jan 18, 2026)
+- **Gateway Management**: Data collection devices that aggregate multiple meters with status tracking
+- **Device Templates**: Pre-configured register maps for 6 common meters (Schneider PM5560, ABB B24, Eastron SDM630, Siemens PAC3200, Janitza UMG 604, Carlo Gavazzi EM340)
+- **Modbus Register Configuration**: Full register management with address, data type, byte order, scaling
+- **Connection Testing**: Test Modbus TCP connections before deployment
+- **Live Data Preview**: Read current register values with quality indicators
+- **Communication Health**: Track connection status, errors, and response times
+- **Apply Template Workflow**: One-click register setup from device templates
+
 ### UI/UX Improvements (Jan 18, 2026)
 - **Carbon/ESG Page**: Added to navigation under "Data & Reports" with Leaf icon
 - **Energy Assets**: New consolidated page combining PV Systems + Storage Units with tabbed interface
@@ -45,6 +54,7 @@ The SAVE-IT.AI platform is built on a modern tech stack, featuring a FastAPI bac
 - **Site Setup Wizard**: New 4-step onboarding wizard (Create Site → Add Assets → Add Meters → Upload Bill)
 - **Navigation Consolidation**: Reduced menu items by combining related pages
 - **Legacy Route Redirects**: Old routes (/assets, /twin-builder, /pv-systems, /storage-units) redirect to new consolidated pages
+- **Integrations Page**: Enhanced with 4-tab interface (Gateways, Data Sources, Device Templates, Registers)
 
 ### Backend Restructuring (Dec 16, 2025)
 - Refactored monolithic 5,913-line main.py into clean modular architecture

@@ -20,6 +20,9 @@ from backend.app.api.routers.control import router as control_router
 from backend.app.api.routers.auth import router as auth_router
 from backend.app.api.routers.reports import router as reports_router
 from backend.app.api.routers.ingestion import router as ingestion_router
+from backend.app.api.routers.gateways import router as gateways_router
+from backend.app.api.routers.device_templates import router as device_templates_router
+from backend.app.api.routers.modbus_registers import router as modbus_registers_router
 
 __all__ = [
     "sites_router",
@@ -43,6 +46,9 @@ __all__ = [
     "auth_router",
     "reports_router",
     "ingestion_router",
+    "gateways_router",
+    "device_templates_router",
+    "modbus_registers_router",
 ]
 
 all_routers = [
@@ -67,4 +73,7 @@ all_routers = [
     auth_router,
     reports_router,
     ingestion_router,
+    gateways_router,
+    device_templates_router,
+    modbus_registers_router,
 ]

@@ -101,6 +101,18 @@ from backend.app.models.control import (
     ControlCommand,
 )
 
+from backend.app.models.integrations import (
+    GatewayStatus,
+    RegisterType,
+    DataType,
+    ByteOrder,
+    Gateway,
+    DeviceTemplate,
+    TemplateRegister,
+    ModbusRegister,
+    CommunicationLog,
+)
+
 __all__ = [
     "AssetType",
     "NotificationType",
@@ -171,4 +183,13 @@ __all__ = [
     "ControlRule",
     "SafetyGate",
     "ControlCommand",
+    "GatewayStatus",
+    "RegisterType",
+    "DataType",
+    "ByteOrder",
+    "Gateway",
+    "DeviceTemplate",
+    "TemplateRegister",
+    "ModbusRegister",
+    "CommunicationLog",
 ]

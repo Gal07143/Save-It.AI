@@ -174,6 +174,33 @@ from backend.app.schemas.reports import (
     ESGMetricsResponse,
 )
 
+from backend.app.schemas.integrations import (
+    GatewayStatusEnum,
+    RegisterTypeEnum,
+    DataTypeEnum,
+    ByteOrderEnum,
+    GatewayCreate,
+    GatewayUpdate,
+    GatewayResponse,
+    TemplateRegisterCreate,
+    TemplateRegisterResponse,
+    DeviceTemplateCreate,
+    DeviceTemplateUpdate,
+    DeviceTemplateResponse,
+    DeviceTemplateListResponse,
+    ModbusRegisterCreate,
+    ModbusRegisterUpdate,
+    ModbusRegisterResponse,
+    CommunicationLogCreate,
+    CommunicationLogResponse,
+    ConnectionTestRequest,
+    ConnectionTestResponse,
+    RegisterReadRequest,
+    RegisterReadResponse,
+    CommunicationHealthSummary,
+    ApplyTemplateRequest,
+)
+
 __all__ = [
     # Base
     "BaseModel",
@@ -346,4 +373,34 @@ __all__ = [
     "ReportRequest",
     "ReportResponse",
     "ESGMetricsResponse",
+    # Integrations - Enums
+    "GatewayStatusEnum",
+    "RegisterTypeEnum",
+    "DataTypeEnum",
+    "ByteOrderEnum",
+    # Integrations - Gateway
+    "GatewayCreate",
+    "GatewayUpdate",
+    "GatewayResponse",
+    # Integrations - DeviceTemplate
+    "TemplateRegisterCreate",
+    "TemplateRegisterResponse",
+    "DeviceTemplateCreate",
+    "DeviceTemplateUpdate",
+    "DeviceTemplateResponse",
+    "DeviceTemplateListResponse",
+    # Integrations - ModbusRegister
+    "ModbusRegisterCreate",
+    "ModbusRegisterUpdate",
+    "ModbusRegisterResponse",
+    # Integrations - CommunicationLog
+    "CommunicationLogCreate",
+    "CommunicationLogResponse",
+    # Integrations - Connection Test
+    "ConnectionTestRequest",
+    "ConnectionTestResponse",
+    "RegisterReadRequest",
+    "RegisterReadResponse",
+    "CommunicationHealthSummary",
+    "ApplyTemplateRequest",
 ]
