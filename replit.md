@@ -105,8 +105,22 @@ frontend/src/
 11. ✅ Connection health notifications (API endpoints for CONNECTION_ERROR/CONNECTION_RESTORED)
 12. ✅ formatNumber utility (3 decimals)
 
-### Phase 2: Device Onboarding Wizard (4 tasks)
-13-16: Prerequisites → Connect → Configure → Messages/Datapoints
+### Phase 2: Device Onboarding Wizard (4 tasks) - COMPLETE ✅
+13. ✅ Step 1: Prerequisites - Device type selection, gateway selector, protocol choice, site selector
+14. ✅ Step 2: Connect - Connection details form (host/port/slave ID), test connection with status
+15. ✅ Step 3: Configure - Device name, location, template selection with filter by device type
+16. ✅ Step 4: Datapoints - Review registers/summary, confirm and create data source with template apply
+
+**Device Onboarding Wizard Features:**
+- Zoho IoT-style 4-step guided flow with progress indicator
+- 6 protocol support: Modbus TCP/RTU, MQTT, HTTPS Webhook, Direct Inverter, Direct BESS
+- Site selector when no current site is selected
+- Gateway selector for aggregated device connections
+- Connection testing for Modbus protocols with visual feedback
+- Template auto-filtering by device category (meter/inverter/BESS/gateway)
+- Optional meter linking for data collection
+- Creates DataSource and applies template registers on completion
+- Accessed via emerald "Device Wizard" button on Integrations page
 
 ### Phase 3: Advanced Device Features (14 tasks)
 17-30: Bulk import, health dashboard, validation, retry logic, grouping, firmware, QR codes, cloning, status page
