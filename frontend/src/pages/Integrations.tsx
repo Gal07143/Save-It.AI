@@ -38,6 +38,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [showApplyTemplate, setShowApplyTemplate] = useState(false)
   const [applyTemplateId, setApplyTemplateId] = useState<number | null>(null)
   const [applyDataSourceId, setApplyDataSourceId] = useState<number | null>(null)
+  const [applyMeterId, setApplyMeterId] = useState<number | null>(null)
   
   const [newSource, setNewSource] = useState({
     name: '',
@@ -101,6 +102,14 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
     enabled: !!selectedSource
   })
 
+  const { data: meters } = useQuery({
+    queryKey: ['meters', currentSite],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/meters${currentSite ? `?site_id=${currentSite}` : ''}`)
+      return res.json()
+    }
+  })
+
   const seedTemplatesMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/v1/device-templates/seed', { method: 'POST' })
@@ -140,7 +149,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   })
 
   const applyTemplateMutation = useMutation({
-    mutationFn: async (data: { template_id: number; data_source_id: number }) => {
+    mutationFn: async (data: { template_id: number; data_source_id: number; meter_id?: number | null }) => {
       const res = await fetch('/api/v1/device-templates/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,6 +160,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['modbus-registers'] })
       setShowApplyTemplate(false)
+      setApplyMeterId(null)
       setSelectedSource(applyDataSourceId)
       setActiveTab('registers')
       alert(`Template applied! Created ${data.registers_created} registers.`)
@@ -490,6 +500,8 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                     onClick={(e) => {
                       e.stopPropagation()
                       setApplyTemplateId(template.id)
+                      setApplyMeterId(null)
+                      setApplyDataSourceId(null)
                       setShowApplyTemplate(true)
                     }}
                   >
@@ -804,6 +816,32 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   </p>
                 </div>
               )}
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Link to Meter (Optional)</label>
+                <select 
+                  value={applyMeterId || ''}
+                  onChange={e => setApplyMeterId(parseInt(e.target.value) || null)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.5rem', 
+                    background: '#1e293b', 
+                    border: '1px solid #334155', 
+                    borderRadius: '0.375rem', 
+                    color: 'white' 
+                  }}
+                >
+                  <option value="">No meter (create registers only)</option>
+                  {meters?.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.meter_id})
+                    </option>
+                  ))}
+                </select>
+                <small style={{ color: '#64748b', fontSize: '0.75rem', display: 'block', marginTop: '0.25rem' }}>
+                  Link registers to a meter for data collection and reporting
+                </small>
+              </div>
               
               <button 
                 className="btn btn-primary" 
@@ -812,7 +850,8 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   if (applyTemplateId && applyDataSourceId) {
                     applyTemplateMutation.mutate({ 
                       template_id: applyTemplateId, 
-                      data_source_id: applyDataSourceId 
+                      data_source_id: applyDataSourceId,
+                      meter_id: applyMeterId
                     })
                   }
                 }}
