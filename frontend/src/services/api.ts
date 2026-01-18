@@ -136,6 +136,27 @@ export const api = {
     list: (siteId?: number) => fetchApi<DataSource[]>(`/data-sources${siteId ? `?site_id=${siteId}` : ''}`),
     get: (id: number) => fetchApi<DataSource>(`/data-sources/${id}`),
     create: (data: Partial<DataSource>) => fetchApi<DataSource>('/data-sources', { method: 'POST', body: JSON.stringify(data) }),
+    testConnection: (data: { host: string; port: number; slave_id: number }) => 
+      fetchApi<{ success: boolean; error?: string }>('/modbus-registers/test-connection', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  gateways: {
+    list: (siteId?: number) => fetchApi<Gateway[]>(`/gateways${siteId ? `?site_id=${siteId}` : ''}`),
+    get: (id: number) => fetchApi<Gateway>(`/gateways/${id}`),
+    create: (data: Partial<Gateway>) => fetchApi<Gateway>('/gateways', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  deviceTemplates: {
+    list: () => fetchApi<DeviceTemplate[]>('/device-templates'),
+    get: (id: number) => fetchApi<DeviceTemplate>(`/device-templates/${id}`),
+    apply: (data: { template_id: number; data_source_id: number; meter_id?: number | null }) => 
+      fetchApi<{ registers_created: number }>('/device-templates/apply', { method: 'POST', body: JSON.stringify(data) }),
+    seed: () => fetchApi<{ seeded: number }>('/device-templates/seed', { method: 'POST' }),
+    exportTemplate: (id: number) => fetchApi<{ template: DeviceTemplate; registers: any[] }>(`/device-templates/${id}/export`),
+    importTemplate: (data: { template: Partial<DeviceTemplate>; registers: any[] }) => 
+      fetchApi<DeviceTemplate>('/device-templates/import', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  modbusRegisters: {
+    list: (dataSourceId: number) => fetchApi<ModbusRegister[]>(`/modbus-registers?data_source_id=${dataSourceId}`),
+    read: (dataSourceId: number) => fetchApi<any>('/modbus-registers/read', { method: 'POST', body: JSON.stringify({ data_source_id: dataSourceId }) }),
   },
   notifications: {
     list: (siteId?: number, unreadOnly?: boolean) => 
@@ -477,11 +498,59 @@ export interface Invoice {
 export interface DataSource {
   id: number
   site_id: number
+  gateway_id?: number
   name: string
   source_type: string
+  host?: string
+  port?: number
+  slave_id?: number
+  polling_interval_seconds?: number
   is_active: boolean
   last_poll_at?: string
   last_error?: string
+  mqtt_broker_url?: string
+  mqtt_topic?: string
+  mqtt_port?: number
+  mqtt_use_tls?: boolean
+  webhook_url?: string
+}
+
+export interface Gateway {
+  id: number
+  site_id: number
+  name: string
+  ip_address?: string
+  status?: string
+  last_seen_at?: string
+  firmware_version?: string
+  description?: string
+  heartbeat_interval_seconds?: number
+}
+
+export interface DeviceTemplate {
+  id: number
+  device_type: string
+  manufacturer: string
+  model: string
+  protocol: string
+  description?: string
+  register_count?: number
+}
+
+export interface ModbusRegister {
+  id: number
+  data_source_id: number
+  meter_id?: number
+  name: string
+  register_address: number
+  register_type: string
+  data_type: string
+  byte_order?: string
+  scale_factor?: number
+  unit?: string
+  last_value?: number
+  last_read_at?: string
+  read_error_count?: number
 }
 
 export interface Notification {

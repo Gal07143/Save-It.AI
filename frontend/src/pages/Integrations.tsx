@@ -4,8 +4,9 @@ import { api } from '../services/api'
 import { 
   Plug, CheckCircle, XCircle, Clock, AlertTriangle, Server, 
   FileCode, Settings, Plus, Wifi, WifiOff, RefreshCw, Play,
-  ChevronDown, ChevronRight, Activity, Cpu, Database, Download, Upload
+  ChevronDown, ChevronRight, Activity, Cpu, Database, Download, Upload, Wand2
 } from 'lucide-react'
+import DeviceOnboardingWizard from './DeviceOnboardingWizard'
 
 const sourceTypeLabels: Record<string, string> = {
   modbus_tcp: 'Modbus TCP',
@@ -41,6 +42,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [applyMeterId, setApplyMeterId] = useState<number | null>(null)
   const [showImportTemplate, setShowImportTemplate] = useState(false)
   const [importJson, setImportJson] = useState('')
+  const [showOnboardingWizard, setShowOnboardingWizard] = useState(false)
   
   const [newSource, setNewSource] = useState({
     name: '',
@@ -378,6 +380,9 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn" onClick={() => setShowConnectionTest(true)}>
             <Activity size={16} /> Test Connection
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowOnboardingWizard(true)} style={{ backgroundColor: '#10b981' }}>
+            <Wand2 size={16} /> Device Wizard
           </button>
           <button className="btn btn-primary" onClick={() => setShowAddSource(true)}>
             <Plus size={16} /> Add Source
@@ -1297,6 +1302,16 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
           </div>
         </div>
       )}
+
+      <DeviceOnboardingWizard
+        isOpen={showOnboardingWizard}
+        onClose={() => setShowOnboardingWizard(false)}
+        currentSite={currentSite}
+        onComplete={(dataSourceId) => {
+          setSelectedSource(dataSourceId)
+          setActiveTab('registers')
+        }}
+      />
     </div>
   )
 }
