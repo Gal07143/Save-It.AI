@@ -277,3 +277,309 @@ def get_device_health_dashboard(
         overall_success_rate=round(overall_success, 2),
         devices=devices
     )
+
+
+# ===================== Data Validation Rules =====================
+
+from backend.app.models.integrations import DataValidationRule, ValidationViolation, DeviceGroup, DeviceGroupMember
+from backend.app.schemas.integrations import (
+    DataValidationRuleCreate, DataValidationRuleUpdate, DataValidationRuleResponse,
+    ValidationViolationResponse, DeviceGroupCreate, DeviceGroupUpdate,
+    DeviceGroupResponse, DeviceGroupMemberCreate, DeviceGroupMemberResponse
+)
+
+
+@router.post("/validation-rules", response_model=DataValidationRuleResponse)
+def create_validation_rule(
+    rule: DataValidationRuleCreate,
+    db: Session = Depends(get_db)
+) -> DataValidationRuleResponse:
+    """Create a new data validation rule."""
+    db_rule = DataValidationRule(
+        site_id=rule.site_id,
+        data_source_id=rule.data_source_id,
+        register_id=rule.register_id,
+        name=rule.name,
+        description=rule.description,
+        rule_type=rule.rule_type.value,
+        severity=rule.severity.value,
+        min_value=rule.min_value,
+        max_value=rule.max_value,
+        rate_of_change_max=rule.rate_of_change_max,
+        rate_of_change_period_seconds=rule.rate_of_change_period_seconds,
+        stale_threshold_seconds=rule.stale_threshold_seconds,
+        is_active=1 if rule.is_active else 0,
+        action_on_violation=rule.action_on_violation
+    )
+    db.add(db_rule)
+    db.commit()
+    db.refresh(db_rule)
+    return DataValidationRuleResponse.model_validate(db_rule)
+
+
+@router.get("/validation-rules", response_model=List[DataValidationRuleResponse])
+def list_validation_rules(
+    site_id: Optional[int] = None,
+    data_source_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+) -> List[DataValidationRuleResponse]:
+    """List all validation rules, optionally filtered by site or data source."""
+    query = db.query(DataValidationRule)
+    if site_id:
+        query = query.filter(DataValidationRule.site_id == site_id)
+    if data_source_id:
+        query = query.filter(DataValidationRule.data_source_id == data_source_id)
+    rules = query.order_by(DataValidationRule.name).all()
+    return [DataValidationRuleResponse.model_validate(r) for r in rules]
+
+
+@router.get("/validation-rules/{rule_id}", response_model=DataValidationRuleResponse)
+def get_validation_rule(
+    rule_id: int,
+    db: Session = Depends(get_db)
+) -> DataValidationRuleResponse:
+    """Get a specific validation rule."""
+    rule = db.query(DataValidationRule).filter(DataValidationRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Validation rule not found")
+    return DataValidationRuleResponse.model_validate(rule)
+
+
+@router.put("/validation-rules/{rule_id}", response_model=DataValidationRuleResponse)
+def update_validation_rule(
+    rule_id: int,
+    update: DataValidationRuleUpdate,
+    db: Session = Depends(get_db)
+) -> DataValidationRuleResponse:
+    """Update a validation rule."""
+    rule = db.query(DataValidationRule).filter(DataValidationRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Validation rule not found")
+    
+    update_data = update.model_dump(exclude_unset=True)
+    if 'severity' in update_data and update_data['severity']:
+        update_data['severity'] = update_data['severity'].value
+    if 'is_active' in update_data:
+        update_data['is_active'] = 1 if update_data['is_active'] else 0
+    
+    for key, value in update_data.items():
+        setattr(rule, key, value)
+    
+    db.commit()
+    db.refresh(rule)
+    return DataValidationRuleResponse.model_validate(rule)
+
+
+@router.delete("/validation-rules/{rule_id}")
+def delete_validation_rule(
+    rule_id: int,
+    db: Session = Depends(get_db)
+) -> dict:
+    """Delete a validation rule."""
+    rule = db.query(DataValidationRule).filter(DataValidationRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Validation rule not found")
+    db.delete(rule)
+    db.commit()
+    return {"success": True, "message": "Validation rule deleted"}
+
+
+@router.get("/validation-violations", response_model=List[ValidationViolationResponse])
+def list_validation_violations(
+    site_id: Optional[int] = None,
+    rule_id: Optional[int] = None,
+    is_acknowledged: Optional[bool] = None,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+) -> List[ValidationViolationResponse]:
+    """List validation violations."""
+    query = db.query(ValidationViolation)
+    if rule_id:
+        query = query.filter(ValidationViolation.rule_id == rule_id)
+    if is_acknowledged is not None:
+        query = query.filter(ValidationViolation.is_acknowledged == (1 if is_acknowledged else 0))
+    if site_id:
+        rule_ids = [r.id for r in db.query(DataValidationRule.id).filter(DataValidationRule.site_id == site_id).all()]
+        query = query.filter(ValidationViolation.rule_id.in_(rule_ids))
+    
+    violations = query.order_by(ValidationViolation.timestamp.desc()).limit(limit).all()
+    return [ValidationViolationResponse.model_validate(v) for v in violations]
+
+
+@router.post("/validation-violations/{violation_id}/acknowledge")
+def acknowledge_violation(
+    violation_id: int,
+    user_id: int = 1,
+    db: Session = Depends(get_db)
+) -> dict:
+    """Acknowledge a validation violation."""
+    violation = db.query(ValidationViolation).filter(ValidationViolation.id == violation_id).first()
+    if not violation:
+        raise HTTPException(status_code=404, detail="Violation not found")
+    
+    violation.is_acknowledged = 1
+    violation.acknowledged_by = user_id
+    violation.acknowledged_at = datetime.utcnow()
+    db.commit()
+    return {"success": True, "message": "Violation acknowledged"}
+
+
+# ===================== Device Groups =====================
+
+@router.post("/device-groups", response_model=DeviceGroupResponse)
+def create_device_group(
+    group: DeviceGroupCreate,
+    db: Session = Depends(get_db)
+) -> DeviceGroupResponse:
+    """Create a new device group."""
+    db_group = DeviceGroup(
+        site_id=group.site_id,
+        name=group.name,
+        description=group.description,
+        group_type=group.group_type,
+        parent_group_id=group.parent_group_id,
+        color=group.color,
+        icon=group.icon,
+        display_order=group.display_order,
+        is_active=1 if group.is_active else 0
+    )
+    db.add(db_group)
+    db.commit()
+    db.refresh(db_group)
+    
+    response = DeviceGroupResponse.model_validate(db_group)
+    response.device_count = 0
+    return response
+
+
+@router.get("/device-groups", response_model=List[DeviceGroupResponse])
+def list_device_groups(
+    site_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+) -> List[DeviceGroupResponse]:
+    """List all device groups."""
+    query = db.query(DeviceGroup).filter(DeviceGroup.is_active == 1)
+    if site_id:
+        query = query.filter(DeviceGroup.site_id == site_id)
+    groups = query.order_by(DeviceGroup.display_order, DeviceGroup.name).all()
+    
+    result = []
+    for g in groups:
+        member_count = db.query(DeviceGroupMember).filter(DeviceGroupMember.group_id == g.id).count()
+        resp = DeviceGroupResponse.model_validate(g)
+        resp.device_count = member_count
+        result.append(resp)
+    return result
+
+
+@router.get("/device-groups/{group_id}", response_model=DeviceGroupResponse)
+def get_device_group(
+    group_id: int,
+    db: Session = Depends(get_db)
+) -> DeviceGroupResponse:
+    """Get a specific device group."""
+    group = db.query(DeviceGroup).filter(DeviceGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Device group not found")
+    
+    member_count = db.query(DeviceGroupMember).filter(DeviceGroupMember.group_id == group_id).count()
+    resp = DeviceGroupResponse.model_validate(group)
+    resp.device_count = member_count
+    return resp
+
+
+@router.put("/device-groups/{group_id}", response_model=DeviceGroupResponse)
+def update_device_group(
+    group_id: int,
+    update: DeviceGroupUpdate,
+    db: Session = Depends(get_db)
+) -> DeviceGroupResponse:
+    """Update a device group."""
+    group = db.query(DeviceGroup).filter(DeviceGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Device group not found")
+    
+    update_data = update.model_dump(exclude_unset=True)
+    if 'is_active' in update_data:
+        update_data['is_active'] = 1 if update_data['is_active'] else 0
+    
+    for key, value in update_data.items():
+        setattr(group, key, value)
+    
+    db.commit()
+    db.refresh(group)
+    
+    member_count = db.query(DeviceGroupMember).filter(DeviceGroupMember.group_id == group_id).count()
+    resp = DeviceGroupResponse.model_validate(group)
+    resp.device_count = member_count
+    return resp
+
+
+@router.delete("/device-groups/{group_id}")
+def delete_device_group(
+    group_id: int,
+    db: Session = Depends(get_db)
+) -> dict:
+    """Delete a device group."""
+    group = db.query(DeviceGroup).filter(DeviceGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Device group not found")
+    
+    db.query(DeviceGroupMember).filter(DeviceGroupMember.group_id == group_id).delete()
+    db.delete(group)
+    db.commit()
+    return {"success": True, "message": "Device group deleted"}
+
+
+@router.post("/device-groups/{group_id}/members", response_model=DeviceGroupMemberResponse)
+def add_device_to_group(
+    group_id: int,
+    data_source_id: int,
+    db: Session = Depends(get_db)
+) -> DeviceGroupMemberResponse:
+    """Add a device to a group."""
+    group = db.query(DeviceGroup).filter(DeviceGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Device group not found")
+    
+    existing = db.query(DeviceGroupMember).filter(
+        DeviceGroupMember.group_id == group_id,
+        DeviceGroupMember.data_source_id == data_source_id
+    ).first()
+    if existing:
+        return DeviceGroupMemberResponse.model_validate(existing)
+    
+    member = DeviceGroupMember(group_id=group_id, data_source_id=data_source_id)
+    db.add(member)
+    db.commit()
+    db.refresh(member)
+    return DeviceGroupMemberResponse.model_validate(member)
+
+
+@router.get("/device-groups/{group_id}/members", response_model=List[DeviceGroupMemberResponse])
+def list_group_members(
+    group_id: int,
+    db: Session = Depends(get_db)
+) -> List[DeviceGroupMemberResponse]:
+    """List all devices in a group."""
+    members = db.query(DeviceGroupMember).filter(DeviceGroupMember.group_id == group_id).all()
+    return [DeviceGroupMemberResponse.model_validate(m) for m in members]
+
+
+@router.delete("/device-groups/{group_id}/members/{data_source_id}")
+def remove_device_from_group(
+    group_id: int,
+    data_source_id: int,
+    db: Session = Depends(get_db)
+) -> dict:
+    """Remove a device from a group."""
+    member = db.query(DeviceGroupMember).filter(
+        DeviceGroupMember.group_id == group_id,
+        DeviceGroupMember.data_source_id == data_source_id
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Device not found in group")
+    
+    db.delete(member)
+    db.commit()
+    return {"success": True, "message": "Device removed from group"}

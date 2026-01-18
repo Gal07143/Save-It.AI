@@ -316,17 +316,22 @@ class DeviceGroupBase(BaseModel):
     """Device group for organizing devices."""
     name: str
     description: Optional[str] = None
+    group_type: str = "zone"
     color: str = "#3b82f6"
     icon: Optional[str] = None
+    display_order: int = 0
+    is_active: bool = True
 
 
 class DeviceGroupCreate(DeviceGroupBase):
     site_id: int
+    parent_group_id: Optional[int] = None
 
 
 class DeviceGroupResponse(DeviceGroupBase):
     id: int
     site_id: int
+    parent_group_id: Optional[int] = None
     device_count: int = 0
     created_at: datetime
     updated_at: datetime
@@ -358,3 +363,109 @@ class DeviceHealthDashboard(BaseModel):
     unknown_count: int
     overall_success_rate: float
     devices: List[DeviceHealthSummary]
+
+
+class ValidationRuleTypeEnum(str, Enum):
+    MIN_VALUE = "min_value"
+    MAX_VALUE = "max_value"
+    RATE_OF_CHANGE = "rate_of_change"
+    STALE_DATA = "stale_data"
+    RANGE = "range"
+
+
+class ValidationSeverityEnum(str, Enum):
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+class DataValidationRuleBase(BaseModel):
+    """Base schema for data validation rules."""
+    name: str
+    description: Optional[str] = None
+    rule_type: ValidationRuleTypeEnum
+    severity: ValidationSeverityEnum = ValidationSeverityEnum.WARNING
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    rate_of_change_max: Optional[float] = None
+    rate_of_change_period_seconds: Optional[int] = None
+    stale_threshold_seconds: Optional[int] = None
+    is_active: bool = True
+    action_on_violation: str = "log"
+
+
+class DataValidationRuleCreate(DataValidationRuleBase):
+    site_id: int
+    data_source_id: Optional[int] = None
+    register_id: Optional[int] = None
+
+
+class DataValidationRuleUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    severity: Optional[ValidationSeverityEnum] = None
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    rate_of_change_max: Optional[float] = None
+    rate_of_change_period_seconds: Optional[int] = None
+    stale_threshold_seconds: Optional[int] = None
+    is_active: Optional[bool] = None
+    action_on_violation: Optional[str] = None
+
+
+class DataValidationRuleResponse(DataValidationRuleBase):
+    id: int
+    site_id: int
+    data_source_id: Optional[int] = None
+    register_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ValidationViolationResponse(BaseModel):
+    """Response schema for validation violations."""
+    id: int
+    rule_id: int
+    data_source_id: Optional[int] = None
+    register_id: Optional[int] = None
+    timestamp: datetime
+    actual_value: Optional[float] = None
+    expected_min: Optional[float] = None
+    expected_max: Optional[float] = None
+    previous_value: Optional[float] = None
+    violation_message: Optional[str] = None
+    is_acknowledged: bool = False
+    acknowledged_by: Optional[int] = None
+    acknowledged_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DeviceGroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    group_type: Optional[str] = None
+    color: Optional[str] = None
+    icon: Optional[str] = None
+    display_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class DeviceGroupMemberCreate(BaseModel):
+    group_id: int
+    data_source_id: int
+
+
+class DeviceGroupMemberResponse(BaseModel):
+    id: int
+    group_id: int
+    data_source_id: int
+    added_at: datetime
+
+    class Config:
+        from_attributes = True

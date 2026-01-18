@@ -185,6 +185,41 @@ export const api = {
     list: (dataSourceId: number) => fetchApi<ModbusRegister[]>(`/modbus-registers?data_source_id=${dataSourceId}`),
     read: (dataSourceId: number) => fetchApi<any>('/modbus-registers/read', { method: 'POST', body: JSON.stringify({ data_source_id: dataSourceId }) }),
   },
+  validationRules: {
+    list: (siteId?: number, dataSourceId?: number) => {
+      const params = new URLSearchParams()
+      if (siteId) params.append('site_id', String(siteId))
+      if (dataSourceId) params.append('data_source_id', String(dataSourceId))
+      const query = params.toString()
+      return fetchApi<ValidationRule[]>(`/data-sources/validation-rules${query ? `?${query}` : ''}`)
+    },
+    get: (id: number) => fetchApi<ValidationRule>(`/data-sources/validation-rules/${id}`),
+    create: (data: Partial<ValidationRule>) => fetchApi<ValidationRule>('/data-sources/validation-rules', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<ValidationRule>) => fetchApi<ValidationRule>(`/data-sources/validation-rules/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<void>(`/data-sources/validation-rules/${id}`, { method: 'DELETE' }),
+  },
+  validationViolations: {
+    list: (siteId?: number, ruleId?: number, isAcknowledged?: boolean, limit?: number) => {
+      const params = new URLSearchParams()
+      if (siteId) params.append('site_id', String(siteId))
+      if (ruleId) params.append('rule_id', String(ruleId))
+      if (isAcknowledged !== undefined) params.append('is_acknowledged', String(isAcknowledged))
+      if (limit) params.append('limit', String(limit))
+      const query = params.toString()
+      return fetchApi<ValidationViolation[]>(`/data-sources/validation-violations${query ? `?${query}` : ''}`)
+    },
+    acknowledge: (id: number) => fetchApi<{ success: boolean }>(`/data-sources/validation-violations/${id}/acknowledge`, { method: 'POST' }),
+  },
+  deviceGroups: {
+    list: (siteId?: number) => fetchApi<DeviceGroup[]>(`/data-sources/device-groups${siteId ? `?site_id=${siteId}` : ''}`),
+    get: (id: number) => fetchApi<DeviceGroup>(`/data-sources/device-groups/${id}`),
+    create: (data: Partial<DeviceGroup>) => fetchApi<DeviceGroup>('/data-sources/device-groups', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<DeviceGroup>) => fetchApi<DeviceGroup>(`/data-sources/device-groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<void>(`/data-sources/device-groups/${id}`, { method: 'DELETE' }),
+    addMember: (groupId: number, dataSourceId: number) => fetchApi<DeviceGroupMember>(`/data-sources/device-groups/${groupId}/members?data_source_id=${dataSourceId}`, { method: 'POST' }),
+    listMembers: (groupId: number) => fetchApi<DeviceGroupMember[]>(`/data-sources/device-groups/${groupId}/members`),
+    removeMember: (groupId: number, dataSourceId: number) => fetchApi<void>(`/data-sources/device-groups/${groupId}/members/${dataSourceId}`, { method: 'DELETE' }),
+  },
   notifications: {
     list: (siteId?: number, unreadOnly?: boolean) => 
       fetchApi<Notification[]>(`/notifications?${siteId ? `site_id=${siteId}&` : ''}${unreadOnly ? 'unread_only=true' : ''}`),
@@ -932,4 +967,64 @@ export interface PVDesignScenario {
   lcoe?: number
   co2_avoided_tons?: number
   created_at: string
+}
+
+export interface ValidationRule {
+  id: number
+  site_id: number
+  data_source_id?: number
+  register_id?: number
+  name: string
+  description?: string
+  rule_type: 'min_value' | 'max_value' | 'rate_of_change' | 'stale_data' | 'range'
+  severity: 'warning' | 'error' | 'critical'
+  min_value?: number
+  max_value?: number
+  rate_of_change_max?: number
+  rate_of_change_period_seconds?: number
+  stale_threshold_seconds?: number
+  is_active: boolean
+  action_on_violation: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ValidationViolation {
+  id: number
+  rule_id: number
+  data_source_id?: number
+  register_id?: number
+  timestamp: string
+  actual_value?: number
+  expected_min?: number
+  expected_max?: number
+  previous_value?: number
+  violation_message?: string
+  is_acknowledged: boolean
+  acknowledged_by?: number
+  acknowledged_at?: string
+  created_at: string
+}
+
+export interface DeviceGroup {
+  id: number
+  site_id: number
+  name: string
+  description?: string
+  group_type: string
+  parent_group_id?: number
+  color: string
+  icon?: string
+  display_order: number
+  is_active: boolean
+  device_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DeviceGroupMember {
+  id: number
+  group_id: number
+  data_source_id: number
+  added_at: string
 }

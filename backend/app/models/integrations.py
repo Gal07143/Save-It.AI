@@ -158,3 +158,90 @@ class CommunicationLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     gateway = relationship("Gateway", back_populates="communication_logs")
+
+
+class ValidationRuleType(PyEnum):
+    """Types of data validation rules."""
+    MIN_VALUE = "min_value"
+    MAX_VALUE = "max_value"
+    RATE_OF_CHANGE = "rate_of_change"
+    STALE_DATA = "stale_data"
+    RANGE = "range"
+
+
+class ValidationSeverity(PyEnum):
+    """Severity levels for validation rule violations."""
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+class DataValidationRule(Base):
+    """DataValidationRule model for defining min/max/rate-of-change checks on incoming data."""
+    __tablename__ = "data_validation_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=True, index=True)
+    register_id = Column(Integer, ForeignKey("modbus_registers.id"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    rule_type = Column(Enum(ValidationRuleType), nullable=False)
+    severity = Column(Enum(ValidationSeverity), default=ValidationSeverity.WARNING)
+    min_value = Column(Float, nullable=True)
+    max_value = Column(Float, nullable=True)
+    rate_of_change_max = Column(Float, nullable=True)
+    rate_of_change_period_seconds = Column(Integer, nullable=True)
+    stale_threshold_seconds = Column(Integer, nullable=True)
+    is_active = Column(Integer, default=1)
+    action_on_violation = Column(String(50), default="log")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ValidationViolation(Base):
+    """ValidationViolation model for tracking validation rule violations."""
+    __tablename__ = "validation_violations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rule_id = Column(Integer, ForeignKey("data_validation_rules.id"), nullable=False, index=True)
+    data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=True, index=True)
+    register_id = Column(Integer, ForeignKey("modbus_registers.id"), nullable=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    actual_value = Column(Float, nullable=True)
+    expected_min = Column(Float, nullable=True)
+    expected_max = Column(Float, nullable=True)
+    previous_value = Column(Float, nullable=True)
+    violation_message = Column(Text, nullable=True)
+    is_acknowledged = Column(Integer, default=0)
+    acknowledged_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DeviceGroup(Base):
+    """DeviceGroup model for organizing devices into logical groups/zones."""
+    __tablename__ = "device_groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    group_type = Column(String(50), default="zone")
+    parent_group_id = Column(Integer, ForeignKey("device_groups.id"), nullable=True)
+    color = Column(String(7), nullable=True)
+    icon = Column(String(50), nullable=True)
+    display_order = Column(Integer, default=0)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DeviceGroupMember(Base):
+    """DeviceGroupMember model for linking data sources to groups."""
+    __tablename__ = "device_group_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("device_groups.id"), nullable=False, index=True)
+    data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=False, index=True)
+    added_at = Column(DateTime, default=datetime.utcnow)

@@ -9,6 +9,8 @@ import {
 import DeviceOnboardingWizard from './DeviceOnboardingWizard'
 import BulkDeviceImport from '../components/BulkDeviceImport'
 import DeviceHealthDashboard from '../components/DeviceHealthDashboard'
+import ValidationRulesManager from '../components/ValidationRulesManager'
+import DeviceGroupsManager from '../components/DeviceGroupsManager'
 
 const sourceTypeLabels: Record<string, string> = {
   modbus_tcp: 'Modbus TCP',
@@ -28,7 +30,7 @@ interface IntegrationsProps {
 }
 
 export default function Integrations({ currentSite }: IntegrationsProps) {
-  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health'>('sources')
+  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health' | 'validation' | 'groups'>('sources')
   const [showAddGateway, setShowAddGateway] = useState(false)
   const [showAddSource, setShowAddSource] = useState(false)
   const [selectedSource, setSelectedSource] = useState<number | null>(null)
@@ -708,6 +710,18 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         >
           <Heart size={16} /> Health
         </button>
+        <button 
+          className={`btn ${activeTab === 'validation' ? 'btn-primary' : ''}`}
+          onClick={() => setActiveTab('validation')}
+        >
+          <AlertTriangle size={16} /> Validation
+        </button>
+        <button 
+          className={`btn ${activeTab === 'groups' ? 'btn-primary' : ''}`}
+          onClick={() => setActiveTab('groups')}
+        >
+          <Database size={16} /> Groups
+        </button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
           <button 
             className="btn"
@@ -731,6 +745,20 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       {activeTab === 'templates' && renderDeviceTemplates()}
       {activeTab === 'registers' && renderRegisters()}
       {activeTab === 'health' && <DeviceHealthDashboard siteId={currentSite || null} />}
+      {activeTab === 'validation' && currentSite && <ValidationRulesManager siteId={currentSite} />}
+      {activeTab === 'validation' && !currentSite && (
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <AlertTriangle className="mx-auto mb-2" size={32} style={{ color: 'var(--warning)' }} />
+          <p style={{ color: 'var(--text-muted)' }}>Please select a site to manage validation rules</p>
+        </div>
+      )}
+      {activeTab === 'groups' && currentSite && <DeviceGroupsManager siteId={currentSite} />}
+      {activeTab === 'groups' && !currentSite && (
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <Database className="mx-auto mb-2" size={32} style={{ color: 'var(--warning)' }} />
+          <p style={{ color: 'var(--text-muted)' }}>Please select a site to manage device groups</p>
+        </div>
+      )}
 
       {showConnectionTest && (
         <div className="modal-overlay" onClick={() => setShowConnectionTest(false)}>
