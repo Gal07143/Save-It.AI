@@ -4,7 +4,7 @@ import { api } from '../services/api'
 import { 
   Plug, CheckCircle, XCircle, Clock, AlertTriangle, Server, 
   FileCode, Settings, Plus, Wifi, WifiOff, RefreshCw, Play,
-  ChevronDown, ChevronRight, Activity, Cpu, Database
+  ChevronDown, ChevronRight, Activity, Cpu, Database, Download, Upload
 } from 'lucide-react'
 
 const sourceTypeLabels: Record<string, string> = {
@@ -39,6 +39,8 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [applyTemplateId, setApplyTemplateId] = useState<number | null>(null)
   const [applyDataSourceId, setApplyDataSourceId] = useState<number | null>(null)
   const [applyMeterId, setApplyMeterId] = useState<number | null>(null)
+  const [showImportTemplate, setShowImportTemplate] = useState(false)
+  const [importJson, setImportJson] = useState('')
   
   const [newSource, setNewSource] = useState({
     name: '',
@@ -119,6 +121,58 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       queryClient.invalidateQueries({ queryKey: ['device-templates'] })
     }
   })
+
+  const importTemplateMutation = useMutation({
+    mutationFn: async (jsonData: string) => {
+      let data
+      try {
+        data = JSON.parse(jsonData)
+      } catch {
+        throw new Error('Invalid JSON format. Please check the template data.')
+      }
+      const res = await fetch('/api/v1/device-templates/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Unknown error' }))
+        throw new Error(err.detail || 'Failed to import template')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['device-templates'] })
+      setShowImportTemplate(false)
+      setImportJson('')
+      alert('Template imported successfully!')
+    },
+    onError: (error: Error) => {
+      alert(`Import failed: ${error.message}`)
+    }
+  })
+
+  const handleExportTemplate = async (templateId: number) => {
+    try {
+      const res = await fetch(`/api/v1/device-templates/${templateId}/export`)
+      if (!res.ok) {
+        alert('Failed to export template')
+        return
+      }
+      const data = await res.json()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${data.template?.manufacturer || 'template'}_${data.template?.model || 'export'}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      alert('Failed to export template')
+    }
+  }
 
   const testConnectionMutation = useMutation({
     mutationFn: async (data: { host: string; port: number; slave_id: number }) => {
@@ -421,6 +475,12 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
           Device Templates
         </h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn"
+            onClick={() => setShowImportTemplate(true)}
+          >
+            <Upload size={16} /> Import Template
+          </button>
           {(!templates || templates.length === 0) && (
             <button 
               className="btn btn-primary" 
@@ -495,18 +555,29 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                       <div style={{ fontFamily: 'monospace' }}>{template.default_slave_id}</div>
                     </div>
                   </div>
-                  <button 
-                    className="btn btn-primary btn-sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setApplyTemplateId(template.id)
-                      setApplyMeterId(null)
-                      setApplyDataSourceId(null)
-                      setShowApplyTemplate(true)
-                    }}
-                  >
-                    Apply to Data Source
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button 
+                      className="btn btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleExportTemplate(template.id)
+                      }}
+                    >
+                      <Download size={14} /> Export
+                    </button>
+                    <button 
+                      className="btn btn-primary btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setApplyTemplateId(template.id)
+                        setApplyMeterId(null)
+                        setApplyDataSourceId(null)
+                        setShowApplyTemplate(true)
+                      }}
+                    >
+                      Apply to Data Source
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -859,6 +930,71 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
               >
                 {applyTemplateMutation.isPending ? 'Applying...' : 'Apply Template'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImportTemplate && (
+        <div className="modal-overlay" onClick={() => setShowImportTemplate(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>Import Device Template</h3>
+              <button className="btn btn-sm" onClick={() => setShowImportTemplate(false)}>X</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>
+                Paste the JSON content from an exported template file to import it.
+              </p>
+              
+              <div className="form-group">
+                <label className="form-label">Template JSON</label>
+                <textarea
+                  value={importJson}
+                  onChange={e => setImportJson(e.target.value)}
+                  placeholder='{"version": "1.0", "template": {...}, "registers": [...]}'
+                  rows={12}
+                  style={{ 
+                    width: '100%', 
+                    background: '#1e293b', 
+                    border: '1px solid #334155', 
+                    borderRadius: '0.375rem', 
+                    color: 'white',
+                    fontFamily: 'monospace',
+                    fontSize: '0.875rem',
+                    padding: '0.75rem'
+                  }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <label className="btn" style={{ cursor: 'pointer' }}>
+                  <Upload size={16} /> Load from File
+                  <input
+                    type="file"
+                    accept=".json"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onload = (event) => {
+                          setImportJson(event.target?.result as string || '')
+                        }
+                        reader.readAsText(file)
+                      }
+                    }}
+                  />
+                </label>
+                <button 
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  onClick={() => importTemplateMutation.mutate(importJson)}
+                  disabled={importTemplateMutation.isPending || !importJson.trim()}
+                >
+                  {importTemplateMutation.isPending ? 'Importing...' : 'Import Template'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

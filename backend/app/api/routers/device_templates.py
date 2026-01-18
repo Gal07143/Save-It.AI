@@ -1,6 +1,7 @@
 """Device Template management API endpoints."""
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
@@ -170,6 +171,102 @@ def delete_template_register(template_id: int, register_id: int, db: Session = D
     db.delete(register)
     db.commit()
     return {"message": "Register deleted successfully"}
+
+
+@router.get("/{template_id}/export")
+def export_device_template(template_id: int, db: Session = Depends(get_db)):
+    """Export a device template with all registers as JSON for backup/sharing."""
+    template = db.query(DeviceTemplate).filter(DeviceTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Device template not found")
+    
+    registers = db.query(TemplateRegister).filter(TemplateRegister.template_id == template_id).all()
+    
+    export_data = {
+        "version": "1.0",
+        "template": {
+            "name": template.name,
+            "manufacturer": template.manufacturer,
+            "model": template.model,
+            "description": template.description,
+            "protocol": template.protocol,
+            "default_port": template.default_port,
+            "default_slave_id": template.default_slave_id,
+        },
+        "registers": [
+            {
+                "name": r.name,
+                "description": r.description,
+                "register_address": r.register_address,
+                "register_type": r.register_type,
+                "data_type": r.data_type,
+                "byte_order": r.byte_order,
+                "register_count": r.register_count,
+                "scale_factor": r.scale_factor,
+                "offset": r.offset,
+                "unit": r.unit,
+                "is_writable": bool(r.is_writable),
+                "display_order": r.display_order,
+                "category": r.category,
+            }
+            for r in registers
+        ]
+    }
+    
+    return JSONResponse(
+        content=export_data,
+        headers={
+            "Content-Disposition": f'attachment; filename="{template.manufacturer}_{template.model}_template.json"'
+        }
+    )
+
+
+@router.post("/import", response_model=DeviceTemplateResponse)
+def import_device_template(data: Dict[str, Any], db: Session = Depends(get_db)):
+    """Import a device template from JSON export data."""
+    if "template" not in data or "registers" not in data:
+        raise HTTPException(status_code=400, detail="Invalid template format. Expected 'template' and 'registers' fields.")
+    
+    template_data = data["template"]
+    
+    db_template = DeviceTemplate(
+        name=template_data.get("name", "Imported Template"),
+        manufacturer=template_data.get("manufacturer", "Unknown"),
+        model=template_data.get("model", "Unknown"),
+        description=template_data.get("description"),
+        protocol=template_data.get("protocol", "modbus_tcp"),
+        default_port=template_data.get("default_port", 502),
+        default_slave_id=template_data.get("default_slave_id", 1),
+        is_system_template=0,
+        is_active=1,
+    )
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    
+    for reg_data in data.get("registers", []):
+        db_register = TemplateRegister(
+            template_id=db_template.id,
+            name=reg_data.get("name", "Unknown"),
+            description=reg_data.get("description"),
+            register_address=reg_data.get("register_address", 0),
+            register_type=reg_data.get("register_type", "holding"),
+            data_type=reg_data.get("data_type", "int16"),
+            byte_order=reg_data.get("byte_order", "big_endian"),
+            register_count=reg_data.get("register_count", 1),
+            scale_factor=reg_data.get("scale_factor", 1.0),
+            offset=reg_data.get("offset", 0.0),
+            unit=reg_data.get("unit"),
+            is_writable=1 if reg_data.get("is_writable", False) else 0,
+            display_order=reg_data.get("display_order", 0),
+            category=reg_data.get("category"),
+        )
+        db.add(db_register)
+    
+    db.commit()
+    db.refresh(db_template)
+    
+    return db_template
 
 
 @router.post("/apply", response_model=dict)
