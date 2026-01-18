@@ -138,6 +138,33 @@ export const api = {
     create: (data: Partial<DataSource>) => fetchApi<DataSource>('/data-sources', { method: 'POST', body: JSON.stringify(data) }),
     testConnection: (data: { host: string; port: number; slave_id: number }) => 
       fetchApi<{ success: boolean; error?: string }>('/modbus-registers/test-connection', { method: 'POST', body: JSON.stringify(data) }),
+    bulkImport: (data: BulkDeviceImportRequest) => 
+      fetchApi<BulkDeviceImportResponse>('/data-sources/bulk-import', { method: 'POST', body: JSON.stringify(data) }),
+    bulkImportCSV: async (siteId: number, file: File): Promise<BulkDeviceImportResponse> => {
+      const token = getAuthToken()
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const headers: HeadersInit = {}
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      
+      const response = await fetch(`${API_BASE}/data-sources/bulk-import/csv?site_id=${siteId}`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Import failed' }))
+        throw new Error(error.detail || 'Import failed')
+      }
+      
+      return response.json()
+    },
+    healthDashboard: (siteId?: number) => 
+      fetchApi<DeviceHealthDashboard>(`/data-sources/health/dashboard${siteId ? `?site_id=${siteId}` : ''}`),
   },
   gateways: {
     list: (siteId?: number) => fetchApi<Gateway[]>(`/gateways${siteId ? `?site_id=${siteId}` : ''}`),
@@ -551,6 +578,61 @@ export interface ModbusRegister {
   last_value?: number
   last_read_at?: string
   read_error_count?: number
+}
+
+export interface BulkDeviceImportRow {
+  name: string
+  protocol?: string
+  host?: string
+  port?: number
+  slave_id?: number
+  location?: string
+  template_name?: string
+  gateway_name?: string
+  description?: string
+}
+
+export interface BulkDeviceImportRequest {
+  site_id: number
+  devices: BulkDeviceImportRow[]
+}
+
+export interface BulkImportResultRow {
+  row_number: number
+  name: string
+  success: boolean
+  data_source_id?: number
+  error?: string
+}
+
+export interface BulkDeviceImportResponse {
+  total: number
+  successful: number
+  failed: number
+  results: BulkImportResultRow[]
+}
+
+export interface DeviceHealthSummary {
+  data_source_id: number
+  name: string
+  protocol: string
+  status: string
+  last_communication?: string
+  success_rate_24h: number
+  avg_response_time_ms?: number
+  error_count_24h: number
+  last_error?: string
+  firmware_version?: string
+}
+
+export interface DeviceHealthDashboard {
+  total_devices: number
+  online_count: number
+  offline_count: number
+  error_count: number
+  unknown_count: number
+  overall_success_rate: number
+  devices: DeviceHealthSummary[]
 }
 
 export interface Notification {

@@ -4,9 +4,11 @@ import { api } from '../services/api'
 import { 
   Plug, CheckCircle, XCircle, Clock, AlertTriangle, Server, 
   FileCode, Settings, Plus, Wifi, WifiOff, RefreshCw, Play,
-  ChevronDown, ChevronRight, Activity, Cpu, Database, Download, Upload, Wand2
+  ChevronDown, ChevronRight, Activity, Cpu, Database, Download, Upload, Wand2, Heart
 } from 'lucide-react'
 import DeviceOnboardingWizard from './DeviceOnboardingWizard'
+import BulkDeviceImport from '../components/BulkDeviceImport'
+import DeviceHealthDashboard from '../components/DeviceHealthDashboard'
 
 const sourceTypeLabels: Record<string, string> = {
   modbus_tcp: 'Modbus TCP',
@@ -26,7 +28,7 @@ interface IntegrationsProps {
 }
 
 export default function Integrations({ currentSite }: IntegrationsProps) {
-  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers'>('sources')
+  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health'>('sources')
   const [showAddGateway, setShowAddGateway] = useState(false)
   const [showAddSource, setShowAddSource] = useState(false)
   const [selectedSource, setSelectedSource] = useState<number | null>(null)
@@ -43,6 +45,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [showImportTemplate, setShowImportTemplate] = useState(false)
   const [importJson, setImportJson] = useState('')
   const [showOnboardingWizard, setShowOnboardingWizard] = useState(false)
+  const [showBulkImport, setShowBulkImport] = useState(false)
   
   const [newSource, setNewSource] = useState({
     name: '',
@@ -82,43 +85,27 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
 
   const { data: gateways, isLoading: loadingGateways } = useQuery({
     queryKey: ['gateways', currentSite],
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/gateways${currentSite ? `?site_id=${currentSite}` : ''}`)
-      return res.json()
-    }
+    queryFn: () => api.gateways.list(currentSite || undefined)
   })
 
   const { data: templates, isLoading: loadingTemplates } = useQuery({
     queryKey: ['device-templates'],
-    queryFn: async () => {
-      const res = await fetch('/api/v1/device-templates')
-      return res.json()
-    }
+    queryFn: () => api.deviceTemplates.list()
   })
 
   const { data: registers, isLoading: loadingRegisters } = useQuery({
     queryKey: ['modbus-registers', selectedSource],
-    queryFn: async () => {
-      if (!selectedSource) return []
-      const res = await fetch(`/api/v1/modbus-registers?data_source_id=${selectedSource}`)
-      return res.json()
-    },
+    queryFn: () => selectedSource ? api.modbusRegisters.list(selectedSource) : Promise.resolve([]),
     enabled: !!selectedSource
   })
 
   const { data: meters } = useQuery({
     queryKey: ['meters', currentSite],
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/meters${currentSite ? `?site_id=${currentSite}` : ''}`)
-      return res.json()
-    }
+    queryFn: () => api.meters.list(currentSite || undefined)
   })
 
   const seedTemplatesMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch('/api/v1/device-templates/seed', { method: 'POST' })
-      return res.json()
-    },
+    mutationFn: () => api.deviceTemplates.seed(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['device-templates'] })
     }
@@ -132,16 +119,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       } catch {
         throw new Error('Invalid JSON format. Please check the template data.')
       }
-      const res = await fetch('/api/v1/device-templates/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Unknown error' }))
-        throw new Error(err.detail || 'Failed to import template')
-      }
-      return res.json()
+      return api.deviceTemplates.importTemplate(data)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['device-templates'] })
@@ -156,12 +134,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
 
   const handleExportTemplate = async (templateId: number) => {
     try {
-      const res = await fetch(`/api/v1/device-templates/${templateId}/export`)
-      if (!res.ok) {
-        alert('Failed to export template')
-        return
-      }
-      const data = await res.json()
+      const data = await api.deviceTemplates.exportTemplate(templateId)
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -177,42 +150,23 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   }
 
   const testConnectionMutation = useMutation({
-    mutationFn: async (data: { host: string; port: number; slave_id: number }) => {
-      const res = await fetch('/api/v1/modbus-registers/test-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      return res.json()
-    },
+    mutationFn: (data: { host: string; port: number; slave_id: number }) => 
+      api.dataSources.testConnection(data),
     onSuccess: (data) => {
       setTestResult(data)
     }
   })
 
   const readRegistersMutation = useMutation({
-    mutationFn: async (dataSourceId: number) => {
-      const res = await fetch('/api/v1/modbus-registers/read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data_source_id: dataSourceId })
-      })
-      return res.json()
-    },
+    mutationFn: (dataSourceId: number) => api.modbusRegisters.read(dataSourceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modbus-registers'] })
     }
   })
 
   const applyTemplateMutation = useMutation({
-    mutationFn: async (data: { template_id: number; data_source_id: number; meter_id?: number | null }) => {
-      const res = await fetch('/api/v1/device-templates/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      return res.json()
-    },
+    mutationFn: (data: { template_id: number; data_source_id: number; meter_id?: number | null }) =>
+      api.deviceTemplates.apply(data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['modbus-registers'] })
       setShowApplyTemplate(false)
@@ -251,13 +205,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         payload.webhook_api_key = data.webhook_api_key || null
         payload.webhook_auth_type = data.webhook_auth_type
       }
-      const res = await fetch('/api/v1/data-sources', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) throw new Error('Failed to create data source')
-      return res.json()
+      return api.dataSources.create(payload)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['data-sources'] })
@@ -272,18 +220,11 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   })
 
   const createGatewayMutation = useMutation({
-    mutationFn: async (data: typeof newGateway) => {
-      const res = await fetch('/api/v1/gateways', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          site_id: parseInt(data.site_id)
-        })
-      })
-      if (!res.ok) throw new Error('Failed to create gateway')
-      return res.json()
-    },
+    mutationFn: (data: typeof newGateway) => 
+      api.gateways.create({
+        ...data,
+        site_id: parseInt(data.site_id)
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gateways'] })
       setShowAddGateway(false)
@@ -761,12 +702,35 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         >
           <Settings size={16} /> Registers
         </button>
+        <button 
+          className={`btn ${activeTab === 'health' ? 'btn-primary' : ''}`}
+          onClick={() => setActiveTab('health')}
+        >
+          <Heart size={16} /> Health
+        </button>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn"
+            onClick={() => setShowBulkImport(true)}
+            style={{ backgroundColor: '#3b82f6', color: 'white' }}
+          >
+            <Upload size={16} /> Bulk Import
+          </button>
+          <button 
+            className="btn"
+            onClick={() => setShowOnboardingWizard(true)}
+            style={{ backgroundColor: '#10b981', color: 'white' }}
+          >
+            <Wand2 size={16} /> Device Wizard
+          </button>
+        </div>
       </div>
 
       {activeTab === 'gateways' && renderGateways()}
       {activeTab === 'sources' && renderDataSources()}
       {activeTab === 'templates' && renderDeviceTemplates()}
       {activeTab === 'registers' && renderRegisters()}
+      {activeTab === 'health' && <DeviceHealthDashboard siteId={currentSite || null} />}
 
       {showConnectionTest && (
         <div className="modal-overlay" onClick={() => setShowConnectionTest(false)}>
@@ -1311,6 +1275,12 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
           setSelectedSource(dataSourceId)
           setActiveTab('registers')
         }}
+      />
+
+      <BulkDeviceImport
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        siteId={currentSite || null}
       />
     </div>
   )

@@ -274,3 +274,87 @@ class ApplyTemplateRequest(BaseModel):
     data_source_id: int
     template_id: int
     meter_id: Optional[int] = None
+
+
+class BulkDeviceImportRow(BaseModel):
+    """Single device row for bulk import."""
+    name: str
+    protocol: str = "modbus_tcp"
+    host: Optional[str] = None
+    port: int = 502
+    slave_id: int = 1
+    location: Optional[str] = None
+    template_name: Optional[str] = None
+    gateway_name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class BulkDeviceImportRequest(BaseModel):
+    """Bulk device import request."""
+    site_id: int
+    devices: List[BulkDeviceImportRow]
+
+
+class BulkImportResultRow(BaseModel):
+    """Result for a single device import."""
+    row_number: int
+    name: str
+    success: bool
+    data_source_id: Optional[int] = None
+    error: Optional[str] = None
+
+
+class BulkDeviceImportResponse(BaseModel):
+    """Bulk device import response."""
+    total: int
+    successful: int
+    failed: int
+    results: List[BulkImportResultRow]
+
+
+class DeviceGroupBase(BaseModel):
+    """Device group for organizing devices."""
+    name: str
+    description: Optional[str] = None
+    color: str = "#3b82f6"
+    icon: Optional[str] = None
+
+
+class DeviceGroupCreate(DeviceGroupBase):
+    site_id: int
+
+
+class DeviceGroupResponse(DeviceGroupBase):
+    id: int
+    site_id: int
+    device_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DeviceHealthSummary(BaseModel):
+    """Health summary for a single device."""
+    data_source_id: int
+    name: str
+    protocol: str
+    status: str  # online, offline, error, unknown
+    last_communication: Optional[datetime] = None
+    success_rate_24h: float = 0.0
+    avg_response_time_ms: Optional[float] = None
+    error_count_24h: int = 0
+    last_error: Optional[str] = None
+    firmware_version: Optional[str] = None
+
+
+class DeviceHealthDashboard(BaseModel):
+    """Overall device health dashboard."""
+    total_devices: int
+    online_count: int
+    offline_count: int
+    error_count: int
+    unknown_count: int
+    overall_success_rate: float
+    devices: List[DeviceHealthSummary]
