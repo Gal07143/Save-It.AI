@@ -122,10 +122,28 @@ frontend/src/
 - Creates DataSource and applies template registers on completion
 - Accessed via emerald "Device Wizard" button on Integrations page
 
-### Phase 3: Advanced Device Features (14 tasks) - IN PROGRESS (2/14)
+### Phase 3: Advanced Device Features (14 tasks) - IN PROGRESS (5/14)
 17. ✅ Bulk device import - CSV upload with validation, template auto-apply, per-row error reporting
 18. ✅ Device health dashboard - Status aggregation (online/offline/error/unknown), 24h success rates, response times
-19-30: Data validation rules, retry logic, device grouping, firmware tracking, QR codes, cloning, status page
+19. ✅ Data validation rules - CRUD configuration for min/max/rate-of-change/stale-data rules with violation tracking
+20. Connection retry logic - Automatic reconnection with exponential backoff
+21. ✅ Device grouping - Hierarchical device organization into logical groups/zones with color coding
+22-30: Firmware tracking, QR codes, cloning, status page, etc.
+
+**Validation Rules Features:**
+- 5 rule types: min_value, max_value, range, rate_of_change, stale_data
+- Rule configuration per data source with severity levels (info/warning/critical)
+- Validation violations table for tracking rule breaches
+- Acknowledge workflow for violations
+- Frontend "Validation" tab on Integrations page
+- Note: Actual enforcement during ingestion requires polling service (Phase 7)
+
+**Device Groups Features:**
+- Hierarchical group organization with parent_group_id support
+- Group types: zone, building, floor, department, custom
+- Color coding for visual organization
+- Device membership management with add/remove functionality
+- Frontend "Groups" tab on Integrations page
 
 ### Phase 4: Backend (15 tasks)
 31-45: Rate limiting, API auth, audit logging, caching, job queue, health checks, backups, TimescaleDB, GDPR
