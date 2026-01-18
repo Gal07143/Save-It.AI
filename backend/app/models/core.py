@@ -37,6 +37,7 @@ class Asset(Base):
     id = Column(Integer, primary_key=True, index=True)
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
     parent_id = Column(Integer, ForeignKey("assets.id"), nullable=True, index=True)
+    data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     asset_type = Column(Enum(AssetType), nullable=False)
     description = Column(Text, nullable=True)
@@ -52,6 +53,7 @@ class Asset(Base):
     parent = relationship("Asset", remote_side=[id], back_populates="children")
     children = relationship("Asset", back_populates="parent", cascade="all, delete-orphan")
     meter = relationship("Meter", back_populates="asset", uselist=False)
+    data_source = relationship("DataSource")
 
 
 class Meter(Base):

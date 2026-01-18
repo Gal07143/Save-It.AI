@@ -309,6 +309,7 @@ export interface Asset {
   id: number
   site_id: number
   parent_id?: number
+  data_source_id?: number
   name: string
   asset_type: string
   description?: string

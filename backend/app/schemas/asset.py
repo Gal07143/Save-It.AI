@@ -21,6 +21,7 @@ class AssetCreate(AssetBase):
     """Schema for creating a new Asset."""
     site_id: int
     parent_id: Optional[int] = None
+    data_source_id: Optional[int] = None
 
 
 class AssetUpdate(BaseModel):
@@ -29,6 +30,7 @@ class AssetUpdate(BaseModel):
     asset_type: Optional[AssetType] = None
     description: Optional[str] = None
     parent_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     rated_capacity_kw: Optional[float] = None
     rated_voltage: Optional[float] = None
     rated_current: Optional[float] = None
@@ -41,6 +43,7 @@ class AssetResponse(AssetBase):
     id: int
     site_id: int
     parent_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

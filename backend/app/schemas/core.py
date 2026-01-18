@@ -66,6 +66,7 @@ class SiteResponse(BaseModel):
 class AssetCreate(BaseModel):
     site_id: int
     parent_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     name: str = Field(..., min_length=1, max_length=255)
     asset_type: AssetType
     description: Optional[str] = None
@@ -81,6 +82,7 @@ class AssetUpdate(BaseModel):
     asset_type: Optional[AssetType] = None
     description: Optional[str] = None
     parent_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     rated_capacity_kw: Optional[float] = None
     rated_voltage: Optional[float] = None
     rated_current: Optional[float] = None
@@ -92,6 +94,7 @@ class AssetResponse(BaseModel):
     id: int
     site_id: int
     parent_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     name: str
     asset_type: AssetType
     description: Optional[str] = None
