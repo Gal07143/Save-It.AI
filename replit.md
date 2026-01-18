@@ -87,6 +87,40 @@ frontend/src/
 └── services/api.ts      # API client
 ```
 
+## Development Roadmap (105 Tasks)
+
+### Phase 1: Core Fixes (12 tasks) - IN PROGRESS
+1. ✅ Auto-seed device templates on startup
+2. Meter delete button with confirmation
+3. ✅ Add gateway_id + MQTT/HTTPS to DataSource
+4. Protocol-specific Data Source form
+5. ✅ Solar inverter templates (SMA, SolarEdge, Huawei, Fronius, Sungrow)
+6. ✅ BESS templates (Tesla, BYD, LG RESU, Pylontech)
+7. Meter linking in Apply Template
+8. Export/import template buttons
+9. data_source_id on PV/BESS assets
+10. Site Configuration section
+11. Connection health notifications
+12. ✅ formatNumber utility (3 decimals)
+
+### Phase 2: Device Onboarding Wizard (4 tasks)
+13-16: Prerequisites → Connect → Configure → Messages/Datapoints
+
+### Phase 3: Advanced Device Features (14 tasks)
+17-30: Bulk import, health dashboard, validation, retry logic, grouping, firmware, QR codes, cloning, status page
+
+### Phase 4: Backend (15 tasks)
+31-45: Rate limiting, API auth, audit logging, caching, job queue, health checks, backups, TimescaleDB, GDPR
+
+### Phase 5: Database (10 tasks)
+46-55: Soft deletes, multi-tenancy, partitioning, indexes, constraints, reporting tables
+
+### Phase 6: UX Improvements (25 tasks)
+56-80: Search, shortcuts, dark mode, dashboards, inline editing, toasts, tooltips, guided tours, AI chat
+
+### Phase 7: Infrastructure (25 tasks)
+81-105: MQTT broker, WebSockets, polling service, Celery, Prometheus, Sentry, SSL, migrations
+
 ## External Dependencies
 -   **OpenAI**: Utilized via Replit AI Integrations for AI agents, vision API for OCR bill scanning, and panel diagram analysis.
 -   **PostgreSQL**: Primary database.

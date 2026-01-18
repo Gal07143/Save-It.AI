@@ -12,9 +12,13 @@ class DataSourceType(PyEnum):
     """Types of data sources for integration layer."""
     MODBUS_TCP = "modbus_tcp"
     MODBUS_RTU = "modbus_rtu"
+    MQTT = "mqtt"
+    HTTPS_WEBHOOK = "https_webhook"
     BACNET = "bacnet"
     CSV_IMPORT = "csv_import"
     EXTERNAL_API = "external_api"
+    DIRECT_INVERTER = "direct_inverter"
+    DIRECT_BESS = "direct_bess"
     MANUAL = "manual"
 
 
@@ -34,6 +38,7 @@ class DataSource(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    gateway_id = Column(Integer, ForeignKey("gateways.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     source_type = Column(Enum(DataSourceType), nullable=False)
     connection_string = Column(Text, nullable=True)
@@ -45,6 +50,15 @@ class DataSource(Base):
     last_poll_at = Column(DateTime, nullable=True)
     last_error = Column(Text, nullable=True)
     config_json = Column(Text, nullable=True)
+    mqtt_broker_url = Column(String(500), nullable=True)
+    mqtt_topic = Column(String(255), nullable=True)
+    mqtt_username = Column(String(255), nullable=True)
+    mqtt_password = Column(String(255), nullable=True)
+    mqtt_port = Column(Integer, nullable=True)
+    mqtt_use_tls = Column(Integer, default=0)
+    webhook_url = Column(String(500), nullable=True)
+    webhook_api_key = Column(String(255), nullable=True)
+    webhook_auth_type = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

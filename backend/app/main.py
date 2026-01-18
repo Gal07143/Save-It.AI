@@ -20,7 +20,7 @@ from backend.app.api.routers import all_routers
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events - create all database tables."""
+    """Application lifespan events - create all database tables and seed data."""
     from backend.app.models import (
         Site, Asset, Meter, MeterReading, Bill, BillLineItem, Tariff, TariffRate, Notification,
         DataSource, Measurement, Tenant, LeaseContract, Invoice, BatterySpecs,
@@ -34,7 +34,20 @@ async def lifespan(app: FastAPI):
         AgentSession, AgentMessage, Recommendation, ForecastJob, ForecastSeries,
         ControlRule, SafetyGate, ControlCommand
     )
+    from backend.app.models.integrations import DeviceTemplate, TemplateRegister, Gateway, ModbusRegister, CommunicationLog
+    from backend.app.services.seed_templates import seed_device_templates
+    from backend.app.core.database import SessionLocal
+    
     Base.metadata.create_all(bind=engine)
+    
+    db = SessionLocal()
+    try:
+        seed_device_templates(db)
+    except Exception as e:
+        print(f"Warning: Could not seed templates: {e}")
+    finally:
+        db.close()
+    
     yield
 
 
