@@ -59,6 +59,13 @@ class DataSource(Base):
     webhook_url = Column(String(500), nullable=True)
     webhook_api_key = Column(String(255), nullable=True)
     webhook_auth_type = Column(String(50), nullable=True)
+    max_retries = Column(Integer, default=5)
+    retry_delay_seconds = Column(Integer, default=30)
+    backoff_multiplier = Column(Float, default=2.0)
+    current_retry_count = Column(Integer, default=0)
+    next_retry_at = Column(DateTime, nullable=True)
+    connection_status = Column(String(20), default="unknown")
+    last_successful_poll_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

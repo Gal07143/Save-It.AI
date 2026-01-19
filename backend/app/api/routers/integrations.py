@@ -583,3 +583,245 @@ def remove_device_from_group(
     db.delete(member)
     db.commit()
     return {"success": True, "message": "Device removed from group"}
+
+
+# ============ RETRY LOGIC ENDPOINTS ============
+
+from backend.app.schemas.integrations import (
+    RetryConfigUpdate, RetryStatusResponse, ConnectionAttemptResult, RetryQueueItem
+)
+
+
+@router.get("/retry-queue", response_model=List[RetryQueueItem])
+def get_retry_queue(
+    site_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Get all data sources that are pending retry."""
+    query = db.query(DataSource).filter(
+        DataSource.connection_status.in_(["retrying", "error", "offline"])
+    )
+    if site_id:
+        query = query.filter(DataSource.site_id == site_id)
+    
+    sources = query.order_by(DataSource.next_retry_at.asc().nullsfirst()).all()
+    
+    return [
+        RetryQueueItem(
+            data_source_id=s.id,
+            name=s.name,
+            connection_status=s.connection_status or "unknown",
+            next_retry_at=s.next_retry_at,
+            current_retry_count=s.current_retry_count or 0,
+            max_retries=s.max_retries or 5,
+            last_error=s.last_error
+        )
+        for s in sources
+    ]
+
+
+@router.get("/{source_id}/retry-status", response_model=RetryStatusResponse)
+def get_retry_status(source_id: int, db: Session = Depends(get_db)):
+    """Get retry status for a specific data source."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    return RetryStatusResponse(
+        data_source_id=source.id,
+        name=source.name,
+        connection_status=source.connection_status or "unknown",
+        current_retry_count=source.current_retry_count or 0,
+        max_retries=source.max_retries or 5,
+        retry_delay_seconds=source.retry_delay_seconds or 30,
+        backoff_multiplier=source.backoff_multiplier or 2.0,
+        next_retry_at=source.next_retry_at,
+        last_error=source.last_error,
+        last_poll_at=source.last_poll_at,
+        last_successful_poll_at=source.last_successful_poll_at
+    )
+
+
+@router.put("/{source_id}/retry-config")
+def update_retry_config(
+    source_id: int,
+    config: RetryConfigUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update retry configuration for a data source."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    if config.max_retries is not None:
+        source.max_retries = config.max_retries
+    if config.retry_delay_seconds is not None:
+        source.retry_delay_seconds = config.retry_delay_seconds
+    if config.backoff_multiplier is not None:
+        source.backoff_multiplier = config.backoff_multiplier
+    
+    db.commit()
+    db.refresh(source)
+    
+    return {"success": True, "message": "Retry configuration updated"}
+
+
+@router.post("/{source_id}/simulate-failure", response_model=ConnectionAttemptResult)
+def simulate_connection_failure(
+    source_id: int,
+    error_message: str = "Simulated connection failure",
+    db: Session = Depends(get_db)
+):
+    """Simulate a connection failure to trigger retry logic (for testing)."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    current_retry = (source.current_retry_count or 0) + 1
+    max_retries = source.max_retries or 5
+    delay = source.retry_delay_seconds or 30
+    multiplier = source.backoff_multiplier or 2.0
+    
+    backoff_delay = delay * (multiplier ** (current_retry - 1))
+    next_retry = datetime.utcnow() + timedelta(seconds=backoff_delay)
+    
+    if current_retry > max_retries:
+        source.connection_status = "error"
+        source.next_retry_at = None
+    else:
+        source.connection_status = "retrying"
+        source.next_retry_at = next_retry
+    
+    source.current_retry_count = current_retry
+    source.last_error = error_message
+    source.last_poll_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(source)
+    
+    return ConnectionAttemptResult(
+        success=False,
+        error_message=error_message,
+        next_retry_at=source.next_retry_at,
+        current_retry_count=source.current_retry_count
+    )
+
+
+@router.post("/{source_id}/simulate-success", response_model=ConnectionAttemptResult)
+def simulate_connection_success(
+    source_id: int,
+    db: Session = Depends(get_db)
+):
+    """Simulate a successful connection to reset retry state."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    now = datetime.utcnow()
+    source.connection_status = "online"
+    source.current_retry_count = 0
+    source.next_retry_at = None
+    source.last_error = None
+    source.last_poll_at = now
+    source.last_successful_poll_at = now
+    
+    db.commit()
+    db.refresh(source)
+    
+    return ConnectionAttemptResult(
+        success=True,
+        error_message=None,
+        next_retry_at=None,
+        current_retry_count=0
+    )
+
+
+@router.post("/{source_id}/reset-retry")
+def reset_retry_state(
+    source_id: int,
+    db: Session = Depends(get_db)
+):
+    """Reset retry state for a data source."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    source.connection_status = "unknown"
+    source.current_retry_count = 0
+    source.next_retry_at = None
+    source.last_error = None
+    
+    db.commit()
+    
+    return {"success": True, "message": "Retry state reset"}
+
+
+@router.post("/{source_id}/force-retry", response_model=ConnectionAttemptResult)
+def force_retry_now(
+    source_id: int,
+    db: Session = Depends(get_db)
+):
+    """Force an immediate retry attempt for a data source."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    from pymodbus.client import ModbusTcpClient
+    
+    success = False
+    error_message = None
+    
+    if source.source_type.value in ["modbus_tcp", "MODBUS_TCP"]:
+        if source.host and source.port:
+            try:
+                client = ModbusTcpClient(host=source.host, port=source.port, timeout=5)
+                if client.connect():
+                    success = True
+                    client.close()
+                else:
+                    error_message = "Failed to establish Modbus TCP connection"
+            except Exception as e:
+                error_message = str(e)
+        else:
+            error_message = "Missing host or port configuration"
+    else:
+        success = True
+    
+    now = datetime.utcnow()
+    
+    if success:
+        source.connection_status = "online"
+        source.current_retry_count = 0
+        source.next_retry_at = None
+        source.last_error = None
+        source.last_poll_at = now
+        source.last_successful_poll_at = now
+    else:
+        current_retry = (source.current_retry_count or 0) + 1
+        max_retries = source.max_retries or 5
+        delay = source.retry_delay_seconds or 30
+        multiplier = source.backoff_multiplier or 2.0
+        
+        backoff_delay = delay * (multiplier ** (current_retry - 1))
+        next_retry = now + timedelta(seconds=backoff_delay)
+        
+        if current_retry > max_retries:
+            source.connection_status = "error"
+            source.next_retry_at = None
+        else:
+            source.connection_status = "retrying"
+            source.next_retry_at = next_retry
+        
+        source.current_retry_count = current_retry
+        source.last_error = error_message
+        source.last_poll_at = now
+    
+    db.commit()
+    db.refresh(source)
+    
+    return ConnectionAttemptResult(
+        success=success,
+        error_message=error_message,
+        next_retry_at=source.next_retry_at,
+        current_retry_count=source.current_retry_count or 0
+    )

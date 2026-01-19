@@ -91,6 +91,13 @@ class DataSourceResponse(BaseModel):
     mqtt_use_tls: Optional[int] = None
     webhook_url: Optional[str] = None
     webhook_auth_type: Optional[str] = None
+    max_retries: Optional[int] = 5
+    retry_delay_seconds: Optional[int] = 30
+    backoff_multiplier: Optional[float] = 2.0
+    current_retry_count: Optional[int] = 0
+    next_retry_at: Optional[datetime] = None
+    connection_status: Optional[str] = "unknown"
+    last_successful_poll_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

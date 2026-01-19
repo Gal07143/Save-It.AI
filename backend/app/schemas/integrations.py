@@ -469,3 +469,47 @@ class DeviceGroupMemberResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class RetryConfigUpdate(BaseModel):
+    """Schema for updating retry configuration."""
+    max_retries: Optional[int] = None
+    retry_delay_seconds: Optional[int] = None
+    backoff_multiplier: Optional[float] = None
+
+
+class RetryStatusResponse(BaseModel):
+    """Response schema for retry status."""
+    data_source_id: int
+    name: str
+    connection_status: str
+    current_retry_count: int
+    max_retries: int
+    retry_delay_seconds: int
+    backoff_multiplier: float
+    next_retry_at: Optional[datetime] = None
+    last_error: Optional[str] = None
+    last_poll_at: Optional[datetime] = None
+    last_successful_poll_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ConnectionAttemptResult(BaseModel):
+    """Result of a connection attempt."""
+    success: bool
+    error_message: Optional[str] = None
+    next_retry_at: Optional[datetime] = None
+    current_retry_count: int = 0
+
+
+class RetryQueueItem(BaseModel):
+    """Item in the retry queue."""
+    data_source_id: int
+    name: str
+    connection_status: str
+    next_retry_at: Optional[datetime] = None
+    current_retry_count: int
+    max_retries: int
+    last_error: Optional[str] = None

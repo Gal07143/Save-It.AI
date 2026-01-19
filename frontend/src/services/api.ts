@@ -220,6 +220,15 @@ export const api = {
     listMembers: (groupId: number) => fetchApi<DeviceGroupMember[]>(`/data-sources/device-groups/${groupId}/members`),
     removeMember: (groupId: number, dataSourceId: number) => fetchApi<void>(`/data-sources/device-groups/${groupId}/members/${dataSourceId}`, { method: 'DELETE' }),
   },
+  retryLogic: {
+    getQueue: (siteId?: number) => fetchApi<RetryQueueItem[]>(`/data-sources/retry-queue${siteId ? `?site_id=${siteId}` : ''}`),
+    getStatus: (sourceId: number) => fetchApi<RetryStatus>(`/data-sources/${sourceId}/retry-status`),
+    updateConfig: (sourceId: number, config: RetryConfig) => fetchApi<{ success: boolean }>(`/data-sources/${sourceId}/retry-config`, { method: 'PUT', body: JSON.stringify(config) }),
+    simulateFailure: (sourceId: number, errorMessage?: string) => fetchApi<ConnectionAttemptResult>(`/data-sources/${sourceId}/simulate-failure${errorMessage ? `?error_message=${encodeURIComponent(errorMessage)}` : ''}`, { method: 'POST' }),
+    simulateSuccess: (sourceId: number) => fetchApi<ConnectionAttemptResult>(`/data-sources/${sourceId}/simulate-success`, { method: 'POST' }),
+    resetRetry: (sourceId: number) => fetchApi<{ success: boolean }>(`/data-sources/${sourceId}/reset-retry`, { method: 'POST' }),
+    forceRetry: (sourceId: number) => fetchApi<ConnectionAttemptResult>(`/data-sources/${sourceId}/force-retry`, { method: 'POST' }),
+  },
   notifications: {
     list: (siteId?: number, unreadOnly?: boolean) => 
       fetchApi<Notification[]>(`/notifications?${siteId ? `site_id=${siteId}&` : ''}${unreadOnly ? 'unread_only=true' : ''}`),
@@ -1027,4 +1036,41 @@ export interface DeviceGroupMember {
   group_id: number
   data_source_id: number
   added_at: string
+}
+
+export interface RetryQueueItem {
+  data_source_id: number
+  name: string
+  connection_status: string
+  next_retry_at?: string
+  current_retry_count: number
+  max_retries: number
+  last_error?: string
+}
+
+export interface RetryStatus {
+  data_source_id: number
+  name: string
+  connection_status: string
+  current_retry_count: number
+  max_retries: number
+  retry_delay_seconds: number
+  backoff_multiplier: number
+  next_retry_at?: string
+  last_error?: string
+  last_poll_at?: string
+  last_successful_poll_at?: string
+}
+
+export interface RetryConfig {
+  max_retries?: number
+  retry_delay_seconds?: number
+  backoff_multiplier?: number
+}
+
+export interface ConnectionAttemptResult {
+  success: boolean
+  error_message?: string
+  next_retry_at?: string
+  current_retry_count: number
 }

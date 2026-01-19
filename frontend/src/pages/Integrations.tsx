@@ -11,6 +11,7 @@ import BulkDeviceImport from '../components/BulkDeviceImport'
 import DeviceHealthDashboard from '../components/DeviceHealthDashboard'
 import ValidationRulesManager from '../components/ValidationRulesManager'
 import DeviceGroupsManager from '../components/DeviceGroupsManager'
+import RetryManager from '../components/RetryManager'
 
 const sourceTypeLabels: Record<string, string> = {
   modbus_tcp: 'Modbus TCP',
@@ -30,7 +31,7 @@ interface IntegrationsProps {
 }
 
 export default function Integrations({ currentSite }: IntegrationsProps) {
-  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health' | 'validation' | 'groups'>('sources')
+  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health' | 'validation' | 'groups' | 'retry'>('sources')
   const [showAddGateway, setShowAddGateway] = useState(false)
   const [showAddSource, setShowAddSource] = useState(false)
   const [selectedSource, setSelectedSource] = useState<number | null>(null)
@@ -722,6 +723,12 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         >
           <Database size={16} /> Groups
         </button>
+        <button 
+          className={`btn ${activeTab === 'retry' ? 'btn-primary' : ''}`}
+          onClick={() => setActiveTab('retry')}
+        >
+          <RefreshCw size={16} /> Retry
+        </button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
           <button 
             className="btn"
@@ -757,6 +764,13 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
           <Database className="mx-auto mb-2" size={32} style={{ color: 'var(--warning)' }} />
           <p style={{ color: 'var(--text-muted)' }}>Please select a site to manage device groups</p>
+        </div>
+      )}
+      {activeTab === 'retry' && currentSite && <RetryManager siteId={currentSite} />}
+      {activeTab === 'retry' && !currentSite && (
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <RefreshCw className="mx-auto mb-2" size={32} style={{ color: 'var(--warning)' }} />
+          <p style={{ color: 'var(--text-muted)' }}>Please select a site to manage connection retries</p>
         </div>
       )}
 
