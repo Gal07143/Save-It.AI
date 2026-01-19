@@ -122,13 +122,21 @@ frontend/src/
 - Creates DataSource and applies template registers on completion
 - Accessed via emerald "Device Wizard" button on Integrations page
 
-### Phase 3: Advanced Device Features (14 tasks) - IN PROGRESS (5/14)
+### Phase 3: Advanced Device Features (14 tasks) - IN PROGRESS (6/14)
 17. ✅ Bulk device import - CSV upload with validation, template auto-apply, per-row error reporting
 18. ✅ Device health dashboard - Status aggregation (online/offline/error/unknown), 24h success rates, response times
 19. ✅ Data validation rules - CRUD configuration for min/max/rate-of-change/stale-data rules with violation tracking
-20. Connection retry logic - Automatic reconnection with exponential backoff
+20. ✅ Connection retry logic - Configuration infrastructure with exponential backoff settings and testing endpoints
 21. ✅ Device grouping - Hierarchical device organization into logical groups/zones with color coding
 22-30: Firmware tracking, QR codes, cloning, status page, etc.
+
+**Retry Logic Features:**
+- Retry configuration per data source: max_retries, retry_delay_seconds, backoff_multiplier
+- Connection status tracking: online, offline, retrying, error, unknown
+- Retry queue view showing devices pending reconnection
+- Force retry, reset, simulate failure/success for testing
+- Frontend "Retry" tab on Integrations page
+- Note: Automatic background scheduling requires polling service (Phase 7)
 
 **Validation Rules Features:**
 - 5 rule types: min_value, max_value, range, rate_of_change, stale_data
