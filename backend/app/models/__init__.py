@@ -60,6 +60,7 @@ from backend.app.models.platform import (
     NotificationTemplate,
     NotificationPreference,
     NotificationDelivery,
+    APIKey,
 )
 
 from backend.app.models.data_quality import (

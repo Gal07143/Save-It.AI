@@ -24,6 +24,7 @@ from backend.app.api.routers.gateways import router as gateways_router
 from backend.app.api.routers.device_templates import router as device_templates_router
 from backend.app.api.routers.modbus_registers import router as modbus_registers_router
 from backend.app.api.routers.public import router as public_router
+from backend.app.api.routers.system import router as system_router
 
 __all__ = [
     "sites_router",
@@ -51,6 +52,7 @@ __all__ = [
     "device_templates_router",
     "modbus_registers_router",
     "public_router",
+    "system_router",
 ]
 
 all_routers = [
@@ -79,4 +81,5 @@ all_routers = [
     device_templates_router,
     modbus_registers_router,
     public_router,
+    system_router,
 ]

@@ -370,7 +370,7 @@ export const api = {
     get: (id: number) => fetchApi<VirtualMeter>(`/virtual-meters/${id}`),
     create: (data: Partial<VirtualMeter>) => fetchApi<VirtualMeter>('/virtual-meters', { method: 'POST', body: JSON.stringify(data) }),
   },
-  maintenance: {
+  assetMaintenance: {
     alerts: (siteId?: number) => fetchApi<MaintenanceAlert[]>(`/maintenance/alerts${siteId ? `?site_id=${siteId}` : ''}`),
     acknowledge: (alertId: number) => fetchApi<MaintenanceAlert>(`/maintenance/alerts/${alertId}/acknowledge`, { method: 'POST' }),
     assetConditions: (assetId?: number) => fetchApi<AssetCondition[]>(`/maintenance/asset-conditions${assetId ? `?asset_id=${assetId}` : ''}`),

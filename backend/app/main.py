@@ -13,9 +13,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from datetime import datetime
 
-from backend.app.core.database import Base, engine
+from backend.app.core.database import Base, engine, SessionLocal
 from backend.app.api.routers import all_routers
+from backend.app.middleware import (
+    RateLimitMiddleware,
+    AuditLogMiddleware,
+    RequestLogMiddleware,
+    error_handler_middleware,
+    CacheMiddleware,
+    RequestValidationMiddleware,
+)
 
 
 @asynccontextmanager
@@ -36,6 +45,7 @@ async def lifespan(app: FastAPI):
     )
     from backend.app.models.integrations import DeviceTemplate, TemplateRegister, Gateway, ModbusRegister, CommunicationLog
     from backend.app.services.seed_templates import seed_device_templates
+    from backend.app.services.job_queue import job_queue
     from backend.app.core.database import SessionLocal
     
     Base.metadata.create_all(bind=engine)
@@ -48,7 +58,13 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
     
+    await job_queue.start()
+    print("Background job queue started")
+    
     yield
+    
+    await job_queue.stop()
+    print("Background job queue stopped")
 
 
 app = FastAPI(
@@ -69,6 +85,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(RequestLogMiddleware)
+app.add_middleware(CacheMiddleware)
+app.add_middleware(RequestValidationMiddleware)
+app.add_middleware(AuditLogMiddleware, db_session_factory=SessionLocal)
+app.add_middleware(RateLimitMiddleware, default_limit=100, default_window=60, burst_limit=20)
+
+app.middleware("http")(error_handler_middleware)
+
 for router in all_routers:
     app.include_router(router)
 
@@ -87,8 +111,59 @@ def root():
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+    """Simple health check endpoint."""
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+
+@app.get("/api/v1/health")
+def api_health_check():
+    """Detailed API health check with component status."""
+    from sqlalchemy import text
+    
+    components = {
+        "api": {"status": "healthy"},
+        "database": {"status": "unknown"},
+    }
+    
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        components["database"] = {"status": "healthy"}
+    except Exception as e:
+        components["database"] = {"status": "unhealthy", "error": str(e)}
+    
+    overall_status = "healthy" if all(
+        c["status"] == "healthy" for c in components.values()
+    ) else "degraded"
+    
+    return {
+        "status": overall_status,
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0",
+        "components": components,
+    }
+
+
+@app.get("/api/v1/health/live")
+def liveness_probe():
+    """Kubernetes liveness probe - is the application running?"""
+    return {"status": "alive"}
+
+
+@app.get("/api/v1/health/ready")
+def readiness_probe():
+    """Kubernetes readiness probe - is the application ready to serve requests?"""
+    from sqlalchemy import text
+    
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        return {"status": "ready"}
+    except Exception:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=503, content={"status": "not_ready"})
 
 
 if __name__ == "__main__":
