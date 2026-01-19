@@ -38,9 +38,11 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
   
   const [showAddMeter, setShowAddMeter] = useState(false)
   const [showConnectModal, setShowConnectModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [selectedMeter, setSelectedMeter] = useState<MeterWithConnectivity | null>(null)
   const [meterToDelete, setMeterToDelete] = useState<MeterWithConnectivity | null>(null)
+  const [editMeter, setEditMeter] = useState({ meter_id: '', name: '', is_active: true })
   
   const [newMeter, setNewMeter] = useState({
     meter_id: '',
@@ -100,6 +102,23 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
       queryClient.invalidateQueries({ queryKey: ['meters'] })
       setShowDeleteConfirm(false)
       setMeterToDelete(null)
+    }
+  })
+
+  const updateMeterMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { meter_id: string; name: string; is_active: boolean } }) => {
+      const response = await fetch(`/api/v1/meters/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      if (!response.ok) throw new Error('Failed to update meter')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meters'] })
+      setShowSettingsModal(false)
+      setSelectedMeter(null)
     }
   })
 
@@ -304,6 +323,11 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                       <button 
                         className="btn btn-ghost btn-sm"
                         title="Settings"
+                        onClick={() => { 
+                          setSelectedMeter(meter); 
+                          setEditMeter({ meter_id: meter.meter_id, name: meter.name, is_active: meter.is_active });
+                          setShowSettingsModal(true); 
+                        }}
                       >
                         <Settings size={14} />
                       </button>
@@ -652,6 +676,65 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                 disabled={!connectionConfig.address}
               >
                 Save Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSettingsModal && selectedMeter && (
+        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Meter Settings: {selectedMeter.name}</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowSettingsModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Meter ID</label>
+                <input
+                  type="text"
+                  value={editMeter.meter_id}
+                  onChange={e => setEditMeter({ ...editMeter, meter_id: e.target.value })}
+                  placeholder="Enter unique meter ID"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Meter Name</label>
+                <input
+                  type="text"
+                  value={editMeter.name}
+                  onChange={e => setEditMeter({ ...editMeter, name: e.target.value })}
+                  placeholder="Enter meter name"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={editMeter.is_active}
+                    onChange={e => setEditMeter({ ...editMeter, is_active: e.target.checked })}
+                    style={{ width: 'auto' }}
+                  />
+                  Active
+                </label>
+                <small style={{ color: '#64748b' }}>Inactive meters will not collect data</small>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowSettingsModal(false)}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  updateMeterMutation.mutate({
+                    id: selectedMeter.id,
+                    data: { meter_id: editMeter.meter_id, name: editMeter.name, is_active: editMeter.is_active }
+                  });
+                  setShowSettingsModal(false);
+                }}
+                disabled={!editMeter.meter_id || !editMeter.name}
+              >
+                Save Settings
               </button>
             </div>
           </div>
