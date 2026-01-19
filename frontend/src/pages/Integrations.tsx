@@ -12,6 +12,7 @@ import DeviceHealthDashboard from '../components/DeviceHealthDashboard'
 import ValidationRulesManager from '../components/ValidationRulesManager'
 import DeviceGroupsManager from '../components/DeviceGroupsManager'
 import RetryManager from '../components/RetryManager'
+import FirmwareTracker from '../components/FirmwareTracker'
 
 const sourceTypeLabels: Record<string, string> = {
   modbus_tcp: 'Modbus TCP',
@@ -31,7 +32,7 @@ interface IntegrationsProps {
 }
 
 export default function Integrations({ currentSite }: IntegrationsProps) {
-  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health' | 'validation' | 'groups' | 'retry'>('sources')
+  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health' | 'validation' | 'groups' | 'retry' | 'firmware'>('sources')
   const [showAddGateway, setShowAddGateway] = useState(false)
   const [showAddSource, setShowAddSource] = useState(false)
   const [selectedSource, setSelectedSource] = useState<number | null>(null)
@@ -49,6 +50,14 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [importJson, setImportJson] = useState('')
   const [showOnboardingWizard, setShowOnboardingWizard] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
+  const [showCloneModal, setShowCloneModal] = useState(false)
+  const [cloneSourceId, setCloneSourceId] = useState<number | null>(null)
+  const [cloneName, setCloneName] = useState('')
+  const [cloneHost, setCloneHost] = useState('')
+  const [cloneSlaveId, setCloneSlaveId] = useState<number | undefined>(undefined)
+  const [showQRModal, setShowQRModal] = useState(false)
+  const [qrSourceId, setQRSourceId] = useState<number | null>(null)
+  const [qrData, setQRData] = useState<any>(null)
   
   const [newSource, setNewSource] = useState({
     name: '',
@@ -391,16 +400,50 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   )}
                 </td>
                 <td>
-                  <button 
-                    className="btn btn-sm" 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedSource(source.id)
-                      setActiveTab('registers')
-                    }}
-                  >
-                    <Settings size={14} /> Registers
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <button 
+                      className="btn btn-sm" 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedSource(source.id)
+                        setActiveTab('registers')
+                      }}
+                      title="View Registers"
+                    >
+                      <Settings size={14} />
+                    </button>
+                    <button 
+                      className="btn btn-sm" 
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        try {
+                          const data = await api.qrCodes.get(source.id)
+                          setQRData(data)
+                          setQRSourceId(source.id)
+                          setShowQRModal(true)
+                        } catch (err) {
+                          console.error('Failed to get QR code:', err)
+                        }
+                      }}
+                      title="Show QR Code"
+                    >
+                      <Activity size={14} />
+                    </button>
+                    <button 
+                      className="btn btn-sm" 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setCloneSourceId(source.id)
+                        setCloneName(source.name + ' (Copy)')
+                        setCloneHost(source.host || '')
+                        setCloneSlaveId(source.slave_id ? source.slave_id + 1 : undefined)
+                        setShowCloneModal(true)
+                      }}
+                      title="Clone Device"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -729,6 +772,12 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         >
           <RefreshCw size={16} /> Retry
         </button>
+        <button 
+          className={`btn ${activeTab === 'firmware' ? 'btn-primary' : ''}`}
+          onClick={() => setActiveTab('firmware')}
+        >
+          <Cpu size={16} /> Firmware
+        </button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
           <button 
             className="btn"
@@ -771,6 +820,13 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
           <RefreshCw className="mx-auto mb-2" size={32} style={{ color: 'var(--warning)' }} />
           <p style={{ color: 'var(--text-muted)' }}>Please select a site to manage connection retries</p>
+        </div>
+      )}
+      {activeTab === 'firmware' && currentSite && <FirmwareTracker siteId={currentSite} />}
+      {activeTab === 'firmware' && !currentSite && (
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <Cpu className="mx-auto mb-2" size={32} style={{ color: 'var(--warning)' }} />
+          <p style={{ color: 'var(--text-muted)' }}>Please select a site to view firmware information</p>
         </div>
       )}
 
@@ -1324,6 +1380,123 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         onClose={() => setShowBulkImport(false)}
         siteId={currentSite || null}
       />
+
+      {showQRModal && qrData && (
+        <div className="modal-overlay" onClick={() => setShowQRModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3>Device QR Code</h3>
+              <button className="btn btn-sm" onClick={() => setShowQRModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ textAlign: 'center' }}>
+              <div style={{ 
+                padding: '1.5rem', 
+                backgroundColor: 'white', 
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'inline-block'
+              }}>
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData.qr_string)}`}
+                  alt="Device QR Code"
+                  style={{ display: 'block' }}
+                />
+              </div>
+              <div style={{ textAlign: 'left', marginTop: '1rem' }}>
+                <h4 style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Device Info</h4>
+                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+                  <div><strong>Name:</strong> {qrData.device_info.name}</div>
+                  <div><strong>ID:</strong> {qrData.device_info.id}</div>
+                  <div><strong>Type:</strong> {qrData.device_info.source_type || 'N/A'}</div>
+                  {qrData.device_info.serial_number && <div><strong>Serial:</strong> {qrData.device_info.serial_number}</div>}
+                  {qrData.device_info.firmware_version && <div><strong>Firmware:</strong> {qrData.device_info.firmware_version}</div>}
+                </div>
+              </div>
+              <div style={{ marginTop: '1rem' }}>
+                <button 
+                  className="btn btn-sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(qrData.qr_string)
+                    alert('QR data copied to clipboard!')
+                  }}
+                >
+                  Copy QR Data
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCloneModal && cloneSourceId && (
+        <div className="modal-overlay" onClick={() => setShowCloneModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Clone Device</h3>
+              <button className="btn btn-sm" onClick={() => setShowCloneModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                Create a copy of this device with all its register configurations.
+              </p>
+              <div className="form-group">
+                <label className="form-label">New Device Name *</label>
+                <input
+                  type="text"
+                  value={cloneName}
+                  onChange={e => setCloneName(e.target.value)}
+                  placeholder="Enter name for cloned device"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Host (optional)</label>
+                <input
+                  type="text"
+                  value={cloneHost}
+                  onChange={e => setCloneHost(e.target.value)}
+                  placeholder="Same as original if empty"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Slave ID (optional)</label>
+                <input
+                  type="number"
+                  value={cloneSlaveId || ''}
+                  onChange={e => setCloneSlaveId(e.target.value ? parseInt(e.target.value) : undefined)}
+                  placeholder="Auto-increment from original"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowCloneModal(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  try {
+                    const result = await api.deviceClone.clone(
+                      cloneSourceId,
+                      cloneName,
+                      cloneHost || undefined,
+                      cloneSlaveId
+                    )
+                    if (result.success) {
+                      setShowCloneModal(false)
+                      queryClient.invalidateQueries({ queryKey: ['data-sources', currentSite] })
+                      alert(`Device cloned successfully! ${result.registers_cloned} registers copied.`)
+                    }
+                  } catch (err) {
+                    console.error('Failed to clone device:', err)
+                    alert('Failed to clone device')
+                  }
+                }}
+                disabled={!cloneName.trim()}
+              >
+                Clone Device
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

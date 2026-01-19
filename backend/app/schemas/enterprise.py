@@ -98,6 +98,12 @@ class DataSourceResponse(BaseModel):
     next_retry_at: Optional[datetime] = None
     connection_status: Optional[str] = "unknown"
     last_successful_poll_at: Optional[datetime] = None
+    firmware_version: Optional[str] = None
+    firmware_updated_at: Optional[datetime] = None
+    hardware_version: Optional[str] = None
+    serial_number: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

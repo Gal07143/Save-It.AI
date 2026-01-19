@@ -825,3 +825,278 @@ def force_retry_now(
         next_retry_at=source.next_retry_at,
         current_retry_count=source.current_retry_count or 0
     )
+
+
+# ============ FIRMWARE TRACKING ENDPOINTS ============
+
+from backend.app.schemas.integrations import FirmwareUpdate, FirmwareInfo, FirmwareSummary
+
+
+@router.get("/firmware", response_model=List[FirmwareInfo])
+def list_firmware_info(
+    site_id: Optional[int] = None,
+    has_firmware: Optional[bool] = None,
+    db: Session = Depends(get_db)
+):
+    """List firmware information for all data sources."""
+    query = db.query(DataSource)
+    if site_id:
+        query = query.filter(DataSource.site_id == site_id)
+    if has_firmware is True:
+        query = query.filter(DataSource.firmware_version.isnot(None))
+    elif has_firmware is False:
+        query = query.filter(DataSource.firmware_version.is_(None))
+    
+    sources = query.order_by(DataSource.name).all()
+    
+    return [
+        FirmwareInfo(
+            data_source_id=s.id,
+            name=s.name,
+            firmware_version=s.firmware_version,
+            firmware_updated_at=s.firmware_updated_at,
+            hardware_version=s.hardware_version,
+            serial_number=s.serial_number,
+            manufacturer=s.manufacturer,
+            model=s.model,
+            source_type=s.source_type.value if s.source_type else "unknown"
+        )
+        for s in sources
+    ]
+
+
+@router.get("/firmware/summary", response_model=FirmwareSummary)
+def get_firmware_summary(
+    site_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Get firmware version summary across all devices."""
+    query = db.query(DataSource)
+    if site_id:
+        query = query.filter(DataSource.site_id == site_id)
+    
+    sources = query.all()
+    total_devices = len(sources)
+    devices_with_firmware = sum(1 for s in sources if s.firmware_version)
+    
+    firmware_counts = {}
+    for s in sources:
+        version = s.firmware_version or "Unknown"
+        if version not in firmware_counts:
+            firmware_counts[version] = {"version": version, "count": 0, "devices": []}
+        firmware_counts[version]["count"] += 1
+        firmware_counts[version]["devices"].append(s.name)
+    
+    firmware_breakdown = sorted(firmware_counts.values(), key=lambda x: x["count"], reverse=True)
+    
+    return FirmwareSummary(
+        total_devices=total_devices,
+        devices_with_firmware=devices_with_firmware,
+        unique_firmware_versions=len([v for v in firmware_counts if v != "Unknown"]),
+        firmware_breakdown=firmware_breakdown
+    )
+
+
+@router.get("/{source_id}/firmware", response_model=FirmwareInfo)
+def get_source_firmware(source_id: int, db: Session = Depends(get_db)):
+    """Get firmware information for a specific data source."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    return FirmwareInfo(
+        data_source_id=source.id,
+        name=source.name,
+        firmware_version=source.firmware_version,
+        firmware_updated_at=source.firmware_updated_at,
+        hardware_version=source.hardware_version,
+        serial_number=source.serial_number,
+        manufacturer=source.manufacturer,
+        model=source.model,
+        source_type=source.source_type.value if source.source_type else "unknown"
+    )
+
+
+@router.put("/{source_id}/firmware")
+def update_source_firmware(
+    source_id: int,
+    firmware: FirmwareUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update firmware information for a data source."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    if firmware.firmware_version is not None:
+        if firmware.firmware_version != source.firmware_version:
+            source.firmware_updated_at = datetime.utcnow()
+        source.firmware_version = firmware.firmware_version
+    if firmware.hardware_version is not None:
+        source.hardware_version = firmware.hardware_version
+    if firmware.serial_number is not None:
+        source.serial_number = firmware.serial_number
+    if firmware.manufacturer is not None:
+        source.manufacturer = firmware.manufacturer
+    if firmware.model is not None:
+        source.model = firmware.model
+    
+    db.commit()
+    db.refresh(source)
+    
+    return {"success": True, "message": "Firmware information updated"}
+
+
+# ============ QR CODE ENDPOINTS ============
+
+import json
+import base64
+
+
+@router.get("/{source_id}/qr-data")
+def get_qr_code_data(source_id: int, db: Session = Depends(get_db)):
+    """Get QR code data for a data source (for device identification)."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    qr_data = {
+        "type": "saveit_device",
+        "id": source.id,
+        "name": source.name,
+        "site_id": source.site_id,
+        "source_type": source.source_type.value if source.source_type else None,
+        "serial_number": source.serial_number,
+        "firmware_version": source.firmware_version
+    }
+    
+    qr_string = json.dumps(qr_data, separators=(',', ':'))
+    qr_base64 = base64.b64encode(qr_string.encode()).decode()
+    
+    return {
+        "data_source_id": source.id,
+        "qr_string": qr_string,
+        "qr_base64": qr_base64,
+        "device_info": qr_data
+    }
+
+
+@router.get("/qr-batch")
+def get_batch_qr_codes(
+    site_id: Optional[int] = None,
+    source_ids: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get QR code data for multiple data sources."""
+    query = db.query(DataSource)
+    if site_id:
+        query = query.filter(DataSource.site_id == site_id)
+    if source_ids:
+        ids = [int(id.strip()) for id in source_ids.split(',') if id.strip().isdigit()]
+        if ids:
+            query = query.filter(DataSource.id.in_(ids))
+    
+    sources = query.order_by(DataSource.name).all()
+    
+    results = []
+    for source in sources:
+        qr_data = {
+            "type": "saveit_device",
+            "id": source.id,
+            "name": source.name,
+            "site_id": source.site_id,
+            "source_type": source.source_type.value if source.source_type else None,
+            "serial_number": source.serial_number,
+            "firmware_version": source.firmware_version
+        }
+        qr_string = json.dumps(qr_data, separators=(',', ':'))
+        results.append({
+            "data_source_id": source.id,
+            "name": source.name,
+            "qr_string": qr_string,
+            "qr_base64": base64.b64encode(qr_string.encode()).decode()
+        })
+    
+    return results
+
+
+# ============ DEVICE CLONING ENDPOINTS ============
+
+
+@router.post("/{source_id}/clone")
+def clone_data_source(
+    source_id: int,
+    new_name: str,
+    new_host: Optional[str] = None,
+    new_slave_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Clone a data source configuration to create a new device."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    new_source = DataSource(
+        site_id=source.site_id,
+        gateway_id=source.gateway_id,
+        name=new_name,
+        source_type=source.source_type,
+        connection_string=source.connection_string,
+        host=new_host if new_host else source.host,
+        port=source.port,
+        slave_id=new_slave_id if new_slave_id else (source.slave_id + 1 if source.slave_id else None),
+        polling_interval_seconds=source.polling_interval_seconds,
+        is_active=source.is_active,
+        config_json=source.config_json,
+        mqtt_broker_url=source.mqtt_broker_url,
+        mqtt_topic=source.mqtt_topic,
+        mqtt_username=source.mqtt_username,
+        mqtt_password=source.mqtt_password,
+        mqtt_port=source.mqtt_port,
+        mqtt_use_tls=source.mqtt_use_tls,
+        webhook_url=source.webhook_url,
+        webhook_api_key=source.webhook_api_key,
+        webhook_auth_type=source.webhook_auth_type,
+        max_retries=source.max_retries,
+        retry_delay_seconds=source.retry_delay_seconds,
+        backoff_multiplier=source.backoff_multiplier,
+        manufacturer=source.manufacturer,
+        model=source.model
+    )
+    
+    db.add(new_source)
+    db.commit()
+    db.refresh(new_source)
+    
+    from backend.app.models.integrations import ModbusRegister
+    
+    original_registers = db.query(ModbusRegister).filter(
+        ModbusRegister.data_source_id == source_id
+    ).all()
+    
+    for reg in original_registers:
+        new_reg = ModbusRegister(
+            data_source_id=new_source.id,
+            name=reg.name,
+            register_address=reg.register_address,
+            register_type=reg.register_type,
+            data_type=reg.data_type,
+            byte_order=reg.byte_order,
+            scale_factor=reg.scale_factor,
+            offset=reg.offset,
+            unit=reg.unit,
+            description=reg.description,
+            is_writable=reg.is_writable,
+            min_value=reg.min_value,
+            max_value=reg.max_value
+        )
+        db.add(new_reg)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Data source cloned successfully",
+        "new_source_id": new_source.id,
+        "registers_cloned": len(original_registers)
+    }

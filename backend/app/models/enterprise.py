@@ -66,6 +66,12 @@ class DataSource(Base):
     next_retry_at = Column(DateTime, nullable=True)
     connection_status = Column(String(20), default="unknown")
     last_successful_poll_at = Column(DateTime, nullable=True)
+    firmware_version = Column(String(50), nullable=True)
+    firmware_updated_at = Column(DateTime, nullable=True)
+    hardware_version = Column(String(50), nullable=True)
+    serial_number = Column(String(100), nullable=True)
+    manufacturer = Column(String(100), nullable=True)
+    model = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

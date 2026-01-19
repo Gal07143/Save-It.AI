@@ -513,3 +513,36 @@ class RetryQueueItem(BaseModel):
     current_retry_count: int
     max_retries: int
     last_error: Optional[str] = None
+
+
+class FirmwareUpdate(BaseModel):
+    """Schema for updating firmware information."""
+    firmware_version: Optional[str] = None
+    hardware_version: Optional[str] = None
+    serial_number: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+
+
+class FirmwareInfo(BaseModel):
+    """Response schema for firmware information."""
+    data_source_id: int
+    name: str
+    firmware_version: Optional[str] = None
+    firmware_updated_at: Optional[datetime] = None
+    hardware_version: Optional[str] = None
+    serial_number: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    source_type: str
+
+    class Config:
+        from_attributes = True
+
+
+class FirmwareSummary(BaseModel):
+    """Summary of firmware versions across devices."""
+    total_devices: int
+    devices_with_firmware: int
+    unique_firmware_versions: int
+    firmware_breakdown: List[dict]

@@ -229,6 +229,37 @@ export const api = {
     resetRetry: (sourceId: number) => fetchApi<{ success: boolean }>(`/data-sources/${sourceId}/reset-retry`, { method: 'POST' }),
     forceRetry: (sourceId: number) => fetchApi<ConnectionAttemptResult>(`/data-sources/${sourceId}/force-retry`, { method: 'POST' }),
   },
+  firmware: {
+    list: (siteId?: number, hasFirmware?: boolean) => {
+      const params = new URLSearchParams()
+      if (siteId) params.append('site_id', String(siteId))
+      if (hasFirmware !== undefined) params.append('has_firmware', String(hasFirmware))
+      const query = params.toString()
+      return fetchApi<FirmwareInfo[]>(`/data-sources/firmware${query ? `?${query}` : ''}`)
+    },
+    summary: (siteId?: number) => fetchApi<FirmwareSummary>(`/data-sources/firmware/summary${siteId ? `?site_id=${siteId}` : ''}`),
+    get: (sourceId: number) => fetchApi<FirmwareInfo>(`/data-sources/${sourceId}/firmware`),
+    update: (sourceId: number, data: FirmwareUpdate) => fetchApi<{ success: boolean }>(`/data-sources/${sourceId}/firmware`, { method: 'PUT', body: JSON.stringify(data) }),
+  },
+  qrCodes: {
+    get: (sourceId: number) => fetchApi<QRCodeData>(`/data-sources/${sourceId}/qr-data`),
+    batch: (siteId?: number, sourceIds?: number[]) => {
+      const params = new URLSearchParams()
+      if (siteId) params.append('site_id', String(siteId))
+      if (sourceIds && sourceIds.length) params.append('source_ids', sourceIds.join(','))
+      const query = params.toString()
+      return fetchApi<QRCodeBatchItem[]>(`/data-sources/qr-batch${query ? `?${query}` : ''}`)
+    },
+  },
+  deviceClone: {
+    clone: (sourceId: number, newName: string, newHost?: string, newSlaveId?: number) => {
+      const params = new URLSearchParams()
+      params.append('new_name', newName)
+      if (newHost) params.append('new_host', newHost)
+      if (newSlaveId) params.append('new_slave_id', String(newSlaveId))
+      return fetchApi<CloneResult>(`/data-sources/${sourceId}/clone?${params.toString()}`, { method: 'POST' })
+    },
+  },
   notifications: {
     list: (siteId?: number, unreadOnly?: boolean) => 
       fetchApi<Notification[]>(`/notifications?${siteId ? `site_id=${siteId}&` : ''}${unreadOnly ? 'unread_only=true' : ''}`),
@@ -1073,4 +1104,60 @@ export interface ConnectionAttemptResult {
   error_message?: string
   next_retry_at?: string
   current_retry_count: number
+}
+
+export interface FirmwareInfo {
+  data_source_id: number
+  name: string
+  firmware_version?: string
+  firmware_updated_at?: string
+  hardware_version?: string
+  serial_number?: string
+  manufacturer?: string
+  model?: string
+  source_type: string
+}
+
+export interface FirmwareUpdate {
+  firmware_version?: string
+  hardware_version?: string
+  serial_number?: string
+  manufacturer?: string
+  model?: string
+}
+
+export interface FirmwareSummary {
+  total_devices: number
+  devices_with_firmware: number
+  unique_firmware_versions: number
+  firmware_breakdown: Array<{ version: string; count: number; devices: string[] }>
+}
+
+export interface QRCodeData {
+  data_source_id: number
+  qr_string: string
+  qr_base64: string
+  device_info: {
+    type: string
+    id: number
+    name: string
+    site_id: number
+    source_type?: string
+    serial_number?: string
+    firmware_version?: string
+  }
+}
+
+export interface QRCodeBatchItem {
+  data_source_id: number
+  name: string
+  qr_string: string
+  qr_base64: string
+}
+
+export interface CloneResult {
+  success: boolean
+  message: string
+  new_source_id: number
+  registers_cloned: number
 }
