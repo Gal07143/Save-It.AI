@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { 
   FileCode, Shield, FolderTree, Database, Download, Settings,
-  Plus, Search, Edit, Trash2, Upload, Copy
+  Plus, Edit, Upload, Copy
 } from 'lucide-react'
 import { api } from '../services/api'
 import TabPanel, { Tab } from '../components/TabPanel'
@@ -16,8 +16,7 @@ interface DeviceConfigProps {
 
 export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
   const [activeTab, setActiveTab] = useState('templates')
-  const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
-  const { showToast } = useToast()
+  const { success, error: showError } = useToast()
 
   const { data: templates, isLoading: templatesLoading } = useQuery({
     queryKey: ['deviceTemplates'],
@@ -47,9 +46,9 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
             onClick={async () => {
               try {
                 await api.deviceTemplates.seed()
-                showToast('Standard templates seeded', 'success')
+                success('Standard templates seeded')
               } catch (e: any) {
-                showToast(e.message || 'Failed to seed templates', 'error')
+                showError(e.message || 'Failed to seed templates')
               }
             }}
             style={{
@@ -310,9 +309,9 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
       case 'templates':
         return renderTemplates()
       case 'validation-rules':
-        return <ValidationRulesManager currentSite={currentSite} />
+        return <ValidationRulesManager siteId={currentSite || undefined} />
       case 'device-groups':
-        return <DeviceGroupsManager currentSite={currentSite} />
+        return <DeviceGroupsManager siteId={currentSite || undefined} />
       case 'register-browser':
         return renderRegisterBrowser()
       case 'import-export':

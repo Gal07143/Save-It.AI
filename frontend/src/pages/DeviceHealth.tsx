@@ -24,8 +24,8 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
   })
 
   const { data: healthData } = useQuery({
-    queryKey: ['deviceHealth'],
-    queryFn: api.dataSources.healthDashboard
+    queryKey: ['deviceHealth', currentSite],
+    queryFn: () => api.dataSources.healthDashboard(currentSite || undefined)
   })
 
   const onlineCount = dataSources?.filter((d: any) => d.is_active).length || 0
@@ -33,9 +33,9 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
 
   const tabs: Tab[] = [
     { id: 'health-dashboard', label: 'Health Dashboard', icon: Activity },
-    { id: 'retry-queue', label: 'Retry Queue', icon: RefreshCw, badge: healthData?.retry_queue_size || 0 },
+    { id: 'retry-queue', label: 'Retry Queue', icon: RefreshCw },
     { id: 'firmware', label: 'Firmware Tracker', icon: Cpu },
-    { id: 'alerts', label: 'Alerts', icon: AlertTriangle, badge: healthData?.active_alerts || 0 },
+    { id: 'alerts', label: 'Alerts', icon: AlertTriangle, badge: healthData?.error_count || 0 },
     { id: 'connection-logs', label: 'Connection Logs', icon: FileText },
     { id: 'performance', label: 'Performance', icon: BarChart3 }
   ]
@@ -148,7 +148,7 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
       <div className="card" style={{ padding: '1.5rem' }}>
         <h4 style={{ color: 'white', marginBottom: '1rem' }}>Device Response Times</h4>
         <div style={{ display: 'grid', gap: '0.75rem' }}>
-          {dataSources?.slice(0, 5).map((device: any, i: number) => {
+          {dataSources?.slice(0, 5).map((device: any) => {
             const responseTime = 20 + Math.random() * 100
             const quality = 90 + Math.random() * 10
             return (
@@ -186,13 +186,13 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
   const renderTabContent = (tab: string) => {
     switch (tab) {
       case 'health-dashboard':
-        return <DeviceHealthDashboard currentSite={currentSite} />
+        return <DeviceHealthDashboard siteId={currentSite} />
       case 'retry-queue':
-        return <RetryManager currentSite={currentSite} />
+        return <RetryManager siteId={currentSite || 0} />
       case 'firmware':
-        return <FirmwareTracker currentSite={currentSite} />
+        return <FirmwareTracker siteId={currentSite || 0} />
       case 'alerts':
-        return <DeviceAlertsManager currentSite={currentSite} />
+        return <DeviceAlertsManager siteId={currentSite} dataSources={dataSources || []} />
       case 'connection-logs':
         return renderConnectionLogs()
       case 'performance':

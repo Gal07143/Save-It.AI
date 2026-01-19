@@ -1,16 +1,13 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { 
   Cpu, Search, CheckCircle, Upload, Copy, QrCode, 
-  Plus, RefreshCw, Wifi, WifiOff, MoreVertical, Trash2, Edit, Eye
+  Plus, Wifi, WifiOff, Trash2, Eye, Settings
 } from 'lucide-react'
 import { api } from '../services/api'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 import ConfirmDialog from '../components/ConfirmDialog'
-import DeviceDiscovery from '../components/DeviceDiscovery'
-import DeviceCommissioning from '../components/DeviceCommissioning'
-import BulkDeviceImport from '../components/BulkDeviceImport'
 
 interface DevicesProps {
   currentSite: number | null
@@ -22,7 +19,7 @@ export default function Devices({ currentSite }: DevicesProps) {
   const [selectedDevice, setSelectedDevice] = useState<any>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deviceToDelete, setDeviceToDelete] = useState<any>(null)
-  const { showToast } = useToast()
+  const { success, error: showError } = useToast()
   const queryClient = useQueryClient()
 
   const { data: dataSources, isLoading } = useQuery({
@@ -42,10 +39,10 @@ export default function Devices({ currentSite }: DevicesProps) {
   const handleCloneDevice = async (device: any) => {
     try {
       await api.dataSources.clone(device.id)
-      showToast('Device cloned successfully', 'success')
+      success('Device cloned successfully')
       queryClient.invalidateQueries({ queryKey: ['dataSources'] })
-    } catch (error: any) {
-      showToast(error.message || 'Failed to clone device', 'error')
+    } catch (err: any) {
+      showError(err.message || 'Failed to clone device')
     }
   }
 
@@ -53,12 +50,12 @@ export default function Devices({ currentSite }: DevicesProps) {
     if (!deviceToDelete) return
     try {
       await api.dataSources.delete(deviceToDelete.id)
-      showToast('Device deleted successfully', 'success')
+      success('Device deleted successfully')
       queryClient.invalidateQueries({ queryKey: ['dataSources'] })
       setShowDeleteConfirm(false)
       setDeviceToDelete(null)
-    } catch (error: any) {
-      showToast(error.message || 'Failed to delete device', 'error')
+    } catch (err: any) {
+      showError(err.message || 'Failed to delete device')
     }
   }
 
@@ -303,16 +300,58 @@ export default function Devices({ currentSite }: DevicesProps) {
     </div>
   )
 
+  const renderDiscovery = () => (
+    <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+      <Search size={48} color="#3b82f6" style={{ margin: '0 auto 1rem' }} />
+      <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>Network Device Discovery</h3>
+      <p style={{ color: '#94a3b8', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+        Scan your network to automatically discover compatible energy meters, inverters, and BMS devices.
+      </p>
+      <button className="btn btn-primary">
+        <Search size={16} />
+        Start Network Scan
+      </button>
+    </div>
+  )
+
+  const renderCommissioning = () => (
+    <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+      <Settings size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
+      <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>Device Commissioning</h3>
+      <p style={{ color: '#94a3b8', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+        Configure and commission newly discovered devices. Set up communication parameters and validate connections.
+      </p>
+      <p style={{ color: '#64748b', fontSize: '0.875rem' }}>Select a device from "All Devices" to start commissioning.</p>
+    </div>
+  )
+
+  const renderBulkImport = () => (
+    <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+      <Upload size={48} color="#8b5cf6" style={{ margin: '0 auto 1rem' }} />
+      <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>Bulk Device Import</h3>
+      <p style={{ color: '#94a3b8', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+        Import multiple devices from a CSV or Excel file. Download the template to get started.
+      </p>
+      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+        <button className="btn btn-secondary">Download Template</button>
+        <button className="btn btn-primary">
+          <Upload size={16} />
+          Import Devices
+        </button>
+      </div>
+    </div>
+  )
+
   const renderTabContent = (tab: string) => {
     switch (tab) {
       case 'all-devices':
         return renderAllDevices()
       case 'discovery':
-        return <DeviceDiscovery currentSite={currentSite} />
+        return renderDiscovery()
       case 'commissioning':
-        return <DeviceCommissioning currentSite={currentSite} />
+        return renderCommissioning()
       case 'bulk-import':
-        return <BulkDeviceImport currentSite={currentSite} />
+        return renderBulkImport()
       case 'cloning':
         return renderCloning()
       case 'qr-codes':
@@ -339,7 +378,7 @@ export default function Devices({ currentSite }: DevicesProps) {
         onConfirm={handleDeleteDevice}
         title="Delete Device"
         message={`Are you sure you want to delete "${deviceToDelete?.name}"? This action cannot be undone.`}
-        confirmText="Delete"
+        confirmLabel="Delete"
         variant="danger"
       />
     </div>

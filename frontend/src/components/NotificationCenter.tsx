@@ -1,17 +1,7 @@
 import { useState } from 'react'
-import { Bell, Check, X, AlertCircle, Info, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Bell, Check, AlertCircle, Info, CheckCircle, AlertTriangle } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../services/api'
-
-interface Notification {
-  id: number
-  type: string
-  title: string
-  message: string
-  priority: string
-  is_read: number
-  created_at: string
-}
+import { api, Notification as AppNotification } from '../services/api'
 
 const typeIcons: Record<string, React.ElementType> = {
   ALERT: AlertCircle,
@@ -31,7 +21,7 @@ export default function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false)
   const queryClient = useQueryClient()
   
-  const { data: notifications } = useQuery<Notification[]>({
+  const { data: notifications } = useQuery<AppNotification[]>({
     queryKey: ['notifications'],
     queryFn: () => api.notifications?.list?.() || Promise.resolve([]),
   })
@@ -158,8 +148,8 @@ export default function NotificationCenter() {
                 </div>
               ) : (
                 recentNotifications.map(notification => {
-                  const Icon = typeIcons[notification.type] || Info
-                  const color = typeColors[notification.type] || '#64748b'
+                  const Icon = typeIcons[notification.notification_type] || Info
+                  const color = typeColors[notification.notification_type] || '#64748b'
                   
                   return (
                     <div
