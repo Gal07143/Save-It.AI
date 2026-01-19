@@ -10,6 +10,7 @@ import socket
 
 from backend.app.core.database import get_db
 from backend.app.models import DataSource, Gateway, DeviceTemplate, ModbusRegister, CommunicationLog
+from backend.app.models.integrations import MaintenanceSchedule, DeviceAlert
 from backend.app.schemas import DataSourceCreate, DataSourceResponse
 from backend.app.schemas.integrations import (
     BulkDeviceImportRequest, BulkDeviceImportResponse, BulkImportResultRow,
@@ -1258,3 +1259,222 @@ def mark_commissioned(source_id: int, db: Session = Depends(get_db)) -> Dict[str
         "message": "Device commissioned successfully",
         "device_id": source_id
     }
+
+
+@router.get("/maintenance")
+def list_maintenance_schedules(
+    site_id: Optional[int] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """List maintenance schedules with optional filters."""
+    query = db.query(MaintenanceSchedule, DataSource.name.label("device_name")).join(
+        DataSource, MaintenanceSchedule.data_source_id == DataSource.id
+    )
+    
+    if site_id:
+        query = query.filter(DataSource.site_id == site_id)
+    if status:
+        query = query.filter(MaintenanceSchedule.status == status)
+    
+    results = query.order_by(MaintenanceSchedule.scheduled_date).all()
+    
+    return [{
+        "id": m.id,
+        "data_source_id": m.data_source_id,
+        "device_name": device_name,
+        "title": m.title,
+        "description": m.description,
+        "maintenance_type": m.maintenance_type,
+        "priority": m.priority,
+        "scheduled_date": m.scheduled_date.isoformat() if m.scheduled_date else None,
+        "completed_date": m.completed_date.isoformat() if m.completed_date else None,
+        "status": m.status,
+        "assigned_to": m.assigned_to,
+        "notes": m.notes
+    } for m, device_name in results]
+
+
+@router.post("/maintenance")
+def create_maintenance_schedule(
+    data_source_id: int,
+    title: str,
+    scheduled_date: str,
+    description: Optional[str] = None,
+    maintenance_type: str = "routine",
+    priority: str = "medium",
+    assigned_to: Optional[str] = None,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Create a new maintenance schedule."""
+    source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    schedule = MaintenanceSchedule(
+        data_source_id=data_source_id,
+        title=title,
+        description=description,
+        maintenance_type=maintenance_type,
+        priority=priority,
+        scheduled_date=datetime.fromisoformat(scheduled_date.replace('Z', '+00:00')),
+        assigned_to=assigned_to,
+        status="scheduled"
+    )
+    db.add(schedule)
+    db.commit()
+    db.refresh(schedule)
+    
+    return {
+        "success": True,
+        "id": schedule.id,
+        "message": "Maintenance schedule created"
+    }
+
+
+@router.put("/maintenance/{schedule_id}")
+def update_maintenance_schedule(
+    schedule_id: int,
+    status: Optional[str] = None,
+    notes: Optional[str] = None,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Update a maintenance schedule."""
+    schedule = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.id == schedule_id).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Maintenance schedule not found")
+    
+    if status:
+        schedule.status = status
+        if status == "completed":
+            schedule.completed_date = datetime.utcnow()
+    if notes:
+        schedule.notes = notes
+    
+    db.commit()
+    
+    return {"success": True, "message": "Maintenance schedule updated"}
+
+
+@router.delete("/maintenance/{schedule_id}")
+def delete_maintenance_schedule(schedule_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Delete a maintenance schedule."""
+    schedule = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.id == schedule_id).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Maintenance schedule not found")
+    
+    db.delete(schedule)
+    db.commit()
+    
+    return {"success": True, "message": "Maintenance schedule deleted"}
+
+
+@router.get("/alerts")
+def list_device_alerts(
+    site_id: Optional[int] = None,
+    data_source_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """List device alerts with optional filters."""
+    query = db.query(DeviceAlert, DataSource.name.label("device_name")).join(
+        DataSource, DeviceAlert.data_source_id == DataSource.id
+    )
+    
+    if site_id:
+        query = query.filter(DataSource.site_id == site_id)
+    if data_source_id:
+        query = query.filter(DeviceAlert.data_source_id == data_source_id)
+    
+    results = query.all()
+    
+    return [{
+        "id": a.id,
+        "data_source_id": a.data_source_id,
+        "device_name": device_name,
+        "name": a.name,
+        "alert_type": a.alert_type,
+        "condition": a.condition,
+        "threshold_value": a.threshold_value,
+        "threshold_duration_seconds": a.threshold_duration_seconds,
+        "severity": a.severity,
+        "is_active": a.is_active,
+        "last_triggered_at": a.last_triggered_at.isoformat() if a.last_triggered_at else None,
+        "trigger_count": a.trigger_count,
+        "notification_channels": a.notification_channels
+    } for a, device_name in results]
+
+
+@router.post("/alerts")
+def create_device_alert(
+    data_source_id: int,
+    name: str,
+    alert_type: str,
+    condition: str,
+    threshold_value: Optional[float] = None,
+    threshold_duration_seconds: int = 0,
+    severity: str = "warning",
+    notification_channels: Optional[str] = None,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Create a new device alert."""
+    source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    alert = DeviceAlert(
+        data_source_id=data_source_id,
+        name=name,
+        alert_type=alert_type,
+        condition=condition,
+        threshold_value=threshold_value,
+        threshold_duration_seconds=threshold_duration_seconds,
+        severity=severity,
+        notification_channels=notification_channels
+    )
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+    
+    return {
+        "success": True,
+        "id": alert.id,
+        "message": "Device alert created"
+    }
+
+
+@router.put("/alerts/{alert_id}")
+def update_device_alert(
+    alert_id: int,
+    is_active: Optional[int] = None,
+    threshold_value: Optional[float] = None,
+    severity: Optional[str] = None,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Update a device alert."""
+    alert = db.query(DeviceAlert).filter(DeviceAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Device alert not found")
+    
+    if is_active is not None:
+        alert.is_active = is_active
+    if threshold_value is not None:
+        alert.threshold_value = threshold_value
+    if severity:
+        alert.severity = severity
+    
+    db.commit()
+    
+    return {"success": True, "message": "Device alert updated"}
+
+
+@router.delete("/alerts/{alert_id}")
+def delete_device_alert(alert_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Delete a device alert."""
+    alert = db.query(DeviceAlert).filter(DeviceAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Device alert not found")
+    
+    db.delete(alert)
+    db.commit()
+    
+    return {"success": True, "message": "Device alert deleted"}

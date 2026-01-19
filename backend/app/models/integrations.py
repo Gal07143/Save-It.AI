@@ -245,3 +245,42 @@ class DeviceGroupMember(Base):
     group_id = Column(Integer, ForeignKey("device_groups.id"), nullable=False, index=True)
     data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=False, index=True)
     added_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MaintenanceSchedule(Base):
+    """MaintenanceSchedule model for tracking device maintenance."""
+    __tablename__ = "maintenance_schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    maintenance_type = Column(String(50), default="routine")
+    priority = Column(String(20), default="medium")
+    scheduled_date = Column(DateTime, nullable=False)
+    completed_date = Column(DateTime, nullable=True)
+    status = Column(String(20), default="scheduled")
+    assigned_to = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DeviceAlert(Base):
+    """DeviceAlert model for device-specific alerting rules."""
+    __tablename__ = "device_alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    alert_type = Column(String(50), nullable=False)
+    condition = Column(String(50), nullable=False)
+    threshold_value = Column(Float, nullable=True)
+    threshold_duration_seconds = Column(Integer, default=0)
+    severity = Column(String(20), default="warning")
+    is_active = Column(Integer, default=1)
+    last_triggered_at = Column(DateTime, nullable=True)
+    trigger_count = Column(Integer, default=0)
+    notification_channels = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

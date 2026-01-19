@@ -274,6 +274,59 @@ export const api = {
     getStatus: (sourceId: number) => fetchApi<CommissioningStatus>(`/data-sources/${sourceId}/commissioning`),
     complete: (sourceId: number) => fetchApi<{ success: boolean; message: string }>(`/data-sources/${sourceId}/commission`, { method: 'POST' }),
   },
+  maintenance: {
+    list: (siteId?: number, status?: string) => {
+      const params = new URLSearchParams()
+      if (siteId) params.append('site_id', String(siteId))
+      if (status) params.append('status', status)
+      return fetchApi<MaintenanceScheduleItem[]>(`/data-sources/maintenance${params.toString() ? `?${params}` : ''}`)
+    },
+    create: (data: MaintenanceScheduleCreate) => {
+      const params = new URLSearchParams()
+      params.append('data_source_id', String(data.data_source_id))
+      params.append('title', data.title)
+      params.append('scheduled_date', data.scheduled_date)
+      if (data.description) params.append('description', data.description)
+      if (data.maintenance_type) params.append('maintenance_type', data.maintenance_type)
+      if (data.priority) params.append('priority', data.priority)
+      if (data.assigned_to) params.append('assigned_to', data.assigned_to)
+      return fetchApi<{ success: boolean; id: number }>(`/data-sources/maintenance?${params}`, { method: 'POST' })
+    },
+    update: (id: number, data: { status?: string; notes?: string }) => {
+      const params = new URLSearchParams()
+      if (data.status) params.append('status', data.status)
+      if (data.notes) params.append('notes', data.notes)
+      return fetchApi<{ success: boolean }>(`/data-sources/maintenance/${id}?${params}`, { method: 'PUT' })
+    },
+    delete: (id: number) => fetchApi<{ success: boolean }>(`/data-sources/maintenance/${id}`, { method: 'DELETE' }),
+  },
+  deviceAlerts: {
+    list: (siteId?: number, dataSourceId?: number) => {
+      const params = new URLSearchParams()
+      if (siteId) params.append('site_id', String(siteId))
+      if (dataSourceId) params.append('data_source_id', String(dataSourceId))
+      return fetchApi<DeviceAlertItem[]>(`/data-sources/alerts${params.toString() ? `?${params}` : ''}`)
+    },
+    create: (data: DeviceAlertCreate) => {
+      const params = new URLSearchParams()
+      params.append('data_source_id', String(data.data_source_id))
+      params.append('name', data.name)
+      params.append('alert_type', data.alert_type)
+      params.append('condition', data.condition)
+      if (data.threshold_value !== undefined) params.append('threshold_value', String(data.threshold_value))
+      if (data.threshold_duration_seconds) params.append('threshold_duration_seconds', String(data.threshold_duration_seconds))
+      if (data.severity) params.append('severity', data.severity)
+      return fetchApi<{ success: boolean; id: number }>(`/data-sources/alerts?${params}`, { method: 'POST' })
+    },
+    update: (id: number, data: { is_active?: number; threshold_value?: number; severity?: string }) => {
+      const params = new URLSearchParams()
+      if (data.is_active !== undefined) params.append('is_active', String(data.is_active))
+      if (data.threshold_value !== undefined) params.append('threshold_value', String(data.threshold_value))
+      if (data.severity) params.append('severity', data.severity)
+      return fetchApi<{ success: boolean }>(`/data-sources/alerts/${id}?${params}`, { method: 'PUT' })
+    },
+    delete: (id: number) => fetchApi<{ success: boolean }>(`/data-sources/alerts/${id}`, { method: 'DELETE' }),
+  },
   notifications: {
     list: (siteId?: number, unreadOnly?: boolean) => 
       fetchApi<Notification[]>(`/notifications?${siteId ? `site_id=${siteId}&` : ''}${unreadOnly ? 'unread_only=true' : ''}`),
@@ -1207,4 +1260,55 @@ export interface CommissioningStatus {
   optional_complete: number
   is_commissioned: boolean
   progress_percent: number
+}
+
+export interface MaintenanceScheduleItem {
+  id: number
+  data_source_id: number
+  device_name: string
+  title: string
+  description: string | null
+  maintenance_type: string
+  priority: string
+  scheduled_date: string | null
+  completed_date: string | null
+  status: string
+  assigned_to: string | null
+  notes: string | null
+}
+
+export interface MaintenanceScheduleCreate {
+  data_source_id: number
+  title: string
+  scheduled_date: string
+  description?: string
+  maintenance_type?: string
+  priority?: string
+  assigned_to?: string
+}
+
+export interface DeviceAlertItem {
+  id: number
+  data_source_id: number
+  device_name: string
+  name: string
+  alert_type: string
+  condition: string
+  threshold_value: number | null
+  threshold_duration_seconds: number
+  severity: string
+  is_active: number
+  last_triggered_at: string | null
+  trigger_count: number
+  notification_channels: string | null
+}
+
+export interface DeviceAlertCreate {
+  data_source_id: number
+  name: string
+  alert_type: string
+  condition: string
+  threshold_value?: number
+  threshold_duration_seconds?: number
+  severity?: string
 }

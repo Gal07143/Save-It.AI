@@ -15,6 +15,8 @@ import RetryManager from '../components/RetryManager'
 import FirmwareTracker from '../components/FirmwareTracker'
 import DeviceDiscovery from '../components/DeviceDiscovery'
 import DeviceCommissioning from '../components/DeviceCommissioning'
+import MaintenanceManager from '../components/MaintenanceManager'
+import DeviceAlertsManager from '../components/DeviceAlertsManager'
 
 const sourceTypeLabels: Record<string, string> = {
   modbus_tcp: 'Modbus TCP',
@@ -34,7 +36,7 @@ interface IntegrationsProps {
 }
 
 export default function Integrations({ currentSite }: IntegrationsProps) {
-  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health' | 'validation' | 'groups' | 'retry' | 'firmware'>('sources')
+  const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health' | 'validation' | 'groups' | 'retry' | 'firmware' | 'maintenance' | 'alerts'>('sources')
   const [showAddGateway, setShowAddGateway] = useState(false)
   const [showAddSource, setShowAddSource] = useState(false)
   const [selectedSource, setSelectedSource] = useState<number | null>(null)
@@ -798,6 +800,18 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         >
           <Cpu size={16} /> Firmware
         </button>
+        <button 
+          className={`btn ${activeTab === 'maintenance' ? 'btn-primary' : ''}`}
+          onClick={() => setActiveTab('maintenance')}
+        >
+          <Settings size={16} /> Maintenance
+        </button>
+        <button 
+          className={`btn ${activeTab === 'alerts' ? 'btn-primary' : ''}`}
+          onClick={() => setActiveTab('alerts')}
+        >
+          <AlertTriangle size={16} /> Alerts
+        </button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
           <button 
             className="btn"
@@ -849,6 +863,8 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
           <p style={{ color: 'var(--text-muted)' }}>Please select a site to view firmware information</p>
         </div>
       )}
+      {activeTab === 'maintenance' && <MaintenanceManager siteId={currentSite} dataSources={dataSources || []} />}
+      {activeTab === 'alerts' && <DeviceAlertsManager siteId={currentSite} dataSources={dataSources || []} />}
 
       {showConnectionTest && (
         <div className="modal-overlay" onClick={() => setShowConnectionTest(false)}>
