@@ -122,7 +122,7 @@ frontend/src/
 - Creates DataSource and applies template registers on completion
 - Accessed via emerald "Device Wizard" button on Integrations page
 
-### Phase 3: Advanced Device Features (14 tasks) - IN PROGRESS (9/14)
+### Phase 3: Advanced Device Features (14 tasks) - COMPLETE ✅
 17. ✅ Bulk device import - CSV upload with validation, template auto-apply, per-row error reporting
 18. ✅ Device health dashboard - Status aggregation (online/offline/error/unknown), 24h success rates, response times
 19. ✅ Data validation rules - CRUD configuration for min/max/rate-of-change/stale-data rules with violation tracking
@@ -131,7 +131,12 @@ frontend/src/
 22. ✅ Firmware version tracking - FirmwareTracker component with summary stats, version distribution, and editable table
 23. ✅ Device QR codes - QR button in data source table, modal with rendered QR image, device info display
 24. ✅ Device configuration cloning - Clone modal with name/host/slave ID inputs, registers duplication
-25-30: Public status page, device discovery, etc.
+25. ✅ Public status page - External-facing page showing device/system status without login (org_{id} token)
+26. ✅ Device auto-discovery - Network scanning for Modbus TCP devices on IP range with onboarding integration
+27. ✅ Device commissioning workflow - 6-step guided checklist with progress tracking and mandatory step enforcement
+28. ✅ Maintenance scheduling - CRUD for routine/preventive/corrective/emergency maintenance with priorities
+29. ✅ Device alerts configuration - 5 alert types, 3 severities, enable/disable toggle with trigger tracking
+30. Note: Alert triggering/validation enforcement requires Phase 7 polling service
 
 **Retry Logic Features:**
 - Retry configuration per data source: max_retries, retry_delay_seconds, backoff_multiplier
