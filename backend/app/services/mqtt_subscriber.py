@@ -118,36 +118,52 @@ class MQTTSubscriber:
         logger.info(f"Subscribed to: {topic_pattern}")
     
     async def start(self, username: Optional[str] = None, password: Optional[str] = None):
-        """Start the subscriber."""
-        try:
-            import aiomqtt
-            
-            self._running = True
-            logger.info(f"MQTT Subscriber connecting to {self.broker_host}:{self.broker_port}")
-            
-            async with aiomqtt.Client(
-                hostname=self.broker_host,
-                port=self.broker_port,
-                username=username,
-                password=password,
-            ) as client:
-                self._client = client
+        """Start the subscriber with reconnect and exponential backoff."""
+        self._running = True
+        retry_count = 0
+        max_retry_delay = 300
+        
+        while self._running:
+            try:
+                import aiomqtt
                 
-                for pattern in self._subscriptions:
-                    await client.subscribe(pattern)
+                retry_delay = min(2 ** retry_count, max_retry_delay)
+                if retry_count > 0:
+                    logger.info(f"MQTT Subscriber reconnecting in {retry_delay}s (attempt {retry_count + 1})")
+                    await asyncio.sleep(retry_delay)
                 
-                async for msg in client.messages:
-                    if not self._running:
-                        break
-                    message = MQTTMessage.from_raw(str(msg.topic), msg.payload)
-                    await self.process_message(message)
+                logger.info(f"MQTT Subscriber connecting to {self.broker_host}:{self.broker_port}")
+                
+                async with aiomqtt.Client(
+                    hostname=self.broker_host,
+                    port=self.broker_port,
+                    username=username,
+                    password=password,
+                ) as client:
+                    self._client = client
+                    retry_count = 0
                     
-        except ImportError:
-            logger.warning("aiomqtt not available, subscriber disabled")
-        except Exception as e:
-            logger.error(f"MQTT Subscriber error: {e}")
-        finally:
-            self._running = False
+                    for pattern in self._subscriptions:
+                        await client.subscribe(pattern)
+                    
+                    logger.info("MQTT Subscriber connected and subscribed")
+                    
+                    async for msg in client.messages:
+                        if not self._running:
+                            break
+                        message = MQTTMessage.from_raw(str(msg.topic), msg.payload)
+                        await self.process_message(message)
+                        
+            except ImportError:
+                logger.warning("aiomqtt not available, subscriber disabled")
+                break
+            except Exception as e:
+                logger.error(f"MQTT Subscriber error: {e}")
+                retry_count += 1
+                if not self._running:
+                    break
+        
+        self._running = False
     
     async def stop(self):
         """Stop the subscriber."""

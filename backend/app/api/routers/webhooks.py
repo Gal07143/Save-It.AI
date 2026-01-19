@@ -85,21 +85,39 @@ async def ingest_data(
 @router.post("/ingest/{gateway_id}/batch")
 async def ingest_batch(
     gateway_id: int,
+    request: Request,
     readings: List[Dict[str, Any]],
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    x_signature: Optional[str] = Header(None, alias="X-Signature"),
+    x_timestamp: Optional[str] = Header(None, alias="X-Timestamp"),
+    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
     handler: WebhookHandler = Depends(get_webhook_handler),
 ):
-    """Ingest multiple readings in a single request."""
+    """
+    Ingest multiple readings in a single request.
+    
+    Headers:
+    - X-API-Key: Required API key for authentication
+    - X-Signature: Optional HMAC signature for payload verification
+    - X-Timestamp: Required with signature, Unix timestamp
+    - X-Idempotency-Key: Optional key to prevent duplicate processing
+    """
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Missing API key")
     
+    body = await request.body()
+    
     is_valid, error_msg, creds = handler.validate_request(
         api_key=x_api_key,
-        payload=json.dumps(readings).encode(),
+        payload=body,
+        signature=x_signature,
+        timestamp=x_timestamp,
+        idempotency_key=x_idempotency_key,
     )
     
     if not is_valid:
-        raise HTTPException(status_code=401, detail=error_msg)
+        status_code = 401 if "auth" in error_msg.lower() or "api key" in error_msg.lower() else 429 if "rate" in error_msg.lower() else 400
+        raise HTTPException(status_code=status_code, detail=error_msg)
     
     if creds and creds.gateway_id != gateway_id:
         raise HTTPException(status_code=403, detail="API key does not match gateway ID")
