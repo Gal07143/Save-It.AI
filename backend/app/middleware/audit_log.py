@@ -127,6 +127,9 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
     def _store_audit_log(self, entry: dict) -> None:
         from backend.app.models import AuditLog
         
+        if self.db_session_factory is None:
+            return
+        
         db = self.db_session_factory()
         try:
             log = AuditLog(
@@ -134,7 +137,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                 action=entry.get("action"),
                 entity_type=entry.get("resource_type"),
                 entity_id=entry.get("resource_id"),
-                changes=json.dumps(entry.get("request_body")) if entry.get("request_body") else None,
+                metadata_json=json.dumps(entry.get("request_body")) if entry.get("request_body") else None,
                 ip_address=entry.get("client_ip"),
             )
             db.add(log)

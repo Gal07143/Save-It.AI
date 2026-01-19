@@ -39,7 +39,7 @@ class Asset(SoftDeleteMixin, Base):
     parent_id = Column(Integer, ForeignKey("assets.id"), nullable=True, index=True)
     data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
-    asset_type = Column(Enum(AssetType), nullable=False)
+    asset_type = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     rated_capacity_kw = Column(Float, nullable=True)
     rated_voltage = Column(Float, nullable=True)
