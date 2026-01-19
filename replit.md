@@ -161,8 +161,30 @@ frontend/src/
 - Device membership management with add/remove functionality
 - Frontend "Groups" tab on Integrations page
 
-### Phase 4: Backend (15 tasks)
-31-45: Rate limiting, API auth, audit logging, caching, job queue, health checks, backups, TimescaleDB, GDPR
+### Phase 4: Backend Hardening (15 tasks) - COMPLETE ✅
+31. ✅ Rate limiting - Token bucket with burst protection (20 req/s global), per-endpoint limits
+32. ✅ API key authentication - Hash-based storage, permissions, rate limits per key
+33. ✅ Audit logging - AuditLogMiddleware tracking all mutating requests
+34. ✅ Response caching - In-memory cache with TTL per endpoint, pattern-based invalidation
+35. ✅ Background job queue - In-memory workers with retries, priorities, lifecycle management
+36. ✅ Health check endpoints - /health, /api/v1/health/live, /api/v1/health/ready
+37. ✅ Database backup endpoints - Admin-protected placeholder endpoints
+38. ✅ TimescaleDB preparation - Hypertable configs, status/initialize endpoints
+39. ✅ GDPR data export - User data package export endpoint
+40. ✅ GDPR data deletion - Admin-protected with confirmation requirement
+41. ✅ Request validation - XSS/SQL injection detection middleware
+42. ✅ Error handling - Standardized JSON error responses
+43. ✅ Request logging - All requests logged with timing and IP
+44. ✅ CORS configuration - Properly configured for production
+45. ✅ API versioning - Version info endpoint, deprecated decorator
+
+**Middleware Stack (ordered):**
+CORS → RequestLog → Cache → Validation → AuditLog → RateLimit → ErrorHandler
+
+**Security Features:**
+- Admin-protected system endpoints (API keys, GDPR delete, backups, cache clear)
+- require_admin checks SUPER_ADMIN or ORG_ADMIN roles
+- API key management with hash storage and rotation
 
 ### Phase 5: Database (10 tasks)
 46-55: Soft deletes, multi-tenancy, partitioning, indexes, constraints, reporting tables
