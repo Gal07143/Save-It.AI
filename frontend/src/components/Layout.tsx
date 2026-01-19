@@ -12,6 +12,7 @@ import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import AIAssistant from './AIAssistant'
 import GlobalSearch from './GlobalSearch'
+import { SkipLink, A11yAnnouncer } from './AccessibilityHelpers'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -149,6 +150,8 @@ export default function Layout({ children, currentSite, onSiteChange }: LayoutPr
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0f172a' }}>
+      <SkipLink />
+      <A11yAnnouncer />
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         style={{
@@ -485,15 +488,18 @@ export default function Layout({ children, currentSite, onSiteChange }: LayoutPr
         </div>
       </aside>
 
-      <main style={{ 
-        flex: 1, 
-        marginLeft: sidebarOpen ? '260px' : '72px',
-        padding: '1.5rem', 
-        overflow: 'auto', 
-        background: '#0f172a',
-        minHeight: '100vh',
-        transition: 'margin-left 0.3s ease',
-      }}>
+      <main 
+        id="main-content"
+        style={{ 
+          flex: 1, 
+          marginLeft: sidebarOpen ? '260px' : '72px',
+          padding: '1.5rem', 
+          overflow: 'auto', 
+          background: '#0f172a',
+          minHeight: '100vh',
+          transition: 'margin-left 0.3s ease',
+        }}
+      >
         {children}
       </main>
 
