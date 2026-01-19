@@ -25,6 +25,7 @@ from backend.app.middleware import (
     CacheMiddleware,
     RequestValidationMiddleware,
 )
+from backend.app.middleware.multi_tenant import MultiTenantMiddleware
 
 
 @asynccontextmanager
@@ -88,6 +89,7 @@ app.add_middleware(
 app.add_middleware(RequestLogMiddleware)
 app.add_middleware(CacheMiddleware)
 app.add_middleware(RequestValidationMiddleware)
+app.add_middleware(MultiTenantMiddleware)
 app.add_middleware(AuditLogMiddleware, db_session_factory=SessionLocal)
 app.add_middleware(RateLimitMiddleware, default_limit=100, default_window=60, burst_limit=20)
 

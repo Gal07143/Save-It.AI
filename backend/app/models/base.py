@@ -1,7 +1,81 @@
 """Base model definitions and common enums."""
+from datetime import datetime
 from enum import Enum as PyEnum
+from typing import Optional
+
+from sqlalchemy import Column, DateTime, Integer, event
+from sqlalchemy.orm import declared_attr, Query
 
 from backend.app.core.database import Base
+
+
+class SoftDeleteMixin:
+    """Mixin for soft delete functionality.
+    
+    Adds is_deleted flag and deleted_at timestamp to models.
+    Use with query filters to exclude deleted records.
+    """
+    
+    @declared_attr
+    def is_deleted(cls):
+        return Column(Integer, default=0, nullable=False, index=True)
+    
+    @declared_attr
+    def deleted_at(cls):
+        return Column(DateTime, nullable=True)
+    
+    def soft_delete(self) -> None:
+        """Mark record as deleted."""
+        self.is_deleted = 1
+        self.deleted_at = datetime.utcnow()
+    
+    def restore(self) -> None:
+        """Restore a soft-deleted record."""
+        self.is_deleted = 0
+        self.deleted_at = None
+
+
+class MultiTenantMixin:
+    """Mixin for multi-tenant models that require organization scoping.
+    
+    Models with this mixin should always be filtered by organization_id.
+    """
+    
+    @declared_attr
+    def organization_id(cls):
+        from sqlalchemy import ForeignKey
+        return Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+
+
+def soft_delete_filter(query: Query, model_class) -> Query:
+    """Apply soft delete filter to a query.
+    
+    Args:
+        query: SQLAlchemy query object
+        model_class: Model class with SoftDeleteMixin
+        
+    Returns:
+        Filtered query excluding soft-deleted records
+    """
+    if hasattr(model_class, 'is_deleted'):
+        return query.filter(model_class.is_deleted == 0)
+    return query
+
+
+def include_deleted_filter(query: Query, model_class, include_deleted: bool = False) -> Query:
+    """Optionally include soft-deleted records.
+    
+    Args:
+        query: SQLAlchemy query object
+        model_class: Model class with SoftDeleteMixin
+        include_deleted: Whether to include deleted records
+        
+    Returns:
+        Query with optional soft delete filter
+    """
+    if not include_deleted and hasattr(model_class, 'is_deleted'):
+        return query.filter(model_class.is_deleted == 0)
+    return query
 
 
 class AssetType(PyEnum):

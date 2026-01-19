@@ -5,10 +5,10 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Enu
 from sqlalchemy.orm import relationship
 
 from backend.app.core.database import Base
-from backend.app.models.base import AssetType, NotificationType
+from backend.app.models.base import AssetType, NotificationType, SoftDeleteMixin
 
 
-class Site(Base):
+class Site(SoftDeleteMixin, Base):
     """Site model representing a physical facility or location."""
     __tablename__ = "sites"
 
@@ -30,7 +30,7 @@ class Site(Base):
     notifications = relationship("Notification", back_populates="site", cascade="all, delete-orphan")
 
 
-class Asset(Base):
+class Asset(SoftDeleteMixin, Base):
     """Asset model representing electrical components in the SLD hierarchy."""
     __tablename__ = "assets"
 
@@ -56,7 +56,7 @@ class Asset(Base):
     data_source = relationship("DataSource")
 
 
-class Meter(Base):
+class Meter(SoftDeleteMixin, Base):
     """Meter model representing a physical energy meter device."""
     __tablename__ = "meters"
 

@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
 from backend.app.models import Meter, MeterReading
+from backend.app.models.base import soft_delete_filter, include_deleted_filter
 from backend.app.schemas import (
     MeterCreate, MeterUpdate, MeterResponse,
     MeterReadingCreate, MeterReadingResponse
 )
+from backend.app.middleware.multi_tenant import TenantContext, MultiTenantValidation
 
 router = APIRouter(prefix="/api/v1/meters", tags=["meters"])
 
@@ -18,16 +20,27 @@ router = APIRouter(prefix="/api/v1/meters", tags=["meters"])
 def list_meters(
     site_id: Optional[int] = None,
     active_only: bool = True,
+    include_deleted: bool = Query(False, description="Include soft-deleted meters"),
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """Get all meters, optionally filtered by site."""
+    """Get all meters, optionally filtered by site (excludes soft-deleted by default)."""
     query = db.query(Meter)
+    query = include_deleted_filter(query, Meter, include_deleted)
+    
     if site_id:
+        if not MultiTenantValidation.validate_site_access(db, site_id):
+            raise HTTPException(status_code=403, detail="Access denied to this site")
         query = query.filter(Meter.site_id == site_id)
+    else:
+        accessible_sites = MultiTenantValidation.get_accessible_site_ids(db)
+        if accessible_sites and not TenantContext.is_super_admin():
+            query = query.filter(Meter.site_id.in_(accessible_sites))
+    
     if active_only:
         query = query.filter(Meter.is_active == 1)
+    
     meters = query.offset(skip).limit(limit).all()
     return meters
 
@@ -35,9 +48,16 @@ def list_meters(
 @router.get("/{meter_id}", response_model=MeterResponse)
 def get_meter(meter_id: int, db: Session = Depends(get_db)):
     """Get a specific meter by ID."""
-    meter = db.query(Meter).filter(Meter.id == meter_id).first()
+    query = db.query(Meter).filter(Meter.id == meter_id)
+    query = soft_delete_filter(query, Meter)
+    meter = query.first()
+    
     if not meter:
         raise HTTPException(status_code=404, detail="Meter not found")
+    
+    if not MultiTenantValidation.validate_meter_access(db, meter_id):
+        raise HTTPException(status_code=403, detail="Access denied to this meter")
+    
     return meter
 
 

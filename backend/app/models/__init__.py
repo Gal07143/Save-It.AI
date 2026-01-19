@@ -2,6 +2,10 @@
 from backend.app.models.base import (
     AssetType,
     NotificationType,
+    SoftDeleteMixin,
+    MultiTenantMixin,
+    soft_delete_filter,
+    include_deleted_filter,
 )
 
 from backend.app.models.core import (
@@ -117,6 +121,10 @@ from backend.app.models.integrations import (
 __all__ = [
     "AssetType",
     "NotificationType",
+    "SoftDeleteMixin",
+    "MultiTenantMixin",
+    "soft_delete_filter",
+    "include_deleted_filter",
     "Site",
     "Asset",
     "Meter",

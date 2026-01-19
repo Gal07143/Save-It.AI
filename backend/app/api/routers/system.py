@@ -369,3 +369,36 @@ def get_api_version():
     """Get API version information."""
     from backend.app.core.versioning import version_info
     return version_info()
+
+
+@router.get("/database/pool")
+def get_database_pool_status():
+    """Get database connection pool status."""
+    from backend.app.core.database import get_pool_status
+    return get_pool_status()
+
+
+@router.post("/views/refresh")
+def refresh_materialized_views(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """Refresh all materialized views for reporting."""
+    refreshed = []
+    
+    views = [
+        "mv_daily_energy_consumption",
+        "mv_monthly_billing_summary",
+    ]
+    
+    for view in views:
+        try:
+            db.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view}")
+            refreshed.append({"view": view, "status": "refreshed"})
+        except Exception as e:
+            try:
+                db.execute(f"REFRESH MATERIALIZED VIEW {view}")
+                refreshed.append({"view": view, "status": "refreshed_non_concurrent"})
+            except Exception as e2:
+                refreshed.append({"view": view, "status": "error", "error": str(e2)})
+    
+    db.commit()
+    
+    return {"views": refreshed}
