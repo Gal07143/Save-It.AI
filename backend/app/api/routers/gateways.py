@@ -1,5 +1,6 @@
 """Gateway management API endpoints."""
 import os
+import json
 import secrets
 import hashlib
 from typing import List, Optional
@@ -109,11 +110,11 @@ def register_gateway(gateway_id: int, db: Session = Depends(get_db)):
         existing_creds.mqtt_username = mqtt_creds["username"]
         existing_creds.mqtt_password_hash = mqtt_creds["password_hash"]
         existing_creds.mqtt_client_id = mqtt_creds["client_id"]
-        existing_creds.mqtt_topics = {
+        existing_creds.mqtt_topics = json.dumps({
             "publish": f"saveit/{gateway_id}/+/data",
             "heartbeat": f"saveit/{gateway_id}/heartbeat",
             "subscribe": f"saveit/{gateway_id}/commands",
-        }
+        })
         existing_creds.webhook_api_key = webhook_creds["api_key"]
         existing_creds.webhook_secret_key = webhook_creds["secret_key"]
         existing_creds.last_rotated = datetime.utcnow()
@@ -123,11 +124,11 @@ def register_gateway(gateway_id: int, db: Session = Depends(get_db)):
             mqtt_username=mqtt_creds["username"],
             mqtt_password_hash=mqtt_creds["password_hash"],
             mqtt_client_id=mqtt_creds["client_id"],
-            mqtt_topics={
+            mqtt_topics=json.dumps({
                 "publish": f"saveit/{gateway_id}/+/data",
                 "heartbeat": f"saveit/{gateway_id}/heartbeat",
                 "subscribe": f"saveit/{gateway_id}/commands",
-            },
+            }),
             webhook_api_key=webhook_creds["api_key"],
             webhook_secret_key=webhook_creds["secret_key"],
         )
