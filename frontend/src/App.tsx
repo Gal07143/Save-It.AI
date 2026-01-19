@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Route, Switch, Redirect } from 'wouter'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Sites from './pages/Sites'
@@ -382,7 +383,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <ToastProvider>
+        <AppRoutes />
+      </ToastProvider>
     </AuthProvider>
   )
 }
