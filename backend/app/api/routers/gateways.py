@@ -1,12 +1,16 @@
 """Gateway management API endpoints."""
+import os
+import secrets
+import hashlib
 from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from pydantic import BaseModel
 
 from backend.app.core.database import get_db
-from backend.app.models.integrations import Gateway, GatewayStatus, CommunicationLog
+from backend.app.models.integrations import Gateway, GatewayStatus, CommunicationLog, GatewayCredentials
 from backend.app.schemas.integrations import (
     GatewayCreate,
     GatewayUpdate,
@@ -16,6 +20,210 @@ from backend.app.schemas.integrations import (
 )
 
 router = APIRouter(prefix="/api/v1/gateways", tags=["gateways"])
+
+
+class MQTTConfigResponse(BaseModel):
+    """Complete MQTT configuration for gateway setup."""
+    host: str
+    port: int
+    tls_port: int
+    username: str
+    password: str
+    client_id: str
+    publish_topic: str
+    heartbeat_topic: str
+    subscribe_topic: str
+
+
+class WebhookConfigResponse(BaseModel):
+    """Complete webhook configuration for gateway setup."""
+    url: str
+    api_key: str
+    secret_key: str
+    method: str
+    content_type: str
+
+
+class GatewayRegistrationResponse(BaseModel):
+    """Complete gateway registration response with all credentials."""
+    gateway_id: int
+    gateway_name: str
+    status: str
+    mqtt: MQTTConfigResponse
+    webhook: WebhookConfigResponse
+    registered_at: str
+
+
+def _get_mqtt_host() -> str:
+    """Get the MQTT broker host from environment."""
+    domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+    if domain:
+        return domain
+    return os.environ.get("MQTT_HOST", "localhost")
+
+
+def _generate_mqtt_credentials(gateway_id: int) -> dict:
+    """Generate MQTT credentials for a gateway."""
+    username = f"gw_{gateway_id}_{secrets.token_hex(6)}"
+    password = secrets.token_urlsafe(24)
+    client_id = f"saveit-gw-{gateway_id}"
+    
+    return {
+        "username": username,
+        "password": password,
+        "client_id": client_id,
+        "password_hash": hashlib.sha256(password.encode()).hexdigest(),
+    }
+
+
+def _generate_webhook_credentials(gateway_id: int) -> dict:
+    """Generate webhook credentials for a gateway."""
+    api_key = f"whk_{gateway_id}_{secrets.token_urlsafe(24)}"
+    secret_key = secrets.token_urlsafe(32)
+    
+    return {
+        "api_key": api_key,
+        "secret_key": secret_key,
+    }
+
+
+@router.post("/{gateway_id}/register", response_model=GatewayRegistrationResponse)
+def register_gateway(gateway_id: int, db: Session = Depends(get_db)):
+    """
+    Register a gateway and generate all connection credentials.
+    
+    Returns complete configuration ready to copy-paste into the device.
+    """
+    gateway = db.query(Gateway).filter(Gateway.id == gateway_id).first()
+    if not gateway:
+        raise HTTPException(status_code=404, detail="Gateway not found")
+    
+    existing_creds = db.query(GatewayCredentials).filter(
+        GatewayCredentials.gateway_id == gateway_id
+    ).first()
+    
+    mqtt_creds = _generate_mqtt_credentials(gateway_id)
+    webhook_creds = _generate_webhook_credentials(gateway_id)
+    
+    if existing_creds:
+        existing_creds.mqtt_username = mqtt_creds["username"]
+        existing_creds.mqtt_password_hash = mqtt_creds["password_hash"]
+        existing_creds.mqtt_client_id = mqtt_creds["client_id"]
+        existing_creds.mqtt_topics = {
+            "publish": f"saveit/{gateway_id}/+/data",
+            "heartbeat": f"saveit/{gateway_id}/heartbeat",
+            "subscribe": f"saveit/{gateway_id}/commands",
+        }
+        existing_creds.webhook_api_key = webhook_creds["api_key"]
+        existing_creds.webhook_secret_key = webhook_creds["secret_key"]
+        existing_creds.last_rotated = datetime.utcnow()
+    else:
+        new_creds = GatewayCredentials(
+            gateway_id=gateway_id,
+            mqtt_username=mqtt_creds["username"],
+            mqtt_password_hash=mqtt_creds["password_hash"],
+            mqtt_client_id=mqtt_creds["client_id"],
+            mqtt_topics={
+                "publish": f"saveit/{gateway_id}/+/data",
+                "heartbeat": f"saveit/{gateway_id}/heartbeat",
+                "subscribe": f"saveit/{gateway_id}/commands",
+            },
+            webhook_api_key=webhook_creds["api_key"],
+            webhook_secret_key=webhook_creds["secret_key"],
+        )
+        db.add(new_creds)
+    
+    gateway.status = GatewayStatus.OFFLINE
+    db.commit()
+    
+    mqtt_host = _get_mqtt_host()
+    domain = os.environ.get("REPLIT_DEV_DOMAIN", "localhost")
+    
+    return GatewayRegistrationResponse(
+        gateway_id=gateway_id,
+        gateway_name=gateway.name,
+        status="registered",
+        mqtt=MQTTConfigResponse(
+            host=mqtt_host,
+            port=1883,
+            tls_port=8883,
+            username=mqtt_creds["username"],
+            password=mqtt_creds["password"],
+            client_id=mqtt_creds["client_id"],
+            publish_topic=f"saveit/{gateway_id}/+/data",
+            heartbeat_topic=f"saveit/{gateway_id}/heartbeat",
+            subscribe_topic=f"saveit/{gateway_id}/commands",
+        ),
+        webhook=WebhookConfigResponse(
+            url=f"https://{domain}/api/v1/webhooks/ingest/{gateway_id}",
+            api_key=webhook_creds["api_key"],
+            secret_key=webhook_creds["secret_key"],
+            method="POST",
+            content_type="application/json",
+        ),
+        registered_at=datetime.utcnow().isoformat(),
+    )
+
+
+@router.post("/{gateway_id}/rotate-credentials", response_model=GatewayRegistrationResponse)
+def rotate_gateway_credentials(gateway_id: int, db: Session = Depends(get_db)):
+    """
+    Rotate all credentials for a gateway.
+    
+    Old credentials will be invalidated immediately.
+    """
+    return register_gateway(gateway_id, db)
+
+
+@router.get("/{gateway_id}/credentials", response_model=GatewayRegistrationResponse)
+def get_gateway_credentials(gateway_id: int, db: Session = Depends(get_db)):
+    """
+    Get existing credentials for a gateway.
+    
+    Note: Password is not stored and cannot be retrieved.
+    Use rotate-credentials to generate new ones if needed.
+    """
+    gateway = db.query(Gateway).filter(Gateway.id == gateway_id).first()
+    if not gateway:
+        raise HTTPException(status_code=404, detail="Gateway not found")
+    
+    creds = db.query(GatewayCredentials).filter(
+        GatewayCredentials.gateway_id == gateway_id
+    ).first()
+    
+    if not creds:
+        raise HTTPException(
+            status_code=404, 
+            detail="Gateway not registered. Use POST /{gateway_id}/register first."
+        )
+    
+    mqtt_host = _get_mqtt_host()
+    domain = os.environ.get("REPLIT_DEV_DOMAIN", "localhost")
+    
+    return GatewayRegistrationResponse(
+        gateway_id=gateway_id,
+        gateway_name=gateway.name,
+        status="registered",
+        mqtt=MQTTConfigResponse(
+            host=mqtt_host,
+            port=1883,
+            tls_port=8883,
+            username=creds.mqtt_username or "",
+            password="********",
+            client_id=creds.mqtt_client_id or f"saveit-gw-{gateway_id}",
+            publish_topic=f"saveit/{gateway_id}/+/data",
+            heartbeat_topic=f"saveit/{gateway_id}/heartbeat",
+            subscribe_topic=f"saveit/{gateway_id}/commands",
+        ),
+        webhook=WebhookConfigResponse(
+            url=f"https://{domain}/api/v1/webhooks/ingest/{gateway_id}",
+            api_key=creds.webhook_api_key or "",
+            secret_key="********",
+            method="POST",
+            content_type="application/json",
+        ),
+        registered_at=creds.created_at.isoformat() if creds.created_at else datetime.utcnow().isoformat(),
+    )
 
 
 @router.post("", response_model=GatewayResponse)

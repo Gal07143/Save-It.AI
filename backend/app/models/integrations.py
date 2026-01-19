@@ -284,3 +284,28 @@ class DeviceAlert(Base):
     notification_channels = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GatewayCredentials(Base):
+    """Gateway authentication credentials for MQTT and webhook protocols."""
+    __tablename__ = "gateway_credentials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    gateway_id = Column(Integer, ForeignKey("gateways.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    mqtt_username = Column(String(255), nullable=True)
+    mqtt_password_hash = Column(String(255), nullable=True)
+    mqtt_client_id = Column(String(255), nullable=True)
+    mqtt_topics = Column(Text, nullable=True)
+    
+    webhook_api_key = Column(String(255), nullable=True, unique=True)
+    webhook_secret_key = Column(String(255), nullable=True)
+    
+    api_token = Column(String(500), nullable=True, unique=True)
+    api_token_expires_at = Column(DateTime, nullable=True)
+    
+    last_rotated = Column(DateTime, nullable=True)
+    rotation_interval_days = Column(Integer, default=90)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -26,6 +26,7 @@ MANUFACTURERS = [
     {"name": "ABB E-Mobility", "country": "Switzerland", "website": "https://new.abb.com/ev-charging"},
     {"name": "ChargePoint", "country": "USA", "website": "https://www.chargepoint.com"},
     {"name": "Victron Energy", "country": "Netherlands", "website": "https://www.victronenergy.com"},
+    {"name": "Teltonika Networks", "country": "Lithuania", "website": "https://teltonika-networks.com"},
 ]
 
 
@@ -355,6 +356,31 @@ DEVICE_TEMPLATES: List[Dict[str, Any]] = [
             {"name": "power", "address": 102, "data_type": "uint32", "unit": "W", "scale_factor": 1.0, "function_code": 3, "description": "Charging Power"},
             {"name": "energy_session", "address": 104, "data_type": "uint32", "unit": "Wh", "scale_factor": 1.0, "function_code": 3, "description": "Session Energy"},
             {"name": "energy_total", "address": 106, "data_type": "uint32", "unit": "Wh", "scale_factor": 1.0, "function_code": 3, "description": "Total Energy"},
+        ]
+    },
+    {
+        "manufacturer": "Teltonika Networks",
+        "name": "RUT200 Industrial LTE Router",
+        "model_number": "RUT200",
+        "category": "gateway",
+        "protocol": "mqtt",
+        "description": "Compact industrial cellular router with MQTT publisher capability for IoT data gateway",
+        "default_port": 1883,
+        "default_slave_id": 1,
+        "default_polling_interval": 60,
+        "is_verified": True,
+        "registers": [
+            {"name": "signal_strength", "address": 0, "data_type": "int16", "unit": "dBm", "scale_factor": 1.0, "function_code": 0, "description": "Mobile Signal Strength (RSSI)"},
+            {"name": "signal_quality", "address": 1, "data_type": "uint16", "unit": "%", "scale_factor": 1.0, "function_code": 0, "description": "Signal Quality (RSRQ)"},
+            {"name": "uptime", "address": 2, "data_type": "uint32", "unit": "s", "scale_factor": 1.0, "function_code": 0, "description": "Device Uptime"},
+            {"name": "wan_ip", "address": 3, "data_type": "string", "unit": "", "scale_factor": 1.0, "function_code": 0, "description": "WAN IP Address"},
+            {"name": "connection_type", "address": 4, "data_type": "string", "unit": "", "scale_factor": 1.0, "function_code": 0, "description": "Connection Type (LTE/3G/2G)"},
+            {"name": "operator_name", "address": 5, "data_type": "string", "unit": "", "scale_factor": 1.0, "function_code": 0, "description": "Mobile Network Operator"},
+            {"name": "data_sent", "address": 6, "data_type": "uint64", "unit": "bytes", "scale_factor": 1.0, "function_code": 0, "description": "Total Data Sent"},
+            {"name": "data_received", "address": 7, "data_type": "uint64", "unit": "bytes", "scale_factor": 1.0, "function_code": 0, "description": "Total Data Received"},
+            {"name": "temperature", "address": 8, "data_type": "float32", "unit": "C", "scale_factor": 1.0, "function_code": 0, "description": "Internal Temperature"},
+            {"name": "gps_latitude", "address": 9, "data_type": "float32", "unit": "deg", "scale_factor": 1.0, "function_code": 0, "description": "GPS Latitude"},
+            {"name": "gps_longitude", "address": 10, "data_type": "float32", "unit": "deg", "scale_factor": 1.0, "function_code": 0, "description": "GPS Longitude"},
         ]
     },
 ]
