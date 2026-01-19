@@ -122,13 +122,16 @@ frontend/src/
 - Creates DataSource and applies template registers on completion
 - Accessed via emerald "Device Wizard" button on Integrations page
 
-### Phase 3: Advanced Device Features (14 tasks) - IN PROGRESS (6/14)
+### Phase 3: Advanced Device Features (14 tasks) - IN PROGRESS (9/14)
 17. ✅ Bulk device import - CSV upload with validation, template auto-apply, per-row error reporting
 18. ✅ Device health dashboard - Status aggregation (online/offline/error/unknown), 24h success rates, response times
 19. ✅ Data validation rules - CRUD configuration for min/max/rate-of-change/stale-data rules with violation tracking
 20. ✅ Connection retry logic - Configuration infrastructure with exponential backoff settings and testing endpoints
 21. ✅ Device grouping - Hierarchical device organization into logical groups/zones with color coding
-22-30: Firmware tracking, QR codes, cloning, status page, etc.
+22. ✅ Firmware version tracking - FirmwareTracker component with summary stats, version distribution, and editable table
+23. ✅ Device QR codes - QR button in data source table, modal with rendered QR image, device info display
+24. ✅ Device configuration cloning - Clone modal with name/host/slave ID inputs, registers duplication
+25-30: Public status page, device discovery, etc.
 
 **Retry Logic Features:**
 - Retry configuration per data source: max_retries, retry_delay_seconds, backoff_multiplier
