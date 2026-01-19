@@ -136,6 +136,9 @@ export const api = {
     list: (siteId?: number) => fetchApi<DataSource[]>(`/data-sources${siteId ? `?site_id=${siteId}` : ''}`),
     get: (id: number) => fetchApi<DataSource>(`/data-sources/${id}`),
     create: (data: Partial<DataSource>) => fetchApi<DataSource>('/data-sources', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<DataSource>) => fetchApi<DataSource>(`/data-sources/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<void>(`/data-sources/${id}`, { method: 'DELETE' }),
+    clone: (id: number) => fetchApi<DataSource>(`/data-sources/${id}/clone`, { method: 'POST' }),
     testConnection: (data: { host: string; port: number; slave_id: number }) => 
       fetchApi<{ success: boolean; error?: string }>('/modbus-registers/test-connection', { method: 'POST', body: JSON.stringify(data) }),
     bulkImport: (data: BulkDeviceImportRequest) => 

@@ -32,6 +32,9 @@ import CarbonESG from './pages/CarbonESG'
 import EnergyAssets from './pages/EnergyAssets'
 import DigitalTwin from './pages/DigitalTwin'
 import PublicStatus from './pages/PublicStatus'
+import Devices from './pages/Devices'
+import DeviceConfig from './pages/DeviceConfig'
+import DeviceHealth from './pages/DeviceHealth'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -138,13 +141,7 @@ function AppRoutes() {
       </Route>
       
       <Route path="/data-ingestion">
-        {() => (
-          <ProtectedRoute>
-            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <DataIngestion />
-            </Layout>
-          </ProtectedRoute>
-        )}
+        {() => <Redirect to="/devices" />}
       </Route>
       
       <Route path="/bills">
@@ -188,10 +185,34 @@ function AppRoutes() {
       </Route>
       
       <Route path="/integrations">
+        {() => <Redirect to="/devices" />}
+      </Route>
+      
+      <Route path="/devices">
         {() => (
           <ProtectedRoute>
             <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <Integrations currentSite={currentSite} />
+              <Devices currentSite={currentSite} />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/device-config">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <DeviceConfig currentSite={currentSite} />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      <Route path="/device-health">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <DeviceHealth currentSite={currentSite} />
             </Layout>
           </ProtectedRoute>
         )}

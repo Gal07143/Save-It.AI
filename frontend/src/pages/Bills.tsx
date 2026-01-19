@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, OCRBillResult } from '../services/api'
 import { 
   Receipt, CheckCircle, AlertTriangle, XCircle, FileCheck,
-  Upload, Camera, Loader2, FileImage, X, Plus
+  Upload, Camera, Loader2, FileImage, X, Plus, List, ScanLine,
+  Scale, AlertCircle, TrendingUp, Paperclip
 } from 'lucide-react'
+import TabPanel, { Tab } from '../components/TabPanel'
 
 interface NewBillForm {
   site_id: number
@@ -23,6 +25,7 @@ interface BillsProps {
 
 export default function Bills({ currentSite: _currentSite }: BillsProps) {
   const queryClient = useQueryClient()
+  const [activeTab, setActiveTab] = useState('all-bills')
   const [validatingId, setValidatingId] = useState<number | null>(null)
   const [validationResult, setValidationResult] = useState<any>(null)
   const [showOCRModal, setShowOCRModal] = useState(false)
@@ -48,6 +51,7 @@ export default function Bills({ currentSite: _currentSite }: BillsProps) {
     mutationFn: api.bills.validate,
     onSuccess: (result) => {
       setValidationResult(result)
+      setActiveTab('validation')
       queryClient.invalidateQueries({ queryKey: ['bills'] })
     },
     onSettled: () => setValidatingId(null),
@@ -60,6 +64,7 @@ export default function Bills({ currentSite: _currentSite }: BillsProps) {
       setShowAddModal(false)
       setShowOCRModal(false)
       setOcrResult(null)
+      resetOCRState()
       setNewBillForm({
         site_id: 1,
         bill_date: '',
@@ -132,42 +137,38 @@ export default function Bills({ currentSite: _currentSite }: BillsProps) {
     }
   }
 
-  const resetOCRModal = () => {
-    setShowOCRModal(false)
+  const resetOCRState = () => {
     setSelectedFile(null)
     setPreviewUrl(null)
     setOcrResult(null)
   }
 
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Utility Bills</h1>
-          <p style={{ color: '#64748b' }}>Track and validate utility bills against meter readings</p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-outline" onClick={() => setShowAddModal(true)}>
-            <Plus size={16} style={{ marginRight: '0.5rem' }} />
-            Add Bill
-          </button>
-          <button className="btn btn-primary" onClick={() => setShowOCRModal(true)}>
-            <Camera size={16} style={{ marginRight: '0.5rem' }} />
-            Scan Bill
-          </button>
-        </div>
-      </div>
+  const resetOCRModal = () => {
+    setShowOCRModal(false)
+    resetOCRState()
+  }
 
-      {validationResult && (
-        <div className={`alert alert-${validationResult.is_valid ? 'success' : 'warning'}`} style={{ marginBottom: '1.5rem' }}>
-          <strong>{validationResult.message}</strong>
-          <div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
-            Bill Total: {validationResult.bill_total_kwh.toLocaleString()} kWh | 
-            Meter Total: {validationResult.meter_total_kwh.toLocaleString()} kWh | 
-            Variance: {validationResult.variance_percentage.toFixed(2)}%
-          </div>
-        </div>
-      )}
+  const tabs: Tab[] = [
+    { id: 'all-bills', label: 'All Bills', icon: List, badge: bills?.length },
+    { id: 'ocr-scanner', label: 'OCR Scanner', icon: ScanLine },
+    { id: 'validation', label: 'Validation', icon: Scale },
+    { id: 'disputes', label: 'Disputes', icon: AlertCircle },
+    { id: 'trends', label: 'Trends', icon: TrendingUp },
+    { id: 'attachments', label: 'Attachments', icon: Paperclip },
+  ]
+
+  const renderAllBillsTab = () => (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', gap: '0.5rem' }}>
+        <button className="btn btn-outline" onClick={() => setShowAddModal(true)}>
+          <Plus size={16} style={{ marginRight: '0.5rem' }} />
+          Add Bill
+        </button>
+        <button className="btn btn-primary" onClick={() => setShowOCRModal(true)}>
+          <Camera size={16} style={{ marginRight: '0.5rem' }} />
+          Scan Bill
+        </button>
+      </div>
 
       <div className="card">
         {isLoading ? (
@@ -232,13 +233,397 @@ export default function Bills({ currentSite: _currentSite }: BillsProps) {
             <p style={{ color: '#64748b', marginBottom: '1rem' }}>
               Upload a bill image to automatically extract data using AI
             </p>
-            <button className="btn btn-primary" onClick={() => setShowOCRModal(true)}>
+            <button className="btn btn-primary" onClick={() => setActiveTab('ocr-scanner')}>
               <Camera size={16} style={{ marginRight: '0.5rem' }} />
               Scan Your First Bill
             </button>
           </div>
         )}
       </div>
+    </>
+  )
+
+  const renderOCRScannerTab = () => (
+    <div className="card">
+      <h3 style={{ marginBottom: '1rem' }}>Scan Utility Bill with AI</h3>
+      <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+        Upload a bill image or PDF and our AI will automatically extract the billing data.
+      </p>
+
+      {!ocrResult?.success && (
+        <div
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          style={{
+            border: '2px dashed #374151',
+            borderRadius: '0.5rem',
+            padding: '2rem',
+            textAlign: 'center',
+            cursor: 'pointer',
+            marginBottom: '1rem',
+            background: selectedFile ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+          }}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+          
+          {previewUrl && selectedFile?.type.startsWith('image/') ? (
+            <img 
+              src={previewUrl} 
+              alt="Bill preview" 
+              style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.5rem' }}
+            />
+          ) : selectedFile ? (
+            <div>
+              <FileImage size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
+              <p style={{ fontWeight: '500' }}>{selectedFile.name}</p>
+              <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                {(selectedFile.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+          ) : (
+            <div>
+              <Upload size={48} color="#64748b" style={{ margin: '0 auto 1rem' }} />
+              <p style={{ fontWeight: '500', marginBottom: '0.5rem' }}>
+                Drop your bill image here or click to browse
+              </p>
+              <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                Supports PNG, JPG, and PDF files
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {selectedFile && !ocrResult?.success && (
+        <button 
+          className="btn btn-primary" 
+          onClick={handleOCRScan}
+          disabled={ocrLoading}
+          style={{ width: '100%', marginBottom: '1rem' }}
+        >
+          {ocrLoading ? (
+            <>
+              <Loader2 size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+              Scanning with AI...
+            </>
+          ) : (
+            <>
+              <Camera size={16} style={{ marginRight: '0.5rem' }} />
+              Extract Bill Data
+            </>
+          )}
+        </button>
+      )}
+      
+      {ocrResult && (
+        <div style={{ marginTop: '1rem' }}>
+          {ocrResult.success ? (
+            <>
+              <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
+                <CheckCircle size={16} style={{ marginRight: '0.5rem' }} />
+                Bill data extracted successfully! Review and save below.
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Site</label>
+                  <select
+                    value={newBillForm.site_id}
+                    onChange={(e) => setNewBillForm({ ...newBillForm, site_id: Number(e.target.value) })}
+                  >
+                    {sites?.map(site => (
+                      <option key={site.id} value={site.id}>{site.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Supplier</label>
+                  <input
+                    type="text"
+                    value={newBillForm.supplier_name || ''}
+                    onChange={(e) => setNewBillForm({ ...newBillForm, supplier_name: e.target.value })}
+                    placeholder="Utility company"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Bill Date</label>
+                  <input
+                    type="date"
+                    value={newBillForm.bill_date}
+                    onChange={(e) => setNewBillForm({ ...newBillForm, bill_date: e.target.value })}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Account Number</label>
+                  <input
+                    type="text"
+                    value={newBillForm.account_number || ''}
+                    onChange={(e) => setNewBillForm({ ...newBillForm, account_number: e.target.value })}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Period Start</label>
+                  <input
+                    type="date"
+                    value={newBillForm.period_start}
+                    onChange={(e) => setNewBillForm({ ...newBillForm, period_start: e.target.value })}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Period End</label>
+                  <input
+                    type="date"
+                    value={newBillForm.period_end}
+                    onChange={(e) => setNewBillForm({ ...newBillForm, period_end: e.target.value })}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Total kWh</label>
+                  <input
+                    type="number"
+                    value={newBillForm.total_kwh}
+                    onChange={(e) => setNewBillForm({ ...newBillForm, total_kwh: Number(e.target.value) })}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Total Amount ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newBillForm.total_amount}
+                    onChange={(e) => setNewBillForm({ ...newBillForm, total_amount: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+              
+              {ocrResult.line_items && ocrResult.line_items.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <label style={{ fontWeight: '500', marginBottom: '0.5rem', display: 'block' }}>
+                    Line Items Detected
+                  </label>
+                  <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                    {ocrResult.line_items.map((item, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0' }}>
+                        <span>{item.description}</span>
+                        <span>${item.amount?.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                <button 
+                  className="btn btn-outline" 
+                  onClick={resetOCRState}
+                  style={{ flex: 1 }}
+                >
+                  Scan Another
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSaveBill}
+                  disabled={createBillMutation.isPending}
+                  style={{ flex: 1 }}
+                >
+                  {createBillMutation.isPending ? 'Saving...' : 'Save Bill'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="alert alert-error">
+                <XCircle size={16} style={{ marginRight: '0.5rem' }} />
+                {ocrResult.error || 'Failed to extract bill data. Please try again.'}
+              </div>
+              <button 
+                className="btn btn-outline" 
+                onClick={resetOCRState}
+                style={{ width: '100%', marginTop: '1rem' }}
+              >
+                Try Again
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  const renderValidationTab = () => (
+    <div className="card">
+      <h3 style={{ marginBottom: '1rem' }}>Bill vs Meter Validation</h3>
+      <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+        Compare utility bill charges against actual meter readings to detect discrepancies.
+      </p>
+
+      {validationResult ? (
+        <div>
+          <div className={`alert alert-${validationResult.is_valid ? 'success' : 'warning'}`} style={{ marginBottom: '1.5rem' }}>
+            <strong>{validationResult.message}</strong>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Bill Total</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{validationResult.bill_total_kwh.toLocaleString()} kWh</div>
+            </div>
+            <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Meter Total</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{validationResult.meter_total_kwh.toLocaleString()} kWh</div>
+            </div>
+            <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Variance</div>
+              <div style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: 'bold',
+                color: Math.abs(validationResult.variance_percentage) <= 2 ? '#10b981' : '#f59e0b'
+              }}>
+                {validationResult.variance_percentage.toFixed(2)}%
+              </div>
+            </div>
+          </div>
+          
+          <button 
+            className="btn btn-outline" 
+            onClick={() => setValidationResult(null)}
+          >
+            Clear Results
+          </button>
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <Scale size={48} color="#94a3b8" style={{ margin: '0 auto 1rem' }} />
+          <h4 style={{ marginBottom: '0.5rem' }}>No Validation Results</h4>
+          <p style={{ color: '#64748b', marginBottom: '1rem' }}>
+            Go to the All Bills tab and click "Validate" on a bill to compare it against meter readings.
+          </p>
+          <button className="btn btn-outline" onClick={() => setActiveTab('all-bills')}>
+            View Bills
+          </button>
+        </div>
+      )}
+    </div>
+  )
+
+  const renderDisputesTab = () => (
+    <div className="card">
+      <h3 style={{ marginBottom: '1rem' }}>Disputed Charges</h3>
+      <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+        Track and manage disputed utility charges and their resolution status.
+      </p>
+      
+      <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <AlertCircle size={48} color="#94a3b8" style={{ margin: '0 auto 1rem' }} />
+        <h4 style={{ marginBottom: '0.5rem' }}>No Active Disputes</h4>
+        <p style={{ color: '#64748b', marginBottom: '1rem' }}>
+          When you identify discrepancies during validation, you can create disputes here to track their resolution.
+        </p>
+        <button className="btn btn-outline" disabled>
+          <Plus size={16} style={{ marginRight: '0.5rem' }} />
+          Create Dispute
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderTrendsTab = () => (
+    <div className="card">
+      <h3 style={{ marginBottom: '1rem' }}>Cost Trend Analysis</h3>
+      <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+        Analyze your utility costs over time to identify patterns and optimization opportunities.
+      </p>
+      
+      <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <TrendingUp size={48} color="#94a3b8" style={{ margin: '0 auto 1rem' }} />
+        <h4 style={{ marginBottom: '0.5rem' }}>Trend Analysis Coming Soon</h4>
+        <p style={{ color: '#64748b', marginBottom: '1rem' }}>
+          Add more bills to unlock cost trend analysis, including month-over-month comparisons, 
+          seasonal patterns, and cost per kWh tracking.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '0.5rem', minWidth: '120px' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Bills Tracked</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{bills?.length || 0}</div>
+          </div>
+          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '0.5rem', minWidth: '120px' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Required</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>3+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderAttachmentsTab = () => (
+    <div className="card">
+      <h3 style={{ marginBottom: '1rem' }}>Bill Attachments</h3>
+      <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+        Store and organize PDF copies and images of your utility bills for reference.
+      </p>
+      
+      <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <Paperclip size={48} color="#94a3b8" style={{ margin: '0 auto 1rem' }} />
+        <h4 style={{ marginBottom: '0.5rem' }}>No Attachments</h4>
+        <p style={{ color: '#64748b', marginBottom: '1rem' }}>
+          When you scan bills using OCR, the original files will be stored here for future reference.
+        </p>
+        <button className="btn btn-outline" onClick={() => setActiveTab('ocr-scanner')}>
+          <Upload size={16} style={{ marginRight: '0.5rem' }} />
+          Upload a Bill
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderTabContent = (tabId: string) => {
+    switch (tabId) {
+      case 'all-bills':
+        return renderAllBillsTab()
+      case 'ocr-scanner':
+        return renderOCRScannerTab()
+      case 'validation':
+        return renderValidationTab()
+      case 'disputes':
+        return renderDisputesTab()
+      case 'trends':
+        return renderTrendsTab()
+      case 'attachments':
+        return renderAttachmentsTab()
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Utility Bills</h1>
+        <p style={{ color: '#64748b' }}>Track and validate utility bills against meter readings</p>
+      </div>
+
+      <TabPanel 
+        tabs={tabs} 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        variant="default"
+      >
+        {renderTabContent}
+      </TabPanel>
 
       {showOCRModal && (
         <div className="modal-overlay" onClick={resetOCRModal}>
@@ -616,6 +1001,12 @@ export default function Bills({ currentSite: _currentSite }: BillsProps) {
           background: rgba(16, 185, 129, 0.2);
           border: 1px solid #10b981;
           color: #10b981;
+        }
+        
+        .alert-warning {
+          background: rgba(245, 158, 11, 0.2);
+          border: 1px solid #f59e0b;
+          color: #f59e0b;
         }
         
         .alert-error {

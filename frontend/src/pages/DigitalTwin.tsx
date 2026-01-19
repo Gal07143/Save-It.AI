@@ -6,8 +6,9 @@ import {
   Trash2, Save, Undo, Redo, ZoomIn, ZoomOut,
   Zap, Battery, Sun, Building2, Box, X, Edit2,
   Grid3X3, Download, Layers, Upload, FileImage, Loader2,
-  FolderTree, Eye, Hammer
+  FolderTree, Eye, Hammer, GitBranch, Link2, Calculator, Image
 } from 'lucide-react'
+import TabPanel, { Tab } from '../components/TabPanel'
 
 interface DigitalTwinProps {
   currentSite?: number | null
@@ -344,7 +345,17 @@ export default function DigitalTwin({ currentSite }: DigitalTwinProps) {
   )
 }
 
+const VIEW_TABS: Tab[] = [
+  { id: 'asset-tree', label: 'Asset Tree', icon: FolderTree },
+  { id: 'relationships', label: 'Relationships', icon: GitBranch },
+  { id: 'meter-mapping', label: 'Meter Mapping', icon: Link2 },
+  { id: 'loss-calculation', label: 'Loss Calculation', icon: Calculator },
+  { id: 'diagram-export', label: 'Diagram Export', icon: Image },
+]
+
 function ViewMode({ selectedSite }: { selectedSite: number | null }) {
+  const [activeTab, setActiveTab] = useState('asset-tree')
+  
   const { data: tree, isLoading: treeLoading } = useQuery({
     queryKey: ['assets-tree', selectedSite],
     queryFn: () => selectedSite ? api.assets.tree(selectedSite) : Promise.resolve([]),
@@ -361,7 +372,7 @@ function ViewMode({ selectedSite }: { selectedSite: number | null }) {
     )
   }
 
-  return (
+  const renderAssetTreeContent = () => (
     <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
       <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
         <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
@@ -392,12 +403,156 @@ function ViewMode({ selectedSite }: { selectedSite: number | null }) {
       )}
     </div>
   )
+
+  const renderRelationshipsContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <GitBranch size={18} color="#10b981" />
+          Asset Relationships
+        </h2>
+      </div>
+      <div style={{ padding: '3rem', textAlign: 'center' }}>
+        <GitBranch size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Parent-Child Connections</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
+          View and manage hierarchical relationships between assets. See how power flows from main breakers through transformers to distribution boards and consumers.
+        </p>
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Relationship visualization and management</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderMeterMappingContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <Link2 size={18} color="#10b981" />
+          Meter Mapping
+        </h2>
+      </div>
+      <div style={{ padding: '3rem', textAlign: 'center' }}>
+        <Gauge size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Link Meters to Assets</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
+          Associate physical meters with assets in your digital twin to enable real-time monitoring, energy tracking, and loss calculations.
+        </p>
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Drag-and-drop meter assignment</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderLossCalculationContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <Calculator size={18} color="#10b981" />
+          Loss Calculation
+        </h2>
+      </div>
+      <div style={{ padding: '3rem', textAlign: 'center' }}>
+        <Zap size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Transformer & Cable Losses</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
+          Calculate technical losses across transformers and cables. Identify inefficiencies and optimize your electrical distribution network.
+        </p>
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
+            <p style={{ color: '#f59e0b', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
+            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Transformer Loss</p>
+          </div>
+          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
+            <p style={{ color: '#ef4444', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
+            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Cable Loss</p>
+          </div>
+          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
+            <p style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
+            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Total Efficiency</p>
+          </div>
+        </div>
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Automated loss analysis</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderDiagramExportContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <Image size={18} color="#10b981" />
+          Diagram Export
+        </h2>
+      </div>
+      <div style={{ padding: '3rem', textAlign: 'center' }}>
+        <Download size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Export SLD as PDF/Image</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
+          Generate professional Single Line Diagrams for documentation, reports, and compliance. Export in multiple formats including PDF, PNG, and SVG.
+        </p>
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-outline" disabled style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FileImage size={16} />
+            Export as PNG
+          </button>
+          <button className="btn btn-outline" disabled style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Download size={16} />
+            Export as PDF
+          </button>
+        </div>
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Professional diagram exports</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <TabPanel
+      tabs={VIEW_TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      variant="underline"
+    >
+      {(tab) => {
+        switch (tab) {
+          case 'asset-tree':
+            return renderAssetTreeContent()
+          case 'relationships':
+            return renderRelationshipsContent()
+          case 'meter-mapping':
+            return renderMeterMappingContent()
+          case 'loss-calculation':
+            return renderLossCalculationContent()
+          case 'diagram-export':
+            return renderDiagramExportContent()
+          default:
+            return renderAssetTreeContent()
+        }
+      }}
+    </TabPanel>
+  )
 }
+
+const BUILD_TABS: Tab[] = [
+  { id: 'asset-tree', label: 'Asset Tree', icon: FolderTree },
+  { id: 'panel-import', label: 'Panel Import', icon: Upload },
+  { id: 'relationships', label: 'Relationships', icon: GitBranch },
+  { id: 'meter-mapping', label: 'Meter Mapping', icon: Link2 },
+  { id: 'loss-calculation', label: 'Loss Calculation', icon: Calculator },
+  { id: 'diagram-export', label: 'Diagram Export', icon: Image },
+]
 
 function BuildMode({ currentSite }: { currentSite: number | null }) {
   const queryClient = useQueryClient()
   const canvasRef = useRef<HTMLDivElement>(null)
 
+  const [activeTab, setActiveTab] = useState('asset-tree')
   const [nodes, setNodes] = useState<AssetNode[]>([])
   const [connections, setConnections] = useState<Connection[]>([])
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
@@ -413,7 +568,6 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
   const [showPalette] = useState(true)
   const [gridSnap, setGridSnap] = useState(true)
   const [showTemplates, setShowTemplates] = useState(false)
-  const [showUploadModal, setShowUploadModal] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
@@ -505,7 +659,7 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
 
       if (result.success && result.assets.length > 0) {
         generateNodesFromAssets(result.assets)
-        setShowUploadModal(false)
+        setActiveTab('asset-tree')
         setUploadFile(null)
       } else {
         setAnalysisError(result.error || 'No assets detected in the diagram')
@@ -868,102 +1022,375 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
     return NodeIcon
   }
 
-  return (
-    <>
-      <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-        <button
-          className="btn btn-outline"
-          onClick={undo}
-          disabled={historyIndex <= 0}
-          style={{ padding: '0.5rem' }}
-        >
-          <Undo size={18} />
-        </button>
-        <button
-          className="btn btn-outline"
-          onClick={redo}
-          disabled={historyIndex >= history.length - 1}
-          style={{ padding: '0.5rem' }}
-        >
-          <Redo size={18} />
-        </button>
-        <button
-          className="btn btn-outline"
-          onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}
-          style={{ padding: '0.5rem' }}
-        >
-          <ZoomOut size={18} />
-        </button>
-        <span style={{
-          padding: '0.5rem 0.75rem',
-          background: '#334155',
-          borderRadius: '6px',
-          fontSize: '0.875rem',
-          minWidth: '60px',
-          textAlign: 'center',
-          color: '#f8fafc'
-        }}>
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
-          className="btn btn-outline"
-          onClick={() => setZoom(z => Math.min(2, z + 0.25))}
-          style={{ padding: '0.5rem' }}
-        >
-          <ZoomIn size={18} />
-        </button>
-        <div style={{ width: '1px', height: '24px', background: '#475569', alignSelf: 'center' }}></div>
-        <button
-          className={`btn ${gridSnap ? 'btn-primary' : 'btn-outline'}`}
-          onClick={() => setGridSnap(!gridSnap)}
-          style={{ padding: '0.5rem' }}
-          title={gridSnap ? 'Grid Snap: ON' : 'Grid Snap: OFF'}
-        >
-          <Grid3X3 size={18} />
-        </button>
-        <button
-          className="btn btn-outline"
-          onClick={() => setShowTemplates(!showTemplates)}
-          style={{ padding: '0.5rem' }}
-          title="Load Template"
-        >
-          <Layers size={18} />
-        </button>
-        <button
-          className="btn btn-secondary"
-          onClick={() => setShowUploadModal(true)}
-          style={{ padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}
-          title="Upload Panel Diagram"
-        >
-          <Upload size={18} />
-          AI Import
-        </button>
-        <button
-          className={`btn ${showHierarchy ? 'btn-primary' : 'btn-outline'}`}
-          onClick={() => setShowHierarchy(!showHierarchy)}
-          style={{ padding: '0.5rem' }}
-          title="Toggle Hierarchy View"
-        >
-          <FolderTree size={18} />
-        </button>
-        <button
-          className="btn btn-outline"
-          onClick={exportToPNG}
-          disabled={nodes.length === 0}
-          style={{ padding: '0.5rem' }}
-          title="Export to PNG"
-        >
-          <Download size={18} />
-        </button>
-        <button
-          className="btn btn-primary"
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending || !currentSite}
-        >
-          <Save size={18} />
-          {saveMutation.isPending ? 'Saving...' : 'Save'}
-        </button>
+  const renderBuildRelationshipsContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <GitBranch size={18} color="#10b981" />
+          Asset Relationships
+        </h2>
       </div>
+      <div style={{ padding: '3rem', textAlign: 'center' }}>
+        <GitBranch size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Parent-Child Connections</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
+          Define and manage hierarchical relationships between assets. Create connections between main breakers, transformers, distribution boards, and consumers.
+        </p>
+        {nodes.length > 0 && (
+          <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', textAlign: 'left' }}>
+            <h4 style={{ color: '#f8fafc', fontSize: '0.875rem', marginBottom: '0.75rem' }}>Current Connections ({connections.length})</h4>
+            {connections.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {connections.slice(0, 5).map((conn, i) => {
+                  const fromNode = nodes.find(n => n.id === conn.from)
+                  const toNode = nodes.find(n => n.id === conn.to)
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                      <span style={{ color: '#f8fafc' }}>{fromNode?.name || 'Unknown'}</span>
+                      <ChevronRight size={12} />
+                      <span style={{ color: '#f8fafc' }}>{toNode?.name || 'Unknown'}</span>
+                    </div>
+                  )
+                })}
+                {connections.length > 5 && (
+                  <p style={{ color: '#64748b', fontSize: '0.75rem' }}>+{connections.length - 5} more connections</p>
+                )}
+              </div>
+            ) : (
+              <p style={{ color: '#64748b', fontSize: '0.75rem' }}>No connections defined yet. Use the Asset Tree tab to create relationships.</p>
+            )}
+          </div>
+        )}
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Visual relationship editor</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderBuildMeterMappingContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <Link2 size={18} color="#10b981" />
+          Meter Mapping
+        </h2>
+      </div>
+      <div style={{ padding: '3rem', textAlign: 'center' }}>
+        <Gauge size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Link Meters to Assets</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
+          Associate physical meters with assets in your digital twin to enable real-time monitoring, energy tracking, and loss calculations.
+        </p>
+        {nodes.length > 0 && (
+          <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', textAlign: 'left' }}>
+            <h4 style={{ color: '#f8fafc', fontSize: '0.875rem', marginBottom: '0.75rem' }}>Assets Available for Mapping ({nodes.length})</h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {nodes.slice(0, 6).map(node => (
+                <span key={node.id} style={{
+                  padding: '0.25rem 0.5rem',
+                  background: '#334155',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  color: '#f8fafc'
+                }}>
+                  {node.name}
+                </span>
+              ))}
+              {nodes.length > 6 && (
+                <span style={{ padding: '0.25rem 0.5rem', color: '#64748b', fontSize: '0.75rem' }}>+{nodes.length - 6} more</span>
+              )}
+            </div>
+          </div>
+        )}
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Drag-and-drop meter assignment</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderBuildLossCalculationContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <Calculator size={18} color="#10b981" />
+          Loss Calculation
+        </h2>
+      </div>
+      <div style={{ padding: '3rem', textAlign: 'center' }}>
+        <Zap size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Transformer & Cable Losses</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
+          Calculate technical losses across transformers and cables. Identify inefficiencies and optimize your electrical distribution network.
+        </p>
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
+            <p style={{ color: '#f59e0b', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
+            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Transformer Loss</p>
+          </div>
+          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
+            <p style={{ color: '#ef4444', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
+            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Cable Loss</p>
+          </div>
+          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
+            <p style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
+            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Total Efficiency</p>
+          </div>
+        </div>
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Automated loss analysis based on asset specifications</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderBuildDiagramExportContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <Image size={18} color="#10b981" />
+          Diagram Export
+        </h2>
+      </div>
+      <div style={{ padding: '3rem', textAlign: 'center' }}>
+        <Download size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Export SLD as PDF/Image</h3>
+        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
+          Generate professional Single Line Diagrams for documentation, reports, and compliance. Export in multiple formats including PDF, PNG, and SVG.
+        </p>
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-primary"
+            onClick={exportToPNG}
+            disabled={nodes.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <FileImage size={16} />
+            Export as PNG
+          </button>
+          <button className="btn btn-outline" disabled style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Download size={16} />
+            Export as PDF
+          </button>
+        </div>
+        {nodes.length === 0 && (
+          <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '1rem' }}>
+            Add assets in the Asset Tree tab to enable export
+          </p>
+        )}
+        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>PDF export coming soon</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderPanelImportContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <Upload size={18} color="#10b981" />
+          AI Panel Import
+        </h2>
+      </div>
+      <div style={{ padding: '2rem' }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,.pdf"
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+        />
+
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            border: '2px dashed #475569',
+            borderRadius: '12px',
+            padding: '3rem',
+            textAlign: 'center',
+            cursor: 'pointer',
+            background: uploadFile ? '#1e3a5f' : '#0f172a',
+            transition: 'all 0.2s'
+          }}
+        >
+          {uploadFile ? (
+            <div>
+              <FileImage size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
+              <p style={{ fontWeight: 600, color: '#f8fafc' }}>{uploadFile.name}</p>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                {(uploadFile.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+          ) : (
+            <div>
+              <Upload size={48} color="#64748b" style={{ margin: '0 auto 1rem' }} />
+              <p style={{ fontWeight: 600, color: '#f8fafc' }}>Drop panel diagram here</p>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                or click to browse (PNG, JPG, PDF)
+              </p>
+            </div>
+          )}
+        </div>
+
+        {analysisError && (
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid #ef4444',
+            borderRadius: '8px',
+            color: '#fca5a5',
+            fontSize: '0.875rem'
+          }}>
+            {analysisError}
+          </div>
+        )}
+
+        <div style={{
+          marginTop: '1.5rem',
+          padding: '1rem',
+          background: '#0f172a',
+          borderRadius: '8px',
+          fontSize: '0.875rem',
+          color: '#94a3b8'
+        }}>
+          <strong style={{ color: '#f8fafc' }}>What AI will extract:</strong>
+          <ul style={{ marginTop: '0.5rem', marginLeft: '1.25rem' }}>
+            <li>Main panels, sub-panels, distribution boards</li>
+            <li>Transformers, breakers, generators</li>
+            <li>Individual loads and consumers</li>
+            <li>Parent-child connections (hierarchy)</li>
+            <li>Rated capacities and voltages</li>
+          </ul>
+        </div>
+
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+          <button
+            className="btn btn-outline"
+            onClick={() => { setUploadFile(null); setAnalysisError(null) }}
+            style={{ flex: 1 }}
+            disabled={!uploadFile}
+          >
+            Clear
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={analyzeDiagram}
+            disabled={!uploadFile || isAnalyzing}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Zap size={18} />
+                Generate Digital Twin
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderAssetTreeToolbar = () => (
+    <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+      <button
+        className="btn btn-outline"
+        onClick={undo}
+        disabled={historyIndex <= 0}
+        style={{ padding: '0.5rem' }}
+      >
+        <Undo size={18} />
+      </button>
+      <button
+        className="btn btn-outline"
+        onClick={redo}
+        disabled={historyIndex >= history.length - 1}
+        style={{ padding: '0.5rem' }}
+      >
+        <Redo size={18} />
+      </button>
+      <button
+        className="btn btn-outline"
+        onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}
+        style={{ padding: '0.5rem' }}
+      >
+        <ZoomOut size={18} />
+      </button>
+      <span style={{
+        padding: '0.5rem 0.75rem',
+        background: '#334155',
+        borderRadius: '6px',
+        fontSize: '0.875rem',
+        minWidth: '60px',
+        textAlign: 'center',
+        color: '#f8fafc'
+      }}>
+        {Math.round(zoom * 100)}%
+      </span>
+      <button
+        className="btn btn-outline"
+        onClick={() => setZoom(z => Math.min(2, z + 0.25))}
+        style={{ padding: '0.5rem' }}
+      >
+        <ZoomIn size={18} />
+      </button>
+      <div style={{ width: '1px', height: '24px', background: '#475569', alignSelf: 'center' }}></div>
+      <button
+        className={`btn ${gridSnap ? 'btn-primary' : 'btn-outline'}`}
+        onClick={() => setGridSnap(!gridSnap)}
+        style={{ padding: '0.5rem' }}
+        title={gridSnap ? 'Grid Snap: ON' : 'Grid Snap: OFF'}
+      >
+        <Grid3X3 size={18} />
+      </button>
+      <button
+        className="btn btn-outline"
+        onClick={() => setShowTemplates(!showTemplates)}
+        style={{ padding: '0.5rem' }}
+        title="Load Template"
+      >
+        <Layers size={18} />
+      </button>
+      <button
+        className={`btn ${showHierarchy ? 'btn-primary' : 'btn-outline'}`}
+        onClick={() => setShowHierarchy(!showHierarchy)}
+        style={{ padding: '0.5rem' }}
+        title="Toggle Hierarchy View"
+      >
+        <FolderTree size={18} />
+      </button>
+      <button
+        className="btn btn-outline"
+        onClick={exportToPNG}
+        disabled={nodes.length === 0}
+        style={{ padding: '0.5rem' }}
+        title="Export to PNG"
+      >
+        <Download size={18} />
+      </button>
+      <button
+        className="btn btn-primary"
+        onClick={() => saveMutation.mutate()}
+        disabled={saveMutation.isPending || !currentSite}
+      >
+        <Save size={18} />
+        {saveMutation.isPending ? 'Saving...' : 'Save'}
+      </button>
+    </div>
+  )
+
+  const renderAssetTreeContent = () => (
+    <>
+      {renderAssetTreeToolbar()}
 
       {showTemplates && (
         <div className="card" style={{ marginBottom: '1rem', padding: '1rem', background: '#1e293b', border: '1px solid #334155' }}>
@@ -1219,6 +1646,82 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
         </div>
       </div>
 
+      {showHierarchy && nodes.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          right: '1.5rem',
+          top: '8rem',
+          width: '280px',
+          maxHeight: 'calc(100vh - 12rem)',
+          background: '#1e293b',
+          borderRadius: '12px',
+          border: '1px solid #334155',
+          overflow: 'hidden',
+          zIndex: 100
+        }}>
+          <div style={{
+            padding: '0.75rem 1rem',
+            borderBottom: '1px solid #334155',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+              <FolderTree size={16} color="#10b981" />
+              Hierarchy ({nodes.length} assets)
+            </h3>
+            <button className="btn btn-ghost" onClick={() => setShowHierarchy(false)} style={{ padding: '0.25rem' }}>
+              <X size={14} />
+            </button>
+          </div>
+          <div style={{ padding: '0.5rem', maxHeight: 'calc(100vh - 16rem)', overflowY: 'auto' }}>
+            {getHierarchyTree().map(node => (
+              <HierarchyNode
+                key={node.id}
+                node={node}
+                level={0}
+                expandedNodes={expandedNodes}
+                toggleExpand={toggleNodeExpand}
+                getChildren={getChildren}
+                getNodeColor={getNodeColor}
+                selectedNode={selectedNode}
+                setSelectedNode={setSelectedNode}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  return (
+    <>
+      <TabPanel
+        tabs={BUILD_TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        variant="underline"
+      >
+        {(tab) => {
+          switch (tab) {
+            case 'asset-tree':
+              return renderAssetTreeContent()
+            case 'panel-import':
+              return renderPanelImportContent()
+            case 'relationships':
+              return renderBuildRelationshipsContent()
+            case 'meter-mapping':
+              return renderBuildMeterMappingContent()
+            case 'loss-calculation':
+              return renderBuildLossCalculationContent()
+            case 'diagram-export':
+              return renderBuildDiagramExportContent()
+            default:
+              return renderAssetTreeContent()
+          }
+        }}
+      </TabPanel>
+
       {editingNode && (
         <div style={{
           position: 'fixed',
@@ -1341,185 +1844,6 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
                 Done
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showUploadModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div className="card" style={{ width: '500px', maxWidth: '90vw', padding: '1.5rem', background: '#1e293b', border: '1px solid #334155' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
-                  <FileImage size={24} color="#10b981" />
-                  AI Panel Diagram Import
-                </h2>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                  Upload a panel diagram image or PDF to auto-generate your digital twin
-                </p>
-              </div>
-              <button
-                className="btn btn-ghost"
-                onClick={() => { setShowUploadModal(false); setUploadFile(null); setAnalysisError(null) }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,.pdf"
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-            />
-
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: '2px dashed #475569',
-                borderRadius: '12px',
-                padding: '2rem',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: uploadFile ? '#1e3a5f' : '#0f172a',
-                transition: 'all 0.2s'
-              }}
-            >
-              {uploadFile ? (
-                <div>
-                  <FileImage size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
-                  <p style={{ fontWeight: 600, color: '#f8fafc' }}>{uploadFile.name}</p>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                    {(uploadFile.size / 1024).toFixed(1)} KB
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <Upload size={48} color="#64748b" style={{ margin: '0 auto 1rem' }} />
-                  <p style={{ fontWeight: 600, color: '#f8fafc' }}>Drop panel diagram here</p>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                    or click to browse (PNG, JPG, PDF)
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {analysisError && (
-              <div style={{
-                marginTop: '1rem',
-                padding: '0.75rem',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid #ef4444',
-                borderRadius: '8px',
-                color: '#fca5a5',
-                fontSize: '0.875rem'
-              }}>
-                {analysisError}
-              </div>
-            )}
-
-            <div style={{
-              marginTop: '1.5rem',
-              padding: '1rem',
-              background: '#0f172a',
-              borderRadius: '8px',
-              fontSize: '0.875rem',
-              color: '#94a3b8'
-            }}>
-              <strong style={{ color: '#f8fafc' }}>What AI will extract:</strong>
-              <ul style={{ marginTop: '0.5rem', marginLeft: '1.25rem' }}>
-                <li>Main panels, sub-panels, distribution boards</li>
-                <li>Transformers, breakers, generators</li>
-                <li>Individual loads and consumers</li>
-                <li>Parent-child connections (hierarchy)</li>
-                <li>Rated capacities and voltages</li>
-              </ul>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button
-                className="btn btn-outline"
-                onClick={() => { setShowUploadModal(false); setUploadFile(null); setAnalysisError(null) }}
-                style={{ flex: 1 }}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={analyzeDiagram}
-                disabled={!uploadFile || isAnalyzing}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Zap size={18} />
-                    Generate Digital Twin
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showHierarchy && nodes.length > 0 && (
-        <div style={{
-          position: 'fixed',
-          right: '1.5rem',
-          top: '8rem',
-          width: '280px',
-          maxHeight: 'calc(100vh - 12rem)',
-          background: '#1e293b',
-          borderRadius: '12px',
-          border: '1px solid #334155',
-          overflow: 'hidden',
-          zIndex: 100
-        }}>
-          <div style={{
-            padding: '0.75rem 1rem',
-            borderBottom: '1px solid #334155',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <h3 style={{ fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
-              <FolderTree size={16} color="#10b981" />
-              Hierarchy ({nodes.length} assets)
-            </h3>
-            <button className="btn btn-ghost" onClick={() => setShowHierarchy(false)} style={{ padding: '0.25rem' }}>
-              <X size={14} />
-            </button>
-          </div>
-          <div style={{ padding: '0.5rem', maxHeight: 'calc(100vh - 16rem)', overflowY: 'auto' }}>
-            {getHierarchyTree().map(node => (
-              <HierarchyNode
-                key={node.id}
-                node={node}
-                level={0}
-                expandedNodes={expandedNodes}
-                toggleExpand={toggleNodeExpand}
-                getChildren={getChildren}
-                getNodeColor={getNodeColor}
-                selectedNode={selectedNode}
-                setSelectedNode={setSelectedNode}
-              />
-            ))}
           </div>
         </div>
       )}

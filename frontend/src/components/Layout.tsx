@@ -79,11 +79,18 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    label: 'Data & Reports',
+    label: 'Devices',
+    icon: Plug,
+    items: [
+      { path: '/devices', icon: Plug, label: 'All Devices' },
+      { path: '/device-config', icon: FileSpreadsheet, label: 'Configuration' },
+      { path: '/device-health', icon: Activity, label: 'Health Monitor' },
+    ]
+  },
+  {
+    label: 'Reports & ESG',
     icon: FileText,
     items: [
-      { path: '/data-ingestion', icon: FileSpreadsheet, label: 'Data Ingestion' },
-      { path: '/integrations', icon: Plug, label: 'Integrations' },
       { path: '/reports', icon: FileText, label: 'Reports' },
       { path: '/carbon-esg', icon: Leaf, label: 'Carbon & ESG' },
     ]

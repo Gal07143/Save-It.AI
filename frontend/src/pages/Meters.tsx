@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { 
   Gauge, CheckCircle, XCircle, Clock, Plus, Wifi, WifiOff, 
-  Settings, RefreshCw, Link2, Radio, AlertTriangle, Trash2
+  Settings, RefreshCw, Link2, Radio, AlertTriangle, Trash2,
+  Activity, Calendar, AlertOctagon, BarChart3, Zap, List
 } from 'lucide-react'
+import TabPanel, { Tab } from '../components/TabPanel'
 
 interface MeterWithConnectivity {
   id: number
@@ -145,19 +147,17 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
     }
   }
 
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Meters</h1>
-          <p style={{ color: '#64748b' }}>Monitor meter status, readings, and connectivity</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setShowAddMeter(true)}>
-          <Plus size={18} />
-          Add Meter
-        </button>
-      </div>
+  const tabs: Tab[] = [
+    { id: 'all-meters', label: 'All Meters', icon: List, badge: metersWithConnectivity.length },
+    { id: 'readings', label: 'Readings', icon: Activity },
+    { id: 'calibration', label: 'Calibration', icon: Calendar },
+    { id: 'anomalies', label: 'Anomalies', icon: AlertOctagon },
+    { id: 'comparison', label: 'Comparison', icon: BarChart3 },
+    { id: 'ct-pt-ratios', label: 'CT/PT Ratios', icon: Zap }
+  ]
 
+  const renderAllMetersTab = () => (
+    <>
       <div className="grid grid-4" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Total Meters</div>
@@ -333,6 +333,119 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
           </div>
         )}
       </div>
+    </>
+  )
+
+  const renderReadingsTab = () => (
+    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+      <Activity size={48} color="#3b82f6" style={{ margin: '0 auto 1rem' }} />
+      <h3 style={{ marginBottom: '0.5rem' }}>Meter Readings</h3>
+      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
+        View latest and historical readings from all connected meters. Track energy consumption patterns, peak demand periods, and usage trends over time.
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+        <span className="badge badge-info">Real-time Data</span>
+        <span className="badge badge-info">Historical Charts</span>
+        <span className="badge badge-info">Export Options</span>
+      </div>
+    </div>
+  )
+
+  const renderCalibrationTab = () => (
+    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+      <Calendar size={48} color="#8b5cf6" style={{ margin: '0 auto 1rem' }} />
+      <h3 style={{ marginBottom: '0.5rem' }}>Calibration Management</h3>
+      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
+        Schedule and track meter calibration activities. Maintain compliance records, set calibration reminders, and view calibration history for each meter.
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+        <span className="badge badge-warning">Schedules</span>
+        <span className="badge badge-warning">Records</span>
+        <span className="badge badge-warning">Certificates</span>
+      </div>
+    </div>
+  )
+
+  const renderAnomaliesTab = () => (
+    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+      <AlertOctagon size={48} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
+      <h3 style={{ marginBottom: '0.5rem' }}>Anomaly Detection</h3>
+      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
+        Detect unusual reading patterns and potential meter issues. AI-powered analysis identifies spikes, drops, and irregular consumption that may indicate problems.
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+        <span className="badge badge-danger">Alerts</span>
+        <span className="badge badge-danger">Pattern Analysis</span>
+        <span className="badge badge-danger">Thresholds</span>
+      </div>
+    </div>
+  )
+
+  const renderComparisonTab = () => (
+    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+      <BarChart3 size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
+      <h3 style={{ marginBottom: '0.5rem' }}>Meter Comparison</h3>
+      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
+        Compare readings across multiple meters side-by-side. Identify efficiency variations, benchmark performance, and analyze consumption differences between locations.
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+        <span className="badge badge-success">Side-by-Side</span>
+        <span className="badge badge-success">Benchmarking</span>
+        <span className="badge badge-success">Charts</span>
+      </div>
+    </div>
+  )
+
+  const renderCTPTRatiosTab = () => (
+    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+      <Zap size={48} color="#f59e0b" style={{ margin: '0 auto 1rem' }} />
+      <h3 style={{ marginBottom: '0.5rem' }}>CT/PT Ratio Management</h3>
+      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
+        Configure and manage Current Transformer (CT) and Potential Transformer (PT) ratios. Ensure accurate measurement scaling for high-voltage metering installations.
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+        <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>CT Ratios</span>
+        <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>PT Ratios</span>
+        <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>Scaling</span>
+      </div>
+    </div>
+  )
+
+  const renderTabContent = (activeTab: string) => {
+    switch (activeTab) {
+      case 'all-meters':
+        return renderAllMetersTab()
+      case 'readings':
+        return renderReadingsTab()
+      case 'calibration':
+        return renderCalibrationTab()
+      case 'anomalies':
+        return renderAnomaliesTab()
+      case 'comparison':
+        return renderComparisonTab()
+      case 'ct-pt-ratios':
+        return renderCTPTRatiosTab()
+      default:
+        return renderAllMetersTab()
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Meters</h1>
+          <p style={{ color: '#64748b' }}>Monitor meter status, readings, and connectivity</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowAddMeter(true)}>
+          <Plus size={18} />
+          Add Meter
+        </button>
+      </div>
+
+      <TabPanel tabs={tabs} variant="default" size="md">
+        {renderTabContent}
+      </TabPanel>
 
       {showAddMeter && (
         <div className="modal-overlay" onClick={() => setShowAddMeter(false)}>

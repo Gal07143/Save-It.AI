@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Tariff } from '../services/api'
-import { DollarSign, Plus, Clock, Zap, Trash2 } from 'lucide-react'
+import { DollarSign, Plus, Clock, Zap, Trash2, Calendar, Gift, TrendingUp, Calculator, Upload } from 'lucide-react'
+import TabPanel, { Tab } from '../components/TabPanel'
 
 export default function Tariffs({ currentSite }: { currentSite: number | null }) {
   const queryClient = useQueryClient()
@@ -58,13 +59,18 @@ export default function Tariffs({ currentSite }: { currentSite: number | null })
     { value: 'demand', label: 'Demand Charges', description: 'Includes peak demand charges' },
   ]
 
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Tariff Management</h1>
-          <p style={{ color: '#64748b' }}>Configure electricity rate schedules and pricing structures</p>
-        </div>
+  const tabs: Tab[] = [
+    { id: 'rate-structures', label: 'Rate Structures', icon: DollarSign },
+    { id: 'rate-schedules', label: 'Rate Schedules', icon: Calendar },
+    { id: 'holidays', label: 'Holidays', icon: Gift },
+    { id: 'demand-charges', label: 'Demand Charges', icon: TrendingUp },
+    { id: 'rate-simulator', label: 'Rate Simulator', icon: Calculator },
+    { id: 'import-rates', label: 'Import Rates', icon: Upload },
+  ]
+
+  const renderRateStructures = () => (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
         <button
           className="btn btn-primary"
           onClick={() => setShowForm(!showForm)}
@@ -294,6 +300,69 @@ export default function Tariffs({ currentSite }: { currentSite: number | null })
           </div>
         )}
       </div>
+    </>
+  )
+
+  const renderPlaceholder = (icon: React.ElementType, title: string, description: string) => {
+    const Icon = icon
+    return (
+      <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+        <Icon size={64} style={{ marginBottom: '1.5rem', color: '#10b981', opacity: 0.6 }} />
+        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem' }}>{title}</h3>
+        <p style={{ color: '#64748b', maxWidth: '500px', margin: '0 auto' }}>{description}</p>
+      </div>
+    )
+  }
+
+  const renderTabContent = (activeTab: string) => {
+    switch (activeTab) {
+      case 'rate-structures':
+        return renderRateStructures()
+      case 'rate-schedules':
+        return renderPlaceholder(
+          Calendar,
+          'Rate Schedules',
+          'Configure time-based rate calendars with seasonal adjustments, weekday/weekend variations, and special rate periods throughout the year.'
+        )
+      case 'holidays':
+        return renderPlaceholder(
+          Gift,
+          'Holiday Rate Exceptions',
+          'Define holidays and special dates when alternative rate structures apply. Configure off-peak rates for major holidays and custom observance dates.'
+        )
+      case 'demand-charges':
+        return renderPlaceholder(
+          TrendingUp,
+          'Demand Charges',
+          'Track and manage peak demand charges. Monitor 15-minute demand intervals, set demand thresholds, and analyze peak load patterns to minimize demand costs.'
+        )
+      case 'rate-simulator':
+        return renderPlaceholder(
+          Calculator,
+          'Rate Simulator',
+          'Compare "what-if" scenarios across different rate structures. Simulate how changes in consumption patterns or rate plans would impact your energy costs.'
+        )
+      case 'import-rates':
+        return renderPlaceholder(
+          Upload,
+          'Import Utility Rates',
+          'Import rate schedules directly from utility rate sheets. Supports CSV, Excel, and common utility format imports for quick rate configuration.'
+        )
+      default:
+        return renderRateStructures()
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Tariff Management</h1>
+        <p style={{ color: '#64748b' }}>Configure electricity rate schedules and pricing structures</p>
+      </div>
+
+      <TabPanel tabs={tabs} variant="default">
+        {renderTabContent}
+      </TabPanel>
     </div>
   )
 }
