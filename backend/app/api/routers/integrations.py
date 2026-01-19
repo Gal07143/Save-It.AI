@@ -1,11 +1,12 @@
 """Data Source Integration API endpoints."""
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import csv
 import io
+import socket
 
 from backend.app.core.database import get_db
 from backend.app.models import DataSource, Gateway, DeviceTemplate, ModbusRegister, CommunicationLog
@@ -1099,4 +1100,161 @@ def clone_data_source(
         "message": f"Data source cloned successfully",
         "new_source_id": new_source.id,
         "registers_cloned": len(original_registers)
+    }
+
+
+@router.post("/discover")
+def discover_devices(
+    start_ip: str,
+    end_ip: str,
+    port: int = 502,
+    timeout: float = 0.5,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Scan IP range for Modbus TCP devices.
+    
+    This performs a simple port scan to find devices listening on the specified port.
+    For production, implement proper Modbus device identification.
+    """
+    discovered = []
+    scanned = 0
+    
+    try:
+        start_parts = [int(x) for x in start_ip.split('.')]
+        end_parts = [int(x) for x in end_ip.split('.')]
+        
+        if len(start_parts) != 4 or len(end_parts) != 4:
+            raise ValueError("Invalid IP format")
+        
+        start_num = (start_parts[0] << 24) + (start_parts[1] << 16) + (start_parts[2] << 8) + start_parts[3]
+        end_num = (end_parts[0] << 24) + (end_parts[1] << 16) + (end_parts[2] << 8) + end_parts[3]
+        
+        if end_num - start_num > 255:
+            raise HTTPException(status_code=400, detail="IP range too large (max 256 addresses)")
+        
+        for ip_num in range(start_num, end_num + 1):
+            ip = f"{(ip_num >> 24) & 0xFF}.{(ip_num >> 16) & 0xFF}.{(ip_num >> 8) & 0xFF}.{ip_num & 0xFF}"
+            scanned += 1
+            
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(timeout)
+                result = sock.connect_ex((ip, port))
+                sock.close()
+                
+                if result == 0:
+                    discovered.append({
+                        "ip": ip,
+                        "port": port,
+                        "protocol": "modbus_tcp",
+                        "status": "reachable"
+                    })
+            except Exception:
+                pass
+        
+        return {
+            "success": True,
+            "scanned": scanned,
+            "discovered": discovered,
+            "message": f"Found {len(discovered)} device(s) out of {scanned} scanned"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{source_id}/commissioning")
+def get_commissioning_status(source_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Get device commissioning checklist status."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    registers = db.query(ModbusRegister).filter(ModbusRegister.data_source_id == source_id).all()
+    
+    recent_log = db.query(CommunicationLog).filter(
+        CommunicationLog.data_source_id == source_id,
+        CommunicationLog.success == True
+    ).order_by(CommunicationLog.timestamp.desc()).first()
+    
+    checklist = [
+        {
+            "step": "basic_info",
+            "name": "Basic Information",
+            "description": "Device name and location configured",
+            "completed": bool(source.name and len(source.name) > 2),
+            "required": True
+        },
+        {
+            "step": "connection",
+            "name": "Connection Details",
+            "description": "Host/IP and protocol configured",
+            "completed": bool(source.host and source.protocol),
+            "required": True
+        },
+        {
+            "step": "registers",
+            "name": "Register Configuration",
+            "description": "At least one register configured",
+            "completed": len(registers) > 0,
+            "required": True
+        },
+        {
+            "step": "communication_test",
+            "name": "Communication Test",
+            "description": "Successful data read from device",
+            "completed": recent_log is not None,
+            "required": True
+        },
+        {
+            "step": "firmware_info",
+            "name": "Firmware Information",
+            "description": "Firmware version and serial number recorded",
+            "completed": bool(source.firmware_version or source.serial_number),
+            "required": False
+        },
+        {
+            "step": "validation_rules",
+            "name": "Validation Rules",
+            "description": "Data validation rules configured",
+            "completed": False,
+            "required": False
+        }
+    ]
+    
+    required_complete = sum(1 for c in checklist if c["required"] and c["completed"])
+    required_total = sum(1 for c in checklist if c["required"])
+    optional_complete = sum(1 for c in checklist if not c["required"] and c["completed"])
+    
+    return {
+        "device_id": source_id,
+        "device_name": source.name,
+        "checklist": checklist,
+        "required_complete": required_complete,
+        "required_total": required_total,
+        "optional_complete": optional_complete,
+        "is_commissioned": required_complete == required_total,
+        "progress_percent": round((required_complete / required_total) * 100) if required_total > 0 else 0
+    }
+
+
+@router.post("/{source_id}/commission")
+def mark_commissioned(source_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Mark device as commissioned if all required steps are complete."""
+    status = get_commissioning_status(source_id, db)
+    
+    if not status["is_commissioned"]:
+        incomplete = [c["name"] for c in status["checklist"] if c["required"] and not c["completed"]]
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot commission device. Incomplete steps: {', '.join(incomplete)}"
+        )
+    
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    source.is_active = True
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Device commissioned successfully",
+        "device_id": source_id
     }

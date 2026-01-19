@@ -13,6 +13,8 @@ import ValidationRulesManager from '../components/ValidationRulesManager'
 import DeviceGroupsManager from '../components/DeviceGroupsManager'
 import RetryManager from '../components/RetryManager'
 import FirmwareTracker from '../components/FirmwareTracker'
+import DeviceDiscovery from '../components/DeviceDiscovery'
+import DeviceCommissioning from '../components/DeviceCommissioning'
 
 const sourceTypeLabels: Record<string, string> = {
   modbus_tcp: 'Modbus TCP',
@@ -58,6 +60,9 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [showQRModal, setShowQRModal] = useState(false)
   const [qrSourceId, setQRSourceId] = useState<number | null>(null)
   const [qrData, setQRData] = useState<any>(null)
+  const [showDiscovery, setShowDiscovery] = useState(false)
+  const [showCommissioning, setShowCommissioning] = useState(false)
+  const [commissioningSourceId, setCommissioningSourceId] = useState<number | null>(null)
   
   const [newSource, setNewSource] = useState({
     name: '',
@@ -334,6 +339,9 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
           <button className="btn" onClick={() => setShowConnectionTest(true)}>
             <Activity size={16} /> Test Connection
           </button>
+          <button className="btn" onClick={() => setShowDiscovery(true)}>
+            <Wifi size={16} /> Discover
+          </button>
           <button className="btn btn-primary" onClick={() => setShowOnboardingWizard(true)} style={{ backgroundColor: '#10b981' }}>
             <Wand2 size={16} /> Device Wizard
           </button>
@@ -442,6 +450,18 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                       title="Clone Device"
                     >
                       <ChevronRight size={14} />
+                    </button>
+                    <button 
+                      className="btn btn-sm" 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setCommissioningSourceId(source.id)
+                        setShowCommissioning(true)
+                      }}
+                      title="Commissioning"
+                      style={{ color: '#10b981' }}
+                    >
+                      <CheckCircle size={14} />
                     </button>
                   </div>
                 </td>
@@ -1496,6 +1516,31 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {showDiscovery && (
+        <DeviceDiscovery 
+          onClose={() => setShowDiscovery(false)}
+          onDeviceSelect={(device) => {
+            setTestHost(device.ip)
+            setTestPort(device.port)
+            setShowDiscovery(false)
+            setShowOnboardingWizard(true)
+          }}
+        />
+      )}
+
+      {showCommissioning && commissioningSourceId && (
+        <DeviceCommissioning
+          sourceId={commissioningSourceId}
+          onClose={() => {
+            setShowCommissioning(false)
+            setCommissioningSourceId(null)
+          }}
+          onCommissioned={() => {
+            queryClient.invalidateQueries({ queryKey: ['data-sources', currentSite] })
+          }}
+        />
       )}
     </div>
   )

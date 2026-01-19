@@ -30,6 +30,7 @@ import PVDesign from './pages/PVDesign'
 import CarbonESG from './pages/CarbonESG'
 import EnergyAssets from './pages/EnergyAssets'
 import DigitalTwin from './pages/DigitalTwin'
+import PublicStatus from './pages/PublicStatus'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -71,6 +72,10 @@ function AppRoutes() {
     <Switch>
       <Route path="/login">
         {() => isAuthenticated ? <Redirect to="/" /> : <Login />}
+      </Route>
+      
+      <Route path="/status/:token">
+        {() => <PublicStatus />}
       </Route>
       
       <Route path="/">

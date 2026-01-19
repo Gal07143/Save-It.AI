@@ -260,6 +260,20 @@ export const api = {
       return fetchApi<CloneResult>(`/data-sources/${sourceId}/clone?${params.toString()}`, { method: 'POST' })
     },
   },
+  deviceDiscovery: {
+    scan: (startIp: string, endIp: string, port: number = 502, timeout: number = 0.5) => {
+      const params = new URLSearchParams()
+      params.append('start_ip', startIp)
+      params.append('end_ip', endIp)
+      params.append('port', String(port))
+      params.append('timeout', String(timeout))
+      return fetchApi<DiscoveryResult>(`/data-sources/discover?${params.toString()}`, { method: 'POST' })
+    },
+  },
+  commissioning: {
+    getStatus: (sourceId: number) => fetchApi<CommissioningStatus>(`/data-sources/${sourceId}/commissioning`),
+    complete: (sourceId: number) => fetchApi<{ success: boolean; message: string }>(`/data-sources/${sourceId}/commission`, { method: 'POST' }),
+  },
   notifications: {
     list: (siteId?: number, unreadOnly?: boolean) => 
       fetchApi<Notification[]>(`/notifications?${siteId ? `site_id=${siteId}&` : ''}${unreadOnly ? 'unread_only=true' : ''}`),
@@ -1160,4 +1174,37 @@ export interface CloneResult {
   message: string
   new_source_id: number
   registers_cloned: number
+}
+
+export interface DiscoveredDevice {
+  ip: string
+  port: number
+  protocol: string
+  status: string
+}
+
+export interface DiscoveryResult {
+  success: boolean
+  scanned: number
+  discovered: DiscoveredDevice[]
+  message: string
+}
+
+export interface CommissioningCheckItem {
+  step: string
+  name: string
+  description: string
+  completed: boolean
+  required: boolean
+}
+
+export interface CommissioningStatus {
+  device_id: number
+  device_name: string
+  checklist: CommissioningCheckItem[]
+  required_complete: number
+  required_total: number
+  optional_complete: number
+  is_commissioned: boolean
+  progress_percent: number
 }
