@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { 
   Clock, Building2, Gauge, Receipt, FileText, User,
   Plus, Edit, Trash2, Eye
 } from 'lucide-react'
-import { api } from '../services/api'
 
 interface Activity {
   id: number
@@ -34,7 +32,7 @@ const resourceIcons: Record<string, React.ElementType> = {
 export default function RecentActivity() {
   const { data: activities } = useQuery<Activity[]>({
     queryKey: ['recent-activity'],
-    queryFn: () => api.auditLogs?.list?.({ limit: 10 }) || Promise.resolve([]),
+    queryFn: () => Promise.resolve([]),
     refetchInterval: 30000,
   })
 

@@ -16,7 +16,7 @@ export default function Tooltip({
   const [visible, setVisible] = useState(false)
   const [coords, setCoords] = useState({ x: 0, y: 0 })
   const triggerRef = useRef<HTMLSpanElement>(null)
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
   const showTooltip = () => {
     timeoutRef.current = setTimeout(() => {

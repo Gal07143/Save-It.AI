@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Shield, Users, Building2, FileText, Key, Activity, Settings, Plus, User } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
+import { useToast } from '../contexts/ToastContext'
 
 const API_BASE = '/api/v1'
 
@@ -37,6 +38,14 @@ interface AuditLog {
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users')
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [showAddOrg, setShowAddOrg] = useState(false)
+  const [showAddRole, setShowAddRole] = useState(false)
+  const [showAddApiKey, setShowAddApiKey] = useState(false)
+  const [newUser, setNewUser] = useState({ email: '', first_name: '', last_name: '', role: 'viewer' })
+  const [newOrg, setNewOrg] = useState({ name: '', slug: '', subscription_plan: 'basic' })
+  const { success, error } = useToast()
+  const queryClient = useQueryClient()
 
   const { data: organizations } = useQuery<Organization[]>({
     queryKey: ['organizations'],
@@ -78,7 +87,7 @@ export default function Admin() {
           <div className="card">
             <div className="card-header">
               <h2 className="card-title">Users</h2>
-              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => setShowAddUser(true)}>
                 <Plus size={16} />
                 Add User
               </button>
@@ -140,7 +149,7 @@ export default function Admin() {
           <div className="card">
             <div className="card-header">
               <h2 className="card-title">Organizations</h2>
-              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => setShowAddOrg(true)}>
                 <Plus size={16} />
                 Add Organization
               </button>
@@ -192,7 +201,7 @@ export default function Admin() {
           <div className="card">
             <div className="card-header">
               <h2 className="card-title">Roles & Permissions</h2>
-              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => setShowAddRole(true)}>
                 <Plus size={16} />
                 Create Role
               </button>
@@ -281,7 +290,7 @@ export default function Admin() {
           <div className="card">
             <div className="card-header">
               <h2 className="card-title">API Keys</h2>
-              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => setShowAddApiKey(true)}>
                 <Plus size={16} />
                 Generate API Key
               </button>
@@ -393,6 +402,148 @@ export default function Admin() {
       >
         {renderTabContent}
       </TabPanel>
+
+      {showAddUser && (
+        <div className="modal-overlay" onClick={() => setShowAddUser(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Add User</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddUser(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="user@example.com" />
+              </div>
+              <div className="grid grid-2" style={{ gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label">First Name</label>
+                  <input type="text" value={newUser.first_name} onChange={e => setNewUser({...newUser, first_name: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Last Name</label>
+                  <input type="text" value={newUser.last_name} onChange={e => setNewUser({...newUser, last_name: e.target.value})} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Role</label>
+                <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                  <option value="viewer">Viewer</option>
+                  <option value="operator">Operator</option>
+                  <option value="org_admin">Org Admin</option>
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowAddUser(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => { success('User invitation sent'); setShowAddUser(false); }}>Send Invite</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddOrg && (
+        <div className="modal-overlay" onClick={() => setShowAddOrg(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Add Organization</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddOrg(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Organization Name</label>
+                <input type="text" value={newOrg.name} onChange={e => setNewOrg({...newOrg, name: e.target.value})} placeholder="Acme Corp" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Slug</label>
+                <input type="text" value={newOrg.slug} onChange={e => setNewOrg({...newOrg, slug: e.target.value})} placeholder="acme-corp" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Subscription Plan</label>
+                <select value={newOrg.subscription_plan} onChange={e => setNewOrg({...newOrg, subscription_plan: e.target.value})}>
+                  <option value="basic">Basic</option>
+                  <option value="professional">Professional</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowAddOrg(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => { success('Organization created'); setShowAddOrg(false); queryClient.invalidateQueries({ queryKey: ['organizations'] }); }}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddRole && (
+        <div className="modal-overlay" onClick={() => setShowAddRole(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Create Role</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddRole(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Role Name</label>
+                <input type="text" placeholder="e.g., Energy Analyst" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Permissions</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" /> View Dashboard</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" /> Manage Sites</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" /> Manage Bills</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" /> View Reports</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" /> Admin Access</label>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowAddRole(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => { success('Role created'); setShowAddRole(false); }}>Create Role</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddApiKey && (
+        <div className="modal-overlay" onClick={() => setShowAddApiKey(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Generate API Key</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddApiKey(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Key Name</label>
+                <input type="text" placeholder="e.g., Production Integration" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Expiration</label>
+                <select>
+                  <option value="30">30 days</option>
+                  <option value="90">90 days</option>
+                  <option value="365">1 year</option>
+                  <option value="never">Never</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Scopes</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" defaultChecked /> Read Sites</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" defaultChecked /> Read Meters</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" /> Write Data</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="checkbox" /> Admin Access</label>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowAddApiKey(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => { success('API key generated'); setShowAddApiKey(false); }}>Generate Key</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
