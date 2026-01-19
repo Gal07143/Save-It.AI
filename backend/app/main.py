@@ -17,6 +17,7 @@ from datetime import datetime
 
 from backend.app.core.database import Base, engine, SessionLocal
 from backend.app.api.routers import all_routers
+from backend.app.routers.infrastructure import router as infrastructure_router
 from backend.app.middleware import (
     RateLimitMiddleware,
     AuditLogMiddleware,
@@ -62,10 +63,26 @@ async def lifespan(app: FastAPI):
     await job_queue.start()
     print("Background job queue started")
     
+    from backend.app.services.polling_service import polling_service
+    from backend.app.services.scheduler_service import scheduler_service, register_default_tasks
+    from backend.app.services.event_bus import event_bus, register_default_handlers
+    
+    await polling_service.start()
+    print("Polling service started")
+    
+    register_default_tasks()
+    await scheduler_service.start()
+    print("Scheduler service started")
+    
+    await register_default_handlers()
+    print("Event handlers registered")
+    
     yield
     
+    await polling_service.stop()
+    await scheduler_service.stop()
     await job_queue.stop()
-    print("Background job queue stopped")
+    print("Background services stopped")
 
 
 app = FastAPI(
@@ -97,6 +114,8 @@ app.middleware("http")(error_handler_middleware)
 
 for router in all_routers:
     app.include_router(router)
+
+app.include_router(infrastructure_router, prefix="/api/v1")
 
 
 @app.get("/")
