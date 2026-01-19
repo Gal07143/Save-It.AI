@@ -7,6 +7,7 @@ import {
   Scale, AlertCircle, TrendingUp, Paperclip
 } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
+import { useToast } from '../contexts/ToastContext'
 
 interface NewBillForm {
   site_id: number
@@ -25,6 +26,7 @@ interface BillsProps {
 
 export default function Bills({ currentSite: _currentSite }: BillsProps) {
   const queryClient = useQueryClient()
+  const { info } = useToast()
   const [activeTab, setActiveTab] = useState('all-bills')
   const [validatingId, setValidatingId] = useState<number | null>(null)
   const [validationResult, setValidationResult] = useState<any>(null)
@@ -533,7 +535,7 @@ export default function Bills({ currentSite: _currentSite }: BillsProps) {
         <p style={{ color: '#64748b', marginBottom: '1rem' }}>
           When you identify discrepancies during validation, you can create disputes here to track their resolution.
         </p>
-        <button className="btn btn-outline" disabled>
+        <button className="btn btn-outline" onClick={() => info('Coming Soon', 'Dispute creation will be available in a future update')}>
           <Plus size={16} style={{ marginRight: '0.5rem' }} />
           Create Dispute
         </button>

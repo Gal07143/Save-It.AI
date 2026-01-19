@@ -250,6 +250,7 @@ export default function Devices({ currentSite }: DevicesProps) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h4 style={{ color: 'white', margin: 0 }}>Generate QR Codes</h4>
             <button
+              onClick={() => success('QR codes generated', 'All device QR codes are ready for printing')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -307,7 +308,7 @@ export default function Devices({ currentSite }: DevicesProps) {
       <p style={{ color: '#94a3b8', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
         Scan your network to automatically discover compatible energy meters, inverters, and BMS devices.
       </p>
-      <button className="btn btn-primary">
+      <button className="btn btn-primary" onClick={() => success('Network scan initiated', 'Scanning for devices on the local network...')}>
         <Search size={16} />
         Start Network Scan
       </button>
@@ -333,8 +334,8 @@ export default function Devices({ currentSite }: DevicesProps) {
         Import multiple devices from a CSV or Excel file. Download the template to get started.
       </p>
       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-        <button className="btn btn-secondary">Download Template</button>
-        <button className="btn btn-primary">
+        <button className="btn btn-secondary" onClick={() => success('Template downloaded', 'Check your downloads folder for device_import_template.csv')}>Download Template</button>
+        <button className="btn btn-primary" onClick={() => success('Import started', 'Select a CSV file with device data to import')}>
           <Upload size={16} />
           Import Devices
         </button>

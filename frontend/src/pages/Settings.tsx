@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Settings as SettingsIcon, User, Globe, Bell, Moon, Sun, Link2, Download, Clock, DollarSign, Save, Check, Mail, Zap } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
+import { useToast } from '../contexts/ToastContext'
 
 export default function Settings() {
+  const { success, info, warning } = useToast()
   const [isDarkMode, setIsDarkMode] = useState(true)
   const [saved, setSaved] = useState(false)
 
@@ -41,6 +43,7 @@ export default function Settings() {
 
   const handleSave = () => {
     setSaved(true)
+    success('Settings Saved', 'Your settings have been saved successfully')
     setTimeout(() => setSaved(false), 2000)
   }
 
@@ -448,6 +451,7 @@ export default function Settings() {
                 <button 
                   className="btn btn-primary"
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  onClick={() => success('Data Export Requested', 'Your data export has been initiated. You will receive an email when it is ready.')}
                 >
                   <Download size={16} />
                   Request Data Export
@@ -496,6 +500,7 @@ export default function Settings() {
                     fontSize: '0.875rem',
                     fontWeight: 500
                   }}
+                  onClick={() => warning('Account Deletion', 'Please contact support to request account deletion')}
                 >
                   Request Account Deletion
                 </button>

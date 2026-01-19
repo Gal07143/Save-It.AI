@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { FileText, Download, FileSpreadsheet, Building2, Gauge, Receipt, BarChart3, Sun, Zap, DollarSign, Shield, Wrench, Clock, Calendar, Mail, Plus } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
+import { useToast } from '../contexts/ToastContext'
 
 export default function Reports({ currentSite }: { currentSite: number | null }) {
+  const { info } = useToast()
   const [activeTab, setActiveTab] = useState('site-summary')
   const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
 
@@ -362,7 +364,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
           <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
             Detailed breakdown of energy costs by site, meter, and time period
           </p>
-          <button className="btn btn-secondary" disabled style={{ opacity: 0.6 }}>
+          <button className="btn btn-secondary" onClick={() => info('Cost Analysis', 'This feature is coming soon')}>
             Coming Soon
           </button>
         </div>
@@ -389,7 +391,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
           <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
             Track energy savings from optimization and efficiency measures
           </p>
-          <button className="btn btn-secondary" disabled style={{ opacity: 0.6 }}>
+          <button className="btn btn-secondary" onClick={() => info('Savings Reports', 'This feature is coming soon')}>
             Coming Soon
           </button>
         </div>
@@ -416,7 +418,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
           <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
             Compare budgeted energy costs against actual spending
           </p>
-          <button className="btn btn-secondary" disabled style={{ opacity: 0.6 }}>
+          <button className="btn btn-secondary" onClick={() => info('Budget vs Actual', 'This feature is coming soon')}>
             Coming Soon
           </button>
         </div>
@@ -455,7 +457,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
               <div style={{ fontSize: '0.875rem', color: '#64748b' }}>Energy management system compliance</div>
             </div>
           </div>
-          <button className="btn btn-secondary" disabled style={{ opacity: 0.6, width: '100%' }}>
+          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => info('ISO 50001 Report', 'This feature is coming soon')}>
             Coming Soon
           </button>
         </div>
@@ -482,7 +484,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
               <div style={{ fontSize: '0.875rem', color: '#64748b' }}>CDP and GHG Protocol reports</div>
             </div>
           </div>
-          <button className="btn btn-secondary" disabled style={{ opacity: 0.6, width: '100%' }}>
+          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => info('Carbon Disclosure', 'This feature is coming soon')}>
             Coming Soon
           </button>
         </div>
@@ -509,7 +511,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
               <div style={{ fontSize: '0.875rem', color: '#64748b' }}>National Australian Built Environment Rating</div>
             </div>
           </div>
-          <button className="btn btn-secondary" disabled style={{ opacity: 0.6, width: '100%' }}>
+          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => info('NABERS Rating', 'This feature is coming soon')}>
             Coming Soon
           </button>
         </div>
@@ -536,7 +538,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
               <div style={{ fontSize: '0.875rem', color: '#64748b' }}>EPC compliance documentation</div>
             </div>
           </div>
-          <button className="btn btn-secondary" disabled style={{ opacity: 0.6, width: '100%' }}>
+          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => info('Energy Performance Certificate', 'This feature is coming soon')}>
             Coming Soon
           </button>
         </div>
@@ -577,7 +579,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
         <p style={{ color: '#64748b', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
           Create tailored reports by selecting metrics, date ranges, and visualization options that match your specific needs.
         </p>
-        <button className="btn btn-primary" disabled style={{ opacity: 0.6 }}>
+        <button className="btn btn-primary" onClick={() => info('Custom Report Builder', 'This feature is coming soon')}>
           <Plus size={16} style={{ marginRight: '0.5rem' }} />
           Create Custom Report (Coming Soon)
         </button>
@@ -653,7 +655,7 @@ export default function Reports({ currentSite }: { currentSite: number | null })
             <div style={{ fontSize: '0.875rem', color: '#64748b' }}>PDF & Excel Formats</div>
           </div>
         </div>
-        <button className="btn btn-primary" disabled style={{ opacity: 0.6 }}>
+        <button className="btn btn-primary" onClick={() => info('Schedule Report', 'This feature is coming soon')}>
           <Plus size={16} style={{ marginRight: '0.5rem' }} />
           Schedule New Report (Coming Soon)
         </button>

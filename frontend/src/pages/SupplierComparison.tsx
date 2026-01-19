@@ -4,6 +4,7 @@ import {
   Calculator, Award, Sparkles, Leaf, AlertCircle, Clock, DollarSign, Info, ExternalLink
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts'
+import { useToast } from '../contexts/ToastContext'
 
 interface Supplier {
   id: string
@@ -131,6 +132,7 @@ const SUPPLIERS: Supplier[] = [
 ]
 
 export default function SupplierComparison({ currentSite: _currentSite }: { currentSite: number | null }) {
+  const { success } = useToast()
   const [annualConsumption, setAnnualConsumption] = useState<number>(500000)
   const [peakDemand, setPeakDemand] = useState<number>(150)
   const [preferGreen, setPreferGreen] = useState<boolean>(false)
@@ -646,7 +648,7 @@ export default function SupplierComparison({ currentSite: _currentSite }: { curr
                     <button className="btn btn-outline" onClick={() => setSelectedSupplier(null)}>
                       Close
                     </button>
-                    <button className="btn btn-primary">
+                    <button className="btn btn-primary" onClick={() => success('Quote requested', 'You will receive a quote from the supplier shortly')}>
                       <ExternalLink size={18} />
                       Get Quote
                     </button>

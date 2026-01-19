@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, AlertTriangle, CheckCircle, XCircle, Activity, TrendingUp, Wrench, BookOpen, Clock, FileText } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
+import { useToast } from '../contexts/ToastContext'
 
 const API_BASE = '/api/v1'
 
@@ -15,6 +16,7 @@ interface QualityDashboard {
 }
 
 export default function DataQuality() {
+  const { success, info } = useToast()
   const { data: dashboard, isLoading } = useQuery<QualityDashboard>({
     queryKey: ['data-quality-dashboard'],
     queryFn: async () => {
@@ -251,7 +253,7 @@ export default function DataQuality() {
                           <span className="badge badge-warning">Open</span>
                         </td>
                         <td>
-                          <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                          <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => info(`Viewing details for issue #${issue.id}`, `Type: ${issue.issue_type}`)}>
                             View Details
                           </button>
                         </td>
@@ -303,7 +305,7 @@ export default function DataQuality() {
                 <BookOpen size={18} color="#3b82f6" />
                 Data Quality Rules
               </h2>
-              <button className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+              <button className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }} onClick={() => info('Add Rule', 'Rule configuration dialog coming soon')}>
                 + Add Rule
               </button>
             </div>
@@ -334,10 +336,10 @@ export default function DataQuality() {
                         </span>
                       </td>
                       <td>
-                        <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', marginRight: '0.5rem' }}>
+                        <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', marginRight: '0.5rem' }} onClick={() => info(`Edit Rule: ${rule.name}`, 'Rule editor coming soon')}>
                           Edit
                         </button>
-                        <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                        <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => success(`Rule ${rule.active ? 'disabled' : 'enabled'}`, `${rule.name} has been ${rule.active ? 'disabled' : 'enabled'}`)}>
                           {rule.active ? 'Disable' : 'Enable'}
                         </button>
                       </td>

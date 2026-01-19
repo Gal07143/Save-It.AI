@@ -67,6 +67,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
             Seed Standards
           </button>
           <button
+            onClick={() => success('Template creation', 'Template editor coming soon')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -104,10 +105,10 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.25rem' }}>
-                  <button style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                  <button onClick={() => success('Edit template', `Editing ${template.name}`)} style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
                     <Edit size={14} />
                   </button>
-                  <button style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                  <button onClick={() => success('Template copied', `${template.name} has been duplicated`)} style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
                     <Copy size={14} />
                   </button>
                 </div>
@@ -212,6 +213,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
               >
                 <span style={{ color: 'white' }}>{template.name}</span>
                 <button
+                  onClick={() => success('Template exported', `${template.name} exported as JSON`)}
                   style={{
                     padding: '0.25rem 0.75rem',
                     background: 'rgba(16, 185, 129, 0.1)',
@@ -255,7 +257,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
               <td style={{ padding: '0.75rem', color: '#10b981' }}>0.95</td>
               <td style={{ padding: '0.75rem', color: '#94a3b8' }}>When null or out of range</td>
               <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                <button style={{ padding: '0.25rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                <button onClick={() => success('Edit default', 'Editing Power Factor default value')} style={{ padding: '0.25rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
                   <Edit size={14} />
                 </button>
               </td>
@@ -265,7 +267,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
               <td style={{ padding: '0.75rem', color: '#10b981' }}>230</td>
               <td style={{ padding: '0.75rem', color: '#94a3b8' }}>When communication fails</td>
               <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                <button style={{ padding: '0.25rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                <button onClick={() => success('Edit default', 'Editing Voltage default value')} style={{ padding: '0.25rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
                   <Edit size={14} />
                 </button>
               </td>
@@ -275,7 +277,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
               <td style={{ padding: '0.75rem', color: '#10b981' }}>50</td>
               <td style={{ padding: '0.75rem', color: '#94a3b8' }}>When null</td>
               <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                <button style={{ padding: '0.25rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                <button onClick={() => success('Edit default', 'Editing Frequency default value')} style={{ padding: '0.25rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
                   <Edit size={14} />
                 </button>
               </td>
@@ -284,6 +286,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
         </table>
         
         <button
+          onClick={() => success('Add default value', 'Default value editor coming soon')}
           style={{
             marginTop: '1rem',
             display: 'flex',

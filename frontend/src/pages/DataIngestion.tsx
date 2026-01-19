@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import FileUpload from '../components/FileUpload'
 import { getAuthToken } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 
 interface ColumnMapping {
   sourceColumn: string
@@ -71,6 +72,7 @@ const MOCK_SCHEDULES: ScheduledImport[] = [
 ]
 
 export default function DataIngestion() {
+  const { success, info, warning } = useToast()
   const [activeTab, setActiveTab] = useState<'import' | 'history' | 'schedule' | 'rules'>('import')
   const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'importing' | 'complete'>('upload')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -471,7 +473,7 @@ export default function DataIngestion() {
               <History size={20} />
               Import History
             </h2>
-            <button className="btn btn-outline btn-sm">
+            <button className="btn btn-outline btn-sm" onClick={() => success('Import history refreshed')}>
               <RefreshCw size={16} />
               Refresh
             </button>
@@ -536,7 +538,7 @@ export default function DataIngestion() {
               <Calendar size={20} />
               Scheduled Imports
             </h2>
-            <button className="btn btn-primary btn-sm">
+            <button className="btn btn-primary btn-sm" onClick={() => info('Add schedule', 'Schedule configuration coming soon')}>
               <Clock size={16} />
               Add Schedule
             </button>
@@ -557,7 +559,7 @@ export default function DataIngestion() {
                     <p style={{ color: '#64748b', fontSize: '0.875rem' }}>{schedule.source}</p>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-ghost btn-sm">
+                    <button className="btn btn-ghost btn-sm" onClick={() => success('Import started', `Running ${schedule.name} manually...`)}>
                       <Play size={16} />
                       Run Now
                     </button>
@@ -567,7 +569,7 @@ export default function DataIngestion() {
                     >
                       {schedule.enabled ? 'Enabled' : 'Disabled'}
                     </button>
-                    <button className="btn btn-ghost btn-sm" style={{ color: '#ef4444' }}>
+                    <button className="btn btn-ghost btn-sm" style={{ color: '#ef4444' }} onClick={() => warning('Delete schedule', `Are you sure you want to delete ${schedule.name}?`)}>
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -601,7 +603,7 @@ export default function DataIngestion() {
               <Settings size={20} />
               Validation Rules
             </h2>
-            <button className="btn btn-primary btn-sm">
+            <button className="btn btn-primary btn-sm" onClick={() => info('Add validation rule', 'Rule configuration coming soon')}>
               Add Rule
             </button>
           </div>
@@ -637,7 +639,7 @@ export default function DataIngestion() {
                     </button>
                   </td>
                   <td>
-                    <button className="btn btn-ghost btn-sm" style={{ color: '#ef4444' }}>
+                    <button className="btn btn-ghost btn-sm" style={{ color: '#ef4444' }} onClick={() => warning('Delete rule', `Are you sure you want to delete the ${rule.field} validation rule?`)}>
                       <Trash2 size={16} />
                     </button>
                   </td>

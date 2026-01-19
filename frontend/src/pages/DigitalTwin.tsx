@@ -9,6 +9,7 @@ import {
   FolderTree, Eye, Hammer, GitBranch, Link2, Calculator, Image
 } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
+import { useToast } from '../contexts/ToastContext'
 
 interface DigitalTwinProps {
   currentSite?: number | null
@@ -354,6 +355,7 @@ const VIEW_TABS: Tab[] = [
 ]
 
 function ViewMode({ selectedSite }: { selectedSite: number | null }) {
+  const { info } = useToast()
   const [activeTab, setActiveTab] = useState('asset-tree')
   
   const { data: tree, isLoading: treeLoading } = useQuery({
@@ -496,11 +498,11 @@ function ViewMode({ selectedSite }: { selectedSite: number | null }) {
           Generate professional Single Line Diagrams for documentation, reports, and compliance. Export in multiple formats including PDF, PNG, and SVG.
         </p>
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="btn btn-outline" disabled style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button className="btn btn-outline" onClick={() => info('Coming Soon', 'PNG export will be available in a future update')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FileImage size={16} />
             Export as PNG
           </button>
-          <button className="btn btn-outline" disabled style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button className="btn btn-outline" onClick={() => info('Coming Soon', 'PDF export will be available in a future update')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Download size={16} />
             Export as PDF
           </button>
@@ -550,6 +552,7 @@ const BUILD_TABS: Tab[] = [
 
 function BuildMode({ currentSite }: { currentSite: number | null }) {
   const queryClient = useQueryClient()
+  const { info } = useToast()
   const canvasRef = useRef<HTMLDivElement>(null)
 
   const [activeTab, setActiveTab] = useState('asset-tree')
@@ -1169,7 +1172,7 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
             <FileImage size={16} />
             Export as PNG
           </button>
-          <button className="btn btn-outline" disabled style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button className="btn btn-outline" onClick={() => info('Coming Soon', 'PDF export will be available in a future update')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Download size={16} />
             Export as PDF
           </button>

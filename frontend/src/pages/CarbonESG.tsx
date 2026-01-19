@@ -4,6 +4,7 @@ import { api, CarbonEmission } from '../services/api'
 import { Leaf, TrendingDown, Factory, Truck, Building2, Plus, Target, DollarSign, FileText, BarChart3, Layers, TreePine, Globe, Award, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from 'recharts'
 import TabPanel, { Tab } from '../components/TabPanel'
+import { useToast } from '../contexts/ToastContext'
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b']
 
@@ -17,6 +18,7 @@ const tabs: Tab[] = [
 ]
 
 export default function CarbonESG({ currentSite }: { currentSite: number | null }) {
+  const { success, info } = useToast()
   const queryClient = useQueryClient()
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showForm, setShowForm] = useState(false)
@@ -490,7 +492,7 @@ export default function CarbonESG({ currentSite }: { currentSite: number | null 
           <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
             <Target size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
             <p>Configure your reduction targets and track progress over time.</p>
-            <button className="btn btn-primary" style={{ marginTop: '1rem' }}>
+            <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => info('Add Reduction Target', 'Target configuration wizard coming soon')}>
               <Plus size={16} style={{ marginRight: '0.25rem' }} />
               Add Reduction Target
             </button>
@@ -562,7 +564,7 @@ export default function CarbonESG({ currentSite }: { currentSite: number | null 
         <div className="card">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 className="card-title">Carbon Credit Portfolio</h2>
-            <button className="btn btn-primary">
+            <button className="btn btn-primary" onClick={() => info('Purchase Credits', 'Carbon credit marketplace coming soon')}>
               <Plus size={16} style={{ marginRight: '0.25rem' }} />
               Purchase Credits
             </button>
@@ -655,7 +657,7 @@ export default function CarbonESG({ currentSite }: { currentSite: number | null 
         <div className="card">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 className="card-title">ESG Disclosure Reports</h2>
-            <button className="btn btn-primary">
+            <button className="btn btn-primary" onClick={() => info('New Report', 'ESG report wizard coming soon')}>
               <Plus size={16} style={{ marginRight: '0.25rem' }} />
               New Report
             </button>

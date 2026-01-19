@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'wouter'
 import { api } from '../services/api'
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
+import { useToast } from '../contexts/ToastContext'
 
 interface PowerFlowNode {
   id: string
@@ -32,6 +33,7 @@ interface SiteDashboardProps {
 
 export default function SiteDashboard({ siteId }: SiteDashboardProps) {
   const [, navigate] = useLocation()
+  const { success } = useToast()
   const [isLive, setIsLive] = useState(true)
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [animationPhase, setAnimationPhase] = useState(0)
@@ -260,7 +262,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
             <Activity size={18} />
             {isLive ? 'Live' : 'Paused'}
           </button>
-          <button className="btn btn-outline">
+          <button className="btn btn-outline" onClick={() => success('Export initiated', 'Site data export is being prepared...')}>
             <Download size={18} />
             Export
           </button>

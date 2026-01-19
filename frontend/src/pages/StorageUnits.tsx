@@ -6,6 +6,7 @@ import {
   Calendar, DollarSign, Gauge, CheckCircle, Bell
 } from 'lucide-react'
 import { Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts'
+import { useToast } from '../contexts/ToastContext'
 
 const API_BASE = '/api/v1'
 
@@ -34,6 +35,7 @@ const generateCycleHistory = () => Array.from({ length: 30 }, (_, i) => ({
 }))
 
 export default function StorageUnits() {
+  const { info } = useToast()
   const [socData, setSocData] = useState(generateSocData())
   const [cycleHistory] = useState(generateCycleHistory())
   const [lastUpdate, setLastUpdate] = useState(new Date())
@@ -255,7 +257,7 @@ export default function StorageUnits() {
               <Calendar size={18} style={{ display: 'inline', marginRight: '0.5rem' }} />
               Dispatch Schedule
             </h2>
-            <button className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}>
+            <button className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }} onClick={() => info('Dispatch schedule', 'Schedule editor coming soon')}>
               <Settings size={14} style={{ marginRight: '0.25rem' }} />
               Edit
             </button>

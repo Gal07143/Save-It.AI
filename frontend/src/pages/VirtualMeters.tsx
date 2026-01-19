@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Calculator, Plus, Settings, Zap, Code, Layers, PieChart, Wand2, CheckCircle, GitBranch, History } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
+import { useToast } from '../contexts/ToastContext'
 
 const API_BASE = '/api/v1'
 
@@ -17,6 +18,7 @@ interface VirtualMeter {
 }
 
 export default function VirtualMeters() {
+  const { success, info } = useToast()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [activeTab, setActiveTab] = useState('calculated')
   const [newMeter, setNewMeter] = useState({
@@ -116,7 +118,7 @@ export default function VirtualMeters() {
                   </span>
                 </td>
                 <td>
-                  <button className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                  <button className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => info(`Edit Virtual Meter: ${vm.name}`, 'Meter configuration editor coming soon')}>
                     Edit
                   </button>
                 </td>
@@ -319,7 +321,7 @@ export default function VirtualMeters() {
                   </label>
                   <input type="date" className="form-input" style={{ width: '100%' }} disabled />
                 </div>
-                <button className="btn btn-primary" disabled style={{ width: '100%' }}>
+                <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => info('Run Validation', 'Formula validation feature coming soon')}>
                   Run Validation
                 </button>
               </div>
@@ -520,7 +522,7 @@ export default function VirtualMeters() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={() => setShowCreateModal(false)}>Cancel</button>
-              <button className="btn btn-primary">Create</button>
+              <button className="btn btn-primary" onClick={() => { setShowCreateModal(false); success('Virtual Meter Created', `${newMeter.name || 'New meter'} has been created`) }}>Create</button>
             </div>
           </div>
         </div>

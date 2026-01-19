@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Shield, Users, Building2, FileText, Key, Activity, Settings, Plus, User } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
@@ -44,7 +44,7 @@ export default function Admin() {
   const [showAddApiKey, setShowAddApiKey] = useState(false)
   const [newUser, setNewUser] = useState({ email: '', first_name: '', last_name: '', role: 'viewer' })
   const [newOrg, setNewOrg] = useState({ name: '', slug: '', subscription_plan: 'basic' })
-  const { success, error } = useToast()
+  const { success } = useToast()
   const queryClient = useQueryClient()
 
   const { data: organizations } = useQuery<Organization[]>({
