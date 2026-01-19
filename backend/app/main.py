@@ -66,6 +66,9 @@ async def lifespan(app: FastAPI):
     from backend.app.services.polling_service import polling_service
     from backend.app.services.scheduler_service import scheduler_service, register_default_tasks
     from backend.app.services.event_bus import event_bus, register_default_handlers
+    from backend.app.services.health_service import health_service
+    from backend.app.services.service_discovery import service_registry, register_local_services
+    from backend.app.services.graceful_shutdown import shutdown_service
     
     await polling_service.start()
     print("Polling service started")
@@ -77,11 +80,23 @@ async def lifespan(app: FastAPI):
     await register_default_handlers()
     print("Event handlers registered")
     
+    await health_service.start()
+    print("Health service started")
+    
+    register_local_services()
+    await service_registry.start()
+    print("Service registry started")
+    
+    shutdown_service.register_handler("polling", polling_service.stop, priority=100)
+    shutdown_service.register_handler("scheduler", scheduler_service.stop, priority=90)
+    shutdown_service.register_handler("health", health_service.stop, priority=80)
+    shutdown_service.register_handler("service_registry", service_registry.stop, priority=70)
+    shutdown_service.register_handler("job_queue", job_queue.stop, priority=60)
+    print("Graceful shutdown handlers registered")
+    
     yield
     
-    await polling_service.stop()
-    await scheduler_service.stop()
-    await job_queue.stop()
+    await shutdown_service.shutdown()
     print("Background services stopped")
 
 

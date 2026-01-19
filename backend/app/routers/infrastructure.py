@@ -8,12 +8,16 @@ router = APIRouter(prefix="/infrastructure", tags=["Infrastructure"])
 
 
 @router.get("/health")
-async def health_check():
-    """Health check endpoint."""
+async def health_check(details: bool = False):
+    """Comprehensive health check endpoint."""
+    from app.services.health_service import health_service
+    report = await health_service.get_health(include_details=details)
     return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0",
+        "status": report.status.value,
+        "timestamp": report.timestamp.isoformat(),
+        "version": report.version,
+        "uptime_seconds": report.uptime_seconds,
+        "components": report.components,
     }
 
 
@@ -220,6 +224,30 @@ async def get_circuit_breakers():
     """Get circuit breaker status."""
     from app.services.circuit_breaker import circuit_registry
     return {"circuits": circuit_registry.get_all_status()}
+
+
+@router.get("/service-registry")
+async def get_service_registry():
+    """Get service registry status."""
+    from app.services.service_discovery import service_registry
+    return service_registry.get_stats()
+
+
+@router.get("/shutdown")
+async def get_shutdown_status():
+    """Get shutdown service status."""
+    from app.services.graceful_shutdown import shutdown_service
+    return shutdown_service.get_status()
+
+
+@router.get("/api-versions")
+async def get_api_versions():
+    """Get available API versions."""
+    from app.services.api_versioning import api_versioning
+    return {
+        "current_version": api_versioning.get_current_version(),
+        "versions": api_versioning.get_all_versions(),
+    }
 
 
 @router.post("/circuits/reset")
