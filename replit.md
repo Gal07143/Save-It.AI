@@ -15,6 +15,18 @@ The SAVE-IT.AI platform utilizes a modern tech stack, featuring a FastAPI backen
 **UI/UX Decisions:**
 The frontend features 27 application pages with reusable components, a dark theme, and card-based layouts for an improved user experience. It includes dynamic power flow visualizations and detailed dashboards for sites, PV systems, and storage units. A new 4-step site setup wizard streamlines the onboarding process. Consolidated navigation and dedicated pages for energy assets, carbon/ESG reporting, and digital twin management enhance usability.
 
+**Tabbed Interface Enhancement (Phase 8):**
+All 21 content pages now use a consistent 6-tab layout via the reusable TabPanel component (3 variants: default, pills, underline). The navigation is organized into 7 groups:
+1. **Overview** - Dashboard, Sites
+2. **Assets & Metering** - Digital Twin, Meters, Virtual Meters
+3. **Financial** - Bills, Tariffs, Tenants
+4. **Energy Systems** - Energy Assets, PV Design, BESS Simulator
+5. **Devices** - Devices (new), Device Config (new), Device Health (new)
+6. **Reports & ESG** - Reports, Carbon & ESG, Data Quality, AI Agents
+7. **Administration** - Admin, Settings
+
+Deprecated routes (/integrations, /data-ingestion) redirect to /devices.
+
 **Technical Implementations:**
 - **Backend**: Python 3.11, FastAPI for API services.
 - **Database**: PostgreSQL, architected for future TimescaleDB integration for time-series data.
