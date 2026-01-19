@@ -72,6 +72,8 @@ Deprecated routes (/integrations, /data-ingestion) redirect to /devices.
 - **DateRangePicker** - Date filter with quick presets
 - **NotificationCenter** - Bell dropdown with unread notifications
 - **DataExport** - CSV/JSON export for tables
+- **CardHeader** - Reusable page section header with optional action button
+- **useActionToast** - Hook for common toast patterns (saved, deleted, copied, comingSoon)
 - **CopyButton** - One-click clipboard copy
 - **BulkActions** - Multi-select with batch operations
 - **InlineEdit** - Click-to-edit text and select fields
