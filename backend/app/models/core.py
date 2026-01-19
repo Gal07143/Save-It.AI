@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Enu
 from sqlalchemy.orm import relationship
 
 from backend.app.core.database import Base
-from backend.app.models.base import AssetType, NotificationType, SoftDeleteMixin
+from backend.app.models.base import AssetType, NotificationType, SoftDeleteMixin, BooleanInt
 
 
 class Site(SoftDeleteMixin, Base):
@@ -69,8 +69,8 @@ class Meter(SoftDeleteMixin, Base):
     manufacturer = Column(String(100), nullable=True)
     model = Column(String(100), nullable=True)
     serial_number = Column(String(100), nullable=True)
-    is_active = Column(Integer, default=1)
-    is_bidirectional = Column(Integer, default=0)
+    is_active = Column(BooleanInt, default=True)
+    is_bidirectional = Column(BooleanInt, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -172,7 +172,7 @@ class Tariff(Base):
     export_rate = Column(Float, nullable=True)
     power_factor_threshold = Column(Float, nullable=True)
     power_factor_penalty_rate = Column(Float, nullable=True)
-    is_active = Column(Integer, default=1)
+    is_active = Column(BooleanInt, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

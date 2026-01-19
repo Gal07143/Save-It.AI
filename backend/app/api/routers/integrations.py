@@ -44,15 +44,6 @@ def list_data_sources(
     return query.offset(skip).limit(limit).all()
 
 
-@router.get("/{source_id}", response_model=DataSourceResponse)
-def get_data_source(source_id: int, db: Session = Depends(get_db)):
-    """Get data source by ID."""
-    source = db.query(DataSource).filter(DataSource.id == source_id).first()
-    if not source:
-        raise HTTPException(status_code=404, detail="Data source not found")
-    return source
-
-
 @router.post("/bulk-import", response_model=BulkDeviceImportResponse)
 def bulk_import_devices(request: BulkDeviceImportRequest, db: Session = Depends(get_db)):
     """Bulk import multiple devices from a list."""
@@ -1478,3 +1469,12 @@ def delete_device_alert(alert_id: int, db: Session = Depends(get_db)) -> Dict[st
     db.commit()
     
     return {"success": True, "message": "Device alert deleted"}
+
+
+@router.get("/{source_id}", response_model=DataSourceResponse)
+def get_data_source(source_id: int, db: Session = Depends(get_db)):
+    """Get data source by ID. NOTE: This route must be last to avoid matching paths like /validation-rules."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    return source

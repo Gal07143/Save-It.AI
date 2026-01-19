@@ -6,6 +6,7 @@ from backend.app.models.base import (
     MultiTenantMixin,
     soft_delete_filter,
     include_deleted_filter,
+    BooleanInt,
 )
 
 from backend.app.models.core import (

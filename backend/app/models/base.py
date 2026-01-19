@@ -1,12 +1,36 @@
 """Base model definitions and common enums."""
 from datetime import datetime
 from enum import Enum as PyEnum
-from typing import Optional
+from typing import Optional, Any
 
 from sqlalchemy import Column, DateTime, Integer, event
 from sqlalchemy.orm import declared_attr, Query
+from sqlalchemy.types import TypeDecorator
 
 from backend.app.core.database import Base
+
+
+class BooleanInt(TypeDecorator):
+    """Custom type that stores booleans as integers (0/1) in the database.
+    
+    This handles the conversion between Python bool and PostgreSQL integer,
+    allowing Pydantic schemas to use bool while the database uses INTEGER.
+    """
+    
+    impl = Integer
+    cache_ok = True
+    
+    def process_bind_param(self, value: Any, dialect) -> Optional[int]:
+        """Convert Python value to database integer."""
+        if value is None:
+            return None
+        return 1 if value else 0
+    
+    def process_result_value(self, value: Any, dialect) -> Optional[bool]:
+        """Convert database integer to Python bool."""
+        if value is None:
+            return None
+        return bool(value)
 
 
 class SoftDeleteMixin:

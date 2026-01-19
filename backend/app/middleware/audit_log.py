@@ -93,10 +93,10 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         )
         
         action_map = {
-            "POST": "create",
-            "PUT": "update",
-            "PATCH": "update",
-            "DELETE": "delete",
+            "POST": "CREATE",
+            "PUT": "UPDATE",
+            "PATCH": "UPDATE",
+            "DELETE": "DELETE",
         }
         
         audit_entry = {
