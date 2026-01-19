@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckSquare, Square, Trash2, Download, Settings, X } from 'lucide-react'
+import { CheckSquare, Square, X } from 'lucide-react'
 
 interface BulkActionsProps<T> {
   items: T[]
@@ -25,7 +25,6 @@ export default function BulkActions<T>({
 }: BulkActionsProps<T>) {
   const selectedCount = selectedIds.size
   const allSelected = selectedCount === items.length && items.length > 0
-  const someSelected = selectedCount > 0 && !allSelected
 
   if (selectedCount === 0) {
     return null

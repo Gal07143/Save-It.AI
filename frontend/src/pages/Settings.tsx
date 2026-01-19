@@ -4,7 +4,7 @@ import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 
 export default function Settings() {
-  const { success, info, warning } = useToast()
+  const { success, warning } = useToast()
   const [isDarkMode, setIsDarkMode] = useState(true)
   const [saved, setSaved] = useState(false)
 

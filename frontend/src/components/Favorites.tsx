@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'wouter'
 import { Star, ChevronDown, X, Building2, Gauge, FileText } from 'lucide-react'
 

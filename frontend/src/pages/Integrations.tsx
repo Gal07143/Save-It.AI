@@ -60,7 +60,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [cloneHost, setCloneHost] = useState('')
   const [cloneSlaveId, setCloneSlaveId] = useState<number | undefined>(undefined)
   const [showQRModal, setShowQRModal] = useState(false)
-  const [qrSourceId, setQRSourceId] = useState<number | null>(null)
+  const [_qrSourceId, setQRSourceId] = useState<number | null>(null)
   const [qrData, setQRData] = useState<any>(null)
   const [showDiscovery, setShowDiscovery] = useState(false)
   const [showCommissioning, setShowCommissioning] = useState(false)

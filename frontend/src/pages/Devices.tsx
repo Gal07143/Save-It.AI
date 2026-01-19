@@ -15,8 +15,8 @@ interface DevicesProps {
 
 export default function Devices({ currentSite }: DevicesProps) {
   const [activeTab, setActiveTab] = useState('all-devices')
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [selectedDevice, setSelectedDevice] = useState<any>(null)
+  const [_showAddModal, setShowAddModal] = useState(false)
+  const [_selectedDevice, setSelectedDevice] = useState<any>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deviceToDelete, setDeviceToDelete] = useState<any>(null)
   const { success, error: showError } = useToast()

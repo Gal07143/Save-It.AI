@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, CarbonEmission } from '../services/api'
 import { Leaf, TrendingDown, Factory, Truck, Building2, Plus, Target, DollarSign, FileText, BarChart3, Layers, TreePine, Globe, Award, CheckCircle, Clock, AlertCircle } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 
@@ -18,7 +18,7 @@ const tabs: Tab[] = [
 ]
 
 export default function CarbonESG({ currentSite }: { currentSite: number | null }) {
-  const { success, info } = useToast()
+  const { info } = useToast()
   const queryClient = useQueryClient()
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showForm, setShowForm] = useState(false)

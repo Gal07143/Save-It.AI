@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, FileSpreadsheet, FileText, File, ChevronDown } from 'lucide-react'
+import { Download, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react'
 
 interface DataExportProps {
   data: unknown[]

@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { ZoomIn, ZoomOut, Move, RotateCcw, Download } from 'lucide-react'
+import { useState, useRef, useCallback } from 'react'
+import { ZoomIn, ZoomOut, RotateCcw, Download } from 'lucide-react'
 
 interface DataPoint {
   x: number | string | Date
@@ -391,7 +391,7 @@ export function ChartDrillDown({
   childDataFetcher: (point: DataPoint) => Promise<DataPoint[]>
   title?: string
 }) {
-  const [drillLevel, setDrillLevel] = useState(0)
+  const [_drillLevel, setDrillLevel] = useState(0)
   const [currentData, setCurrentData] = useState(parentData)
   const [breadcrumbs, setBreadcrumbs] = useState<string[]>([title || 'Overview'])
   const [isLoading, setIsLoading] = useState(false)

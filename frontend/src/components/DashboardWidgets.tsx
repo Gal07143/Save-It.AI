@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { 
-  GripVertical, X, Plus, Settings, Maximize2, Minimize2,
+  GripVertical, X, Plus, Maximize2,
   BarChart3, LineChart, PieChart, Activity, Gauge, DollarSign
 } from 'lucide-react'
 

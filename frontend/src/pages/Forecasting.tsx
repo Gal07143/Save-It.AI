@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { TrendingUp, Clock, Target, Zap, RefreshCw, CloudSun, Cloud, BarChart3, GitBranch, Download, Sun, Thermometer, Wind, Droplets, CheckCircle, AlertTriangle, FileSpreadsheet, FileText } from 'lucide-react'
+import { TrendingUp, Clock, Target, Zap, RefreshCw, CloudSun, Cloud, BarChart3, GitBranch, Download, Sun, Thermometer, Wind, Droplets, CheckCircle, FileSpreadsheet, FileText } from 'lucide-react'
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import TabPanel, { Tab } from '../components/TabPanel'
 

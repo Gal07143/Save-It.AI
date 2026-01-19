@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { 
-  Clock, Building2, Gauge, Receipt, FileText, User,
-  Plus, Edit, Trash2, Eye
+  Clock, Building2, Gauge, Receipt, FileText, User
 } from 'lucide-react'
 
 interface Activity {
@@ -12,13 +11,6 @@ interface Activity {
   description: string
   user_name?: string
   created_at: string
-}
-
-const actionIcons: Record<string, React.ElementType> = {
-  CREATE: Plus,
-  UPDATE: Edit,
-  DELETE: Trash2,
-  VIEW: Eye,
 }
 
 const resourceIcons: Record<string, React.ElementType> = {
@@ -90,7 +82,6 @@ export default function RecentActivity() {
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {activities.map(activity => {
-          const ActionIcon = actionIcons[activity.action] || Eye
           const ResourceIcon = resourceIcons[activity.resource_type] || FileText
           
           return (
