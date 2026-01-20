@@ -95,7 +95,7 @@ class BackupService:
             
             job.file_path = file_path
             job.size_bytes = len(content.encode())
-            job.checksum = hashlib.md5(content.encode()).hexdigest()
+            job.checksum = hashlib.sha256(content.encode()).hexdigest()
             job.status = BackupStatus.COMPLETED
             job.completed_at = datetime.utcnow()
             
@@ -171,7 +171,7 @@ class BackupService:
             with open(job.file_path, "r") as f:
                 content = f.read()
             
-            checksum = hashlib.md5(content.encode()).hexdigest()
+            checksum = hashlib.sha256(content.encode()).hexdigest()
             
             if checksum == job.checksum:
                 job.verification_status = "verified"

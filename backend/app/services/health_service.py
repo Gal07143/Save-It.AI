@@ -251,11 +251,15 @@ class HealthService:
         try:
             import psutil
             memory = psutil.virtual_memory()
-            return memory.percent < 90
+            usage_percent = memory.percent
+            logger.debug(f"Memory usage: {usage_percent:.1f}%")
+            return usage_percent < 90
         except ImportError:
+            logger.warning("psutil not available, memory check skipped")
             return True
-        except Exception:
-            return True
+        except Exception as e:
+            logger.error(f"Memory check failed: {e}")
+            return False
 
 
 health_service = HealthService()

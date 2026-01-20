@@ -50,7 +50,7 @@ class CircuitBreaker:
         self._lock = asyncio.Lock()
     
     async def call(self, func: Callable, *args, **kwargs) -> Any:
-        """Execute a function through the circuit breaker."""
+        """Execute a function through the circuit breaker with timeout."""
         async with self._lock:
             if not self._can_execute():
                 raise CircuitOpenError(f"Circuit {self.name} is open")
@@ -60,12 +60,23 @@ class CircuitBreaker:
         
         try:
             if asyncio.iscoroutinefunction(func):
-                result = await func(*args, **kwargs)
+                result = await asyncio.wait_for(
+                    func(*args, **kwargs),
+                    timeout=self.config.timeout_seconds
+                )
             else:
-                result = func(*args, **kwargs)
+                loop = asyncio.get_event_loop()
+                result = await asyncio.wait_for(
+                    loop.run_in_executor(None, lambda: func(*args, **kwargs)),
+                    timeout=self.config.timeout_seconds
+                )
             
             await self._record_success()
             return result
+        
+        except asyncio.TimeoutError:
+            await self._record_failure()
+            raise CircuitTimeoutError(f"Circuit {self.name} call timed out after {self.config.timeout_seconds}s")
         
         except Exception as e:
             await self._record_failure()
@@ -159,6 +170,11 @@ class CircuitBreaker:
 
 class CircuitOpenError(Exception):
     """Exception raised when circuit is open."""
+    pass
+
+
+class CircuitTimeoutError(Exception):
+    """Exception raised when circuit call times out."""
     pass
 
 

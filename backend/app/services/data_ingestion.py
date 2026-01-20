@@ -244,7 +244,7 @@ class DataIngestionService:
         rule: AlarmRule,
         value: float,
     ) -> DeviceEvent:
-        """Create alarm event record."""
+        """Create alarm event record and commit to database."""
         event = DeviceEvent(
             device_id=device.id,
             alarm_rule_id=rule.id,
@@ -262,6 +262,10 @@ class DataIngestionService:
             is_active=1,
         )
         self.db.add(event)
+        try:
+            self.db.flush()
+        except Exception as e:
+            logger.error(f"Failed to flush alarm event: {e}")
         return event
     
     def add_alarm_handler(self, handler: callable):

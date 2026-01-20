@@ -56,8 +56,8 @@ class StorageService:
         return file_id, safe_name
     
     def _calculate_checksum(self, content: bytes) -> str:
-        """Calculate MD5 checksum of content."""
-        return hashlib.md5(content).hexdigest()
+        """Calculate SHA-256 checksum of content."""
+        return hashlib.sha256(content).hexdigest()
     
     def validate_file(
         self,

@@ -237,19 +237,27 @@ service_registry = ServiceRegistry()
 
 
 def register_local_services():
-    """Register local services."""
+    """Register local services using environment configuration."""
+    import os
+    
+    api_host = os.getenv("API_HOST", "0.0.0.0")
+    api_port = int(os.getenv("API_PORT", "8000"))
+    frontend_host = os.getenv("FRONTEND_HOST", "0.0.0.0")
+    frontend_port = int(os.getenv("FRONTEND_PORT", "5000"))
+    app_version = os.getenv("APP_VERSION", "1.0.0")
+    
     service_registry.register_instance(
         "saveit-api",
         "api-1",
-        "localhost",
-        8000,
-        metadata={"version": "1.0.0"},
+        api_host,
+        api_port,
+        metadata={"version": app_version},
     )
     
     service_registry.register_instance(
         "saveit-frontend",
         "frontend-1",
-        "localhost",
-        5000,
-        metadata={"version": "1.0.0"},
+        frontend_host,
+        frontend_port,
+        metadata={"version": app_version},
     )

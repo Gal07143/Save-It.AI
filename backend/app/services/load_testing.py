@@ -213,9 +213,11 @@ async def benchmark_database_queries():
 
 async def benchmark_api_health():
     """Benchmark API health endpoint."""
+    import os
+    api_base = os.getenv("API_BASE_URL", "http://localhost:8000")
     return await load_test_runner.run_http_test(
         "api_health",
-        "http://localhost:8000/health",
+        f"{api_base}/health",
         num_requests=100,
         concurrency=10,
     )

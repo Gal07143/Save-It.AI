@@ -187,10 +187,68 @@ polling_service = PollingService()
 async def poll_modbus_device(data_source_id: int, metadata: Dict):
     """Poll a Modbus device for readings."""
     logger.debug(f"Polling Modbus device: {data_source_id}")
-    pass
+    
+    try:
+        from backend.app.services.modbus_service import modbus_manager
+        
+        connection_id = metadata.get("connection_id")
+        register_map = metadata.get("register_map", [])
+        
+        if not connection_id:
+            logger.warning(f"No connection_id for Modbus device {data_source_id}")
+            return
+        
+        readings = {}
+        for reg in register_map:
+            try:
+                value = await modbus_manager.read_register(
+                    connection_id,
+                    reg.get("address"),
+                    reg.get("count", 1),
+                    reg.get("function_code", 3),
+                )
+                readings[reg.get("name")] = value
+            except Exception as e:
+                logger.error(f"Failed to read register {reg}: {e}")
+        
+        if readings:
+            logger.info(f"Polled {len(readings)} registers from device {data_source_id}")
+            
+    except ImportError:
+        logger.warning("Modbus service not available")
+    except Exception as e:
+        logger.error(f"Modbus polling error for device {data_source_id}: {e}")
+        raise
 
 
 async def poll_api_device(data_source_id: int, metadata: Dict):
     """Poll an API-based device for readings."""
+    import httpx
+    
     logger.debug(f"Polling API device: {data_source_id}")
-    pass
+    
+    try:
+        url = metadata.get("api_url")
+        headers = metadata.get("headers", {})
+        auth_token = metadata.get("auth_token")
+        
+        if not url:
+            logger.warning(f"No API URL for device {data_source_id}")
+            return
+        
+        if auth_token:
+            headers["Authorization"] = f"Bearer {auth_token}"
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            
+            logger.info(f"Polled API device {data_source_id}: {len(data)} fields")
+            
+    except httpx.HTTPError as e:
+        logger.error(f"API polling HTTP error for device {data_source_id}: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"API polling error for device {data_source_id}: {e}")
+        raise

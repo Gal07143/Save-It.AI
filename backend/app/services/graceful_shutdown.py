@@ -66,6 +66,8 @@ class GracefulShutdownService:
         self._shutdown_requested_at = datetime.utcnow()
         logger.info("Starting graceful shutdown...")
         
+        failed_handlers = []
+        
         for handler in self.handlers:
             logger.info(f"Executing shutdown handler: {handler.name}")
             try:
@@ -79,8 +81,13 @@ class GracefulShutdownService:
                 logger.info(f"Shutdown handler completed: {handler.name}")
             except asyncio.TimeoutError:
                 logger.warning(f"Shutdown handler timed out: {handler.name}")
+                failed_handlers.append((handler.name, "timeout"))
             except Exception as e:
                 logger.error(f"Shutdown handler error ({handler.name}): {e}")
+                failed_handlers.append((handler.name, str(e)))
+        
+        if failed_handlers:
+            logger.warning(f"Shutdown completed with {len(failed_handlers)} handler failures: {failed_handlers}")
         
         self.state = ShutdownState.STOPPED
         self._shutdown_event.set()
@@ -128,4 +135,6 @@ def setup_signal_handlers(loop: Optional[asyncio.AbstractEventLoop] = None):
         try:
             loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
         except NotImplementedError:
-            pass
+            logger.warning(f"Signal handler for {sig} not supported on this platform")
+        except Exception as e:
+            logger.error(f"Failed to setup signal handler for {sig}: {e}")
