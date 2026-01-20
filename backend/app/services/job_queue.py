@@ -45,18 +45,65 @@ class Job:
 
 class JobQueue:
     """
-    Simple in-memory job queue for background task processing.
+    Job queue with in-memory processing and optional database persistence.
     
-    For production, this should be replaced with Celery + Redis/RabbitMQ.
+    Supports database fallback for job persistence across restarts.
+    For high-volume production, consider Celery + Redis/RabbitMQ.
     """
     
-    def __init__(self, max_workers: int = 4):
+    def __init__(self, max_workers: int = 4, persist_to_db: bool = True):
         self._jobs: Dict[str, Job] = {}
         self._queue: asyncio.Queue = None
         self._workers: List[asyncio.Task] = []
         self._max_workers = max_workers
         self._running = False
         self._handlers: Dict[str, Callable] = {}
+        self._persist_to_db = persist_to_db
+        self._db_session_factory = None
+    
+    def set_db_session_factory(self, factory):
+        """Set database session factory for persistence."""
+        self._db_session_factory = factory
+    
+    def _persist_job(self, job: Job):
+        """Persist job state to database."""
+        if not self._persist_to_db or not self._db_session_factory:
+            return
+        
+        try:
+            from sqlalchemy import text
+            db = self._db_session_factory()
+            try:
+                db.execute(
+                    text("""
+                        INSERT INTO background_jobs (id, name, status, priority, created_at, started_at, completed_at, retries, error, result_json)
+                        VALUES (:id, :name, :status, :priority, :created_at, :started_at, :completed_at, :retries, :error, :result)
+                        ON CONFLICT (id) DO UPDATE SET
+                            status = :status,
+                            started_at = :started_at,
+                            completed_at = :completed_at,
+                            retries = :retries,
+                            error = :error,
+                            result_json = :result
+                    """),
+                    {
+                        "id": job.id,
+                        "name": job.name,
+                        "status": job.status.value,
+                        "priority": job.priority.value,
+                        "created_at": job.created_at,
+                        "started_at": job.started_at,
+                        "completed_at": job.completed_at,
+                        "retries": job.retries,
+                        "error": job.error,
+                        "result": str(job.result) if job.result else None,
+                    }
+                )
+                db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"Failed to persist job {job.id}: {e}")
     
     async def start(self):
         if self._running:
@@ -112,6 +159,7 @@ class JobQueue:
             job.result = result
             job.completed_at = datetime.utcnow()
             logger.info(f"Job {job.id} completed successfully")
+            self._persist_job(job)
             
         except Exception as e:
             job.error = str(e)
@@ -125,6 +173,7 @@ class JobQueue:
                 job.status = JobStatus.FAILED
                 job.completed_at = datetime.utcnow()
                 logger.error(f"Job {job.id} failed permanently: {e}")
+            self._persist_job(job)
     
     def enqueue(
         self,
@@ -147,6 +196,7 @@ class JobQueue:
         )
         
         self._jobs[job_id] = job
+        self._persist_job(job)
         
         if self._queue:
             asyncio.create_task(self._queue.put(job))

@@ -134,7 +134,13 @@ class VersioningMiddleware:
         version = api_versioning.parse_accept_header(accept)
         
         if not api_versioning.is_version_supported(version):
-            version = api_versioning.CURRENT_VERSION
+            await self._send_version_error(send, version)
+            return
+        
+        v = api_versioning.get_version(version)
+        if v and v.status == VersionStatus.SUNSET:
+            await self._send_sunset_error(send, version, v)
+            return
         
         scope["api_version"] = version
         
@@ -149,3 +155,50 @@ class VersioningMiddleware:
             await send(message)
         
         await self.app(scope, receive, send_wrapper)
+    
+    async def _send_version_error(self, send, version: str):
+        """Send error response for unsupported version."""
+        import json
+        body = json.dumps({
+            "error": "Unsupported API version",
+            "requested_version": version,
+            "current_version": api_versioning.CURRENT_VERSION,
+            "available_versions": [v.version for v in api_versioning.versions.values()],
+        }).encode()
+        
+        await send({
+            "type": "http.response.start",
+            "status": 400,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"x-api-current-version", api_versioning.CURRENT_VERSION.encode()),
+            ],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": body,
+        })
+    
+    async def _send_sunset_error(self, send, version: str, v):
+        """Send error response for sunset version."""
+        import json
+        body = json.dumps({
+            "error": "API version has been sunset",
+            "requested_version": version,
+            "sunset_date": v.sunset_date.isoformat() if v.sunset_date else None,
+            "current_version": api_versioning.CURRENT_VERSION,
+            "message": f"API version {version} is no longer available. Please upgrade to {api_versioning.CURRENT_VERSION}.",
+        }).encode()
+        
+        await send({
+            "type": "http.response.start",
+            "status": 410,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"x-api-current-version", api_versioning.CURRENT_VERSION.encode()),
+            ],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": body,
+        })
