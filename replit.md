@@ -92,6 +92,12 @@ Deprecated routes (/integrations, /data-ingestion) redirect to /devices.
 - **MQTTSubscriber** - Data ingestion with reconnect/backoff, message handlers
 - **WebhookHandler** - HMAC signature verification, rate limiting, idempotency
 - **ModbusManager** - TCP/RTU connections, pooling, circuit breakers, register parsing
+- **GatewayRegistration** - Auto-generate MQTT/webhook credentials with copy-ready config (like Zoho IoT)
+- **GatewayCredentialsCard** - Display credentials with copy buttons, show/hide secrets, Copy All
+- **GatewayStatusBadge** - Visual status indicators (online/offline/error/configuring)
+- **Device-Gateway Integration** - DataSource now references gateway, API returns gateway info with devices
+- **DeviceOnboardingWizard** - Enhanced gateway selector with status badges and "Register New Gateway" action
+- **TeltonikaRUT200** - Device template for industrial LTE routers with MQTT configuration
 - **DeviceTemplates** - 15+ pre-built templates (Schneider, ABB, Siemens, SMA, Fronius, Huawei, Tesla, BYD, etc.)
 - **GatewayCredentials** - MQTT/webhook authentication, auto-generation, rotation
 - **WebhooksAPI** - Secure data ingestion endpoints with batch support
