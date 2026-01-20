@@ -91,6 +91,9 @@ class CommandService:
         For MQTT devices: publish to device/{device_id}/command
         For webhook devices: queue for outbound webhook
         """
+        import os
+        import httpx
+        
         payload = {
             "correlation_id": execution.correlation_id,
             "command": command.name,
@@ -99,18 +102,75 @@ class CommandService:
             "timestamp": datetime.utcnow().isoformat(),
         }
         
-        if device.device_type == DeviceType.GATEWAY:
-            for callback in self._command_callbacks:
-                try:
-                    callback(device, payload)
-                except Exception as e:
-                    logger.error(f"Command callback failed: {e}")
+        for callback in self._command_callbacks:
+            try:
+                callback(device, payload)
+            except Exception as e:
+                logger.error(f"Command callback failed: {e}")
+        
+        if device.auth_type and device.auth_type.value in ["token", "token_tls"]:
+            self._deliver_via_mqtt(device, payload)
+        elif device.auth_type and device.auth_type.value == "api_key":
+            self._deliver_via_webhook(device, payload)
         
         logger.debug(f"Command payload: {json.dumps(payload)}")
+    
+    def _deliver_via_mqtt(self, device: Device, payload: Dict[str, Any]):
+        """Deliver command via MQTT publish."""
+        import os
+        
+        topic = f"device/{device.id}/command"
+        
+        try:
+            import paho.mqtt.publish as publish
+            
+            broker_host = os.getenv("MQTT_BROKER_HOST", "localhost")
+            broker_port = int(os.getenv("MQTT_BROKER_PORT", "1883"))
+            
+            publish.single(
+                topic,
+                json.dumps(payload),
+                hostname=broker_host,
+                port=broker_port,
+                qos=1,
+            )
+            logger.info(f"Command published to MQTT topic {topic}")
+        except ImportError:
+            logger.warning("paho-mqtt not available, command not delivered via MQTT")
+        except Exception as e:
+            logger.error(f"Failed to publish command via MQTT: {e}")
+    
+    def _deliver_via_webhook(self, device: Device, payload: Dict[str, Any]):
+        """Deliver command via outbound webhook."""
+        import os
+        import httpx
+        
+        webhook_url = getattr(device, 'webhook_url', None)
+        if not webhook_url:
+            logger.warning(f"No webhook URL configured for device {device.id}")
+            return
+        
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post(
+                    webhook_url,
+                    json=payload,
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Device-ID": str(device.id),
+                        "X-Correlation-ID": payload.get("correlation_id", ""),
+                    },
+                )
+                response.raise_for_status()
+                logger.info(f"Command delivered via webhook to device {device.id}")
+        except httpx.HTTPError as e:
+            logger.error(f"Webhook delivery failed for device {device.id}: {e}")
     
     def add_command_callback(self, callback: callable):
         """Add callback for command delivery (e.g., MQTT publish)."""
         self._command_callbacks.append(callback)
+    
+    VALID_ACK_STATUSES = {"completed", "failed", "rejected", "timeout", "in_progress"}
     
     def acknowledge_command(
         self,
@@ -123,6 +183,11 @@ class CommandService:
         Process command acknowledgment from device.
         Called when device sends to device/{device_id}/commands/ack
         """
+        if status not in self.VALID_ACK_STATUSES:
+            logger.warning(f"Invalid command status '{status}', defaulting to 'failed'")
+            status = "failed"
+            error_message = error_message or f"Invalid status: {status}"
+        
         execution = self.db.query(CommandExecution).filter(
             CommandExecution.correlation_id == correlation_id
         ).first()
@@ -137,11 +202,13 @@ class CommandService:
         if status == "completed":
             execution.completed_at = datetime.utcnow()
             execution.result = json.dumps(result) if result else None
-        elif status == "failed":
+        elif status in ("failed", "rejected", "timeout"):
             execution.completed_at = datetime.utcnow()
             execution.error_message = error_message
         
         self._pending_commands.pop(correlation_id, None)
+        
+        self.db.commit()
         
         logger.info(f"Command {correlation_id} acknowledged: {status}")
         

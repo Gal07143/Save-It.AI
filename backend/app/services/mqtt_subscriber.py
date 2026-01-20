@@ -92,9 +92,10 @@ class MQTTSubscriber:
     MQTT Subscriber that connects to the broker and processes incoming messages.
     """
     
-    def __init__(self, broker_host: str = "localhost", broker_port: int = 1883):
-        self.broker_host = broker_host
-        self.broker_port = broker_port
+    def __init__(self, broker_host: str = None, broker_port: int = None):
+        import os
+        self.broker_host = broker_host or os.getenv("MQTT_BROKER_HOST", "localhost")
+        self.broker_port = broker_port or int(os.getenv("MQTT_BROKER_PORT", "1883"))
         self._client = None
         self._running = False
         self._subscriptions: List[str] = []
@@ -253,6 +254,39 @@ class DataIngestionHandler:
         self._last_flush = datetime.utcnow()
         
         logger.info(f"Flushing {len(readings)} readings to database")
+        
+        db = self.db_session_factory()
+        try:
+            from backend.app.services.data_ingestion import get_ingestion_service
+            
+            ingestion_service = get_ingestion_service(db)
+            
+            for reading in readings:
+                try:
+                    gateway_id = reading.get("gateway_id")
+                    device_id = reading.get("device_id")
+                    data = reading.get("data", {})
+                    
+                    edge_key = data.pop("edge_key", None) or data.pop("edgeKey", None)
+                    
+                    ingestion_service.ingest_telemetry(
+                        device_id=int(device_id) if device_id and device_id.isdigit() else None,
+                        gateway_id=gateway_id,
+                        edge_key=edge_key,
+                        datapoints=data,
+                        source="mqtt",
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to ingest reading: {e}")
+            
+            db.commit()
+            logger.info(f"Successfully flushed {len(readings)} readings")
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to flush buffer: {e}")
+        finally:
+            db.close()
 
 
 mqtt_subscriber = MQTTSubscriber()

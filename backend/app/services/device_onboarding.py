@@ -144,7 +144,10 @@ class DeviceOnboardingService:
         }
         
         if device.auth_type in [AuthType.TOKEN, AuthType.TOKEN_TLS]:
-            formatted["mqtt_broker_url"] = "mqtt://your-domain:1883"
+            import os
+            mqtt_host = os.getenv("MQTT_BROKER_HOST", "localhost")
+            mqtt_port = os.getenv("MQTT_BROKER_PORT", "1883")
+            formatted["mqtt_broker_url"] = f"mqtt://{mqtt_host}:{mqtt_port}"
             formatted["mqtt_client_id"] = raw_credentials.get("mqtt_client_id")
             formatted["mqtt_username"] = raw_credentials.get("mqtt_username")
             formatted["mqtt_password"] = raw_credentials.get("mqtt_password")
@@ -156,7 +159,9 @@ class DeviceOnboardingService:
             }
         
         if device.auth_type == AuthType.API_KEY:
-            formatted["webhook_url"] = f"/api/v1/devices/{device.id}/telemetry"
+            import os
+            api_base = os.getenv("API_BASE_URL", "")
+            formatted["webhook_url"] = f"{api_base}/api/v1/devices/{device.id}/telemetry"
             formatted["webhook_api_key"] = raw_credentials.get("api_token")
         
         if device.device_type == DeviceType.GATEWAY:
@@ -240,9 +245,12 @@ class EdgeKeyResolver:
     Used by MQTT/webhook handlers to route incoming data.
     """
     
+    CACHE_TTL_SECONDS = 300
+    
     def __init__(self, db: Session):
         self.db = db
-        self._cache: Dict[str, int] = {}
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache_timestamps: Dict[str, datetime] = {}
     
     def resolve(
         self,
@@ -264,9 +272,15 @@ class EdgeKeyResolver:
         
         if gateway_id and edge_key:
             cache_key = f"{gateway_id}:{edge_key}"
+            
             if cache_key in self._cache:
-                device_id = self._cache[cache_key]
-                return self.db.query(Device).filter(Device.id == device_id).first()
+                cached_at = self._cache_timestamps.get(cache_key)
+                if cached_at and (datetime.utcnow() - cached_at).total_seconds() < self.CACHE_TTL_SECONDS:
+                    cached_device_id = self._cache[cache_key].get("device_id")
+                    return self.db.query(Device).filter(Device.id == cached_device_id).first()
+                else:
+                    self._cache.pop(cache_key, None)
+                    self._cache_timestamps.pop(cache_key, None)
             
             device = self.db.query(Device).filter(
                 Device.gateway_id == gateway_id,
@@ -275,7 +289,8 @@ class EdgeKeyResolver:
             ).first()
             
             if device:
-                self._cache[cache_key] = device.id
+                self._cache[cache_key] = {"device_id": device.id}
+                self._cache_timestamps[cache_key] = datetime.utcnow()
             return device
         
         if mqtt_username:
@@ -316,10 +331,22 @@ class EdgeKeyResolver:
         
         return None
     
-    def invalidate_cache(self, gateway_id: int, edge_key: str):
-        """Remove cached entry."""
-        cache_key = f"{gateway_id}:{edge_key}"
-        self._cache.pop(cache_key, None)
+    def invalidate_cache(self, gateway_id: int = None, edge_key: str = None):
+        """Remove cached entry or clear entire cache."""
+        if gateway_id is not None and edge_key is not None:
+            cache_key = f"{gateway_id}:{edge_key}"
+            self._cache.pop(cache_key, None)
+            self._cache_timestamps.pop(cache_key, None)
+        elif gateway_id is not None:
+            keys_to_remove = [k for k in self._cache if k.startswith(f"{gateway_id}:")]
+            for key in keys_to_remove:
+                self._cache.pop(key, None)
+                self._cache_timestamps.pop(key, None)
+    
+    def clear_cache(self):
+        """Clear entire cache."""
+        self._cache.clear()
+        self._cache_timestamps.clear()
 
 
 def get_onboarding_service(db: Session) -> DeviceOnboardingService:
