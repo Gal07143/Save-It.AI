@@ -40,7 +40,7 @@ class DataSource(Base):
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
     gateway_id = Column(Integer, ForeignKey("gateways.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
-    source_type = Column(Enum(DataSourceType), nullable=False)
+    source_type = Column(String(50), nullable=False)
     connection_string = Column(Text, nullable=True)
     host = Column(String(255), nullable=True)
     port = Column(Integer, nullable=True)
