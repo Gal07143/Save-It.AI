@@ -1526,13 +1526,31 @@ def delete_device_alert(alert_id: int, db: Session = Depends(get_db)) -> Dict[st
 
 @router.delete("/{source_id}")
 def delete_data_source(source_id: int, db: Session = Depends(get_db)):
-    """Delete a data source by ID."""
+    """Delete a data source by ID, cleaning up all related records."""
+    from backend.app.models.integrations import DataValidationRule, ValidationViolation, DeviceGroupMember
+    from backend.app.models.core import Asset
+    from backend.app.models.enterprise import Measurement
+    
     source = db.query(DataSource).filter(DataSource.id == source_id).first()
     if not source:
         raise HTTPException(status_code=404, detail="Data source not found")
     
-    db.delete(source)
-    db.commit()
+    try:
+        db.query(ValidationViolation).filter(ValidationViolation.data_source_id == source_id).delete(synchronize_session=False)
+        db.query(DataValidationRule).filter(DataValidationRule.data_source_id == source_id).delete(synchronize_session=False)
+        db.query(ModbusRegister).filter(ModbusRegister.data_source_id == source_id).delete(synchronize_session=False)
+        db.query(DeviceGroupMember).filter(DeviceGroupMember.data_source_id == source_id).delete(synchronize_session=False)
+        db.query(MaintenanceSchedule).filter(MaintenanceSchedule.data_source_id == source_id).delete(synchronize_session=False)
+        db.query(DeviceAlert).filter(DeviceAlert.data_source_id == source_id).delete(synchronize_session=False)
+        db.query(CommunicationLog).filter(CommunicationLog.data_source_id == source_id).delete(synchronize_session=False)
+        db.query(Measurement).filter(Measurement.data_source_id == source_id).delete(synchronize_session=False)
+        db.query(Asset).filter(Asset.data_source_id == source_id).update({Asset.data_source_id: None}, synchronize_session=False)
+        
+        db.delete(source)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete data source: {str(e)}")
     
     return {"success": True, "message": "Data source deleted successfully"}
 
