@@ -26,6 +26,11 @@ from backend.app.api.routers.modbus_registers import router as modbus_registers_
 from backend.app.api.routers.public import router as public_router
 from backend.app.api.routers.system import router as system_router
 from backend.app.api.routers.webhooks import router as webhooks_router
+from backend.app.routers.device_models import router as device_models_router
+from backend.app.routers.device_products import router as device_products_router
+from backend.app.routers.devices_v2 import router as devices_v2_router
+from backend.app.routers.policies import router as policies_router
+from backend.app.routers.certificates import router as certificates_router
 
 __all__ = [
     "sites_router",
@@ -55,6 +60,11 @@ __all__ = [
     "public_router",
     "system_router",
     "webhooks_router",
+    "device_models_router",
+    "device_products_router",
+    "devices_v2_router",
+    "policies_router",
+    "certificates_router",
 ]
 
 all_routers = [
@@ -85,4 +95,9 @@ all_routers = [
     public_router,
     system_router,
     webhooks_router,
+    device_models_router,
+    device_products_router,
+    devices_v2_router,
+    policies_router,
+    certificates_router,
 ]

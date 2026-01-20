@@ -1,0 +1,70 @@
+Set up core device data structures
+Define device type categories
+Create device model information table
+Create device product details table
+Create device instance information table
+Create data point details table
+Create command definitions table
+Create alarm rule definitions table
+Create device communication rules table
+Create device security certificate table
+Link devices to specific data points
+Update model export file
+Create data structure rules
+Create device model/product schemas
+Create data point, command schemas
+Create policy, certificate schemas
+Create device setup wizard schema
+Sync model changes to devices
+Sync model changes to devices
+Update data points on devices
+Send commands to device instances
+Sync alarm rules to devices
+Manage device setup and keys
+Handle new device registration
+Generate device access credentials
+Find devices using gateway key
+Route messages using device key
+Find devices using webhook key
+Handle device messages and commands
+Receive device data messages
+Receive device event messages
+Send commands to devices
+Receive command confirmation messages
+Manage sending, tracking commands
+Improve Modbus communication features
+Add RTU-over-TCP Modbus support
+Store Modbus device settings remotely
+Send Modbus config to gateway
+Track remote config status
+Secure device communication with policies
+Manage device communication policies
+Create and download security certificates
+Use certificates for secure connection
+Enforce policies for device actions
+Process incoming device data
+Unified service for data intake
+Map raw data to normal
+Store device data readings
+Check alarms when data arrives
+Create tools for device management
+Manage device model information
+Manage device product catalog
+Manage device setup and data
+Manage model data point settings
+Manage sending device commands
+Manage device communication policies
+Manage device security certificates
+List devices connected to gateways
+Prepare data and updates
+Create database update script
+Update old device templates
+Add sample device models
+Add default communication policies
+Test system integration and function
+Test device setup process
+Test model changes sync
+Test data receiving with routing
+Test command sending and receiving
+Check compatibility with old tools
+Final review of system design

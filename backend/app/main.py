@@ -46,7 +46,13 @@ async def lifespan(app: FastAPI):
         ControlRule, SafetyGate, ControlCommand
     )
     from backend.app.models.integrations import DeviceTemplate, TemplateRegister, Gateway, ModbusRegister, CommunicationLog
+    from backend.app.models.devices import (
+        DeviceModel, DeviceProduct, Device, Datapoint, Command, AlarmRule,
+        DevicePolicy, DeviceCertificate, DeviceDatapoint, CommandExecution,
+        DeviceTelemetry, ProductRegisterMapping, RemoteModbusConfig, DeviceEvent
+    )
     from backend.app.services.seed_templates import seed_device_templates
+    from backend.app.services.seed_device_data import seed_all_device_data
     from backend.app.services.job_queue import job_queue
     from backend.app.core.database import SessionLocal
     
@@ -55,6 +61,7 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         seed_device_templates(db)
+        seed_all_device_data(db)
     except Exception as e:
         print(f"Warning: Could not seed templates: {e}")
     finally:

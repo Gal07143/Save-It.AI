@@ -54,7 +54,7 @@ Deprecated routes (/integrations, /data-ingestion) redirect to /devices.
 
 ## Development Progress
 
-**Total: 131/131 tasks complete (100%) ✅**
+**Total: 145/145 tasks complete (100%) ✅**
 
 ### All Phases Completed
 - Phase 1: Core Fixes (12 tasks) ✅
@@ -65,6 +65,7 @@ Deprecated routes (/integrations, /data-ingestion) redirect to /devices.
 - Phase 6: UX Improvements (25 tasks) ✅
 - Phase 7: Infrastructure (25 tasks) ✅
 - Phase 8: Device Connectivity (26 tasks) ✅
+- Phase 9: Zoho IoT Architecture (14 tasks) ✅
 
 ### Phase 6: UX Components Created
 - **ToastContext** - Global notification system (success/error/warning/info)
@@ -87,9 +88,25 @@ Deprecated routes (/integrations, /data-ingestion) redirect to /devices.
 - **DashboardWidgets** - Configurable widget layout with drag-and-drop
 - **InteractiveChart** - Zoom, pan, drill-down for charts
 
+### Phase 9: Zoho IoT Architecture (Model-Instance Pattern)
+- **DeviceModel** - Blueprint templates (Energy Meter, PV Inverter, Battery Storage, Gateway) with auto-propagation to instances
+- **DeviceProduct** - Manufacturer catalog (15 products: Schneider PM5320/PM5350/iEM3255, ABB M4M30/B23, Siemens PAC4200, SMA, Fronius, Huawei, Tesla, BYD, Teltonika, Shelly)
+- **Device** - Device instances with credentials (MQTT topic, API key, edge key), gateway association, and policy assignment
+- **Datapoint** - Model datapoints (voltage, current, power, energy, SOC, etc.) with types, units, aggregation methods
+- **Command** - Cloud-to-device commands (start, stop, set_power_limit) with input types (button, slider, numeric, select)
+- **AlarmRule** - Threshold-based alerting (high/low/in-range/out-of-range) with severity levels
+- **DevicePolicy** - Communication policies (Telemetry Only, Full Access, Controlled Device) controlling device capabilities
+- **DeviceCertificate** - X.509 certificate management for mTLS authentication
+- **DeviceOnboardingService** - Credential generation (MQTT topic, API key, edge key) and edge key resolution
+- **ModelPropagationService** - Sync datapoints/commands/alarms from models to device instances
+- **CommandService** - Execute commands with MQTT/webhook delivery, acknowledgment tracking, timeout handling
+- **DataIngestionService** - Unified telemetry pipeline with validation, transformation, and TimescaleDB hypertable preparation
+- **EdgeKeyRouting** - MQTT subscriber edge key support for peripheral device identification through gateways
+- **SeedData** - Initial device models, products, and policies auto-loaded on startup
+
 ### Phase 8: Device Connectivity & Integration Layer
 - **MQTTBrokerService** - Per-gateway authentication, topic ACLs, credential rotation
-- **MQTTSubscriber** - Data ingestion with reconnect/backoff, message handlers
+- **MQTTSubscriber** - Data ingestion with reconnect/backoff, message handlers, edge key routing
 - **WebhookHandler** - HMAC signature verification, rate limiting, idempotency
 - **ModbusManager** - TCP/RTU connections, pooling, circuit breakers, register parsing
 - **GatewayRegistration** - Auto-generate MQTT/webhook credentials with copy-ready config (like Zoho IoT)

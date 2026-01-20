@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class ModbusProtocol(str, Enum):
     TCP = "tcp"
     RTU = "rtu"
+    RTU_OVER_TCP = "rtu_over_tcp"
 
 
 class DataType(str, Enum):

@@ -19,15 +19,30 @@ class MQTTMessage:
     payload: bytes
     gateway_id: Optional[int]
     device_id: Optional[str]
+    edge_key: Optional[str]
     message_type: str
     timestamp: datetime
     
     @classmethod
     def from_raw(cls, topic: str, payload: bytes) -> "MQTTMessage":
-        """Parse raw MQTT message."""
+        """
+        Parse raw MQTT message.
+        
+        Topic patterns supported:
+        - saveit/{gateway_id}/telemetry - Gateway-level telemetry
+        - saveit/{gateway_id}/{device_id}/telemetry - Device-level telemetry
+        - device/{device_id}/telemetry - Direct device connection
+        - device/{device_id}/events - Device events
+        - device/{device_id}/commands/ack - Command acknowledgments
+        
+        Edge key routing: When payload contains 'edge_key', it's used to resolve
+        which peripheral device the data belongs to (for gateways aggregating
+        multiple meters/sensors).
+        """
         parts = topic.split('/')
         gateway_id = None
         device_id = None
+        edge_key = None
         message_type = "unknown"
         
         if len(parts) >= 2 and parts[0] == "saveit":
@@ -35,20 +50,31 @@ class MQTTMessage:
                 gateway_id = int(parts[1])
             except ValueError:
                 pass
+            if len(parts) >= 3:
+                device_id = parts[2]
+            if len(parts) >= 4:
+                message_type = parts[3]
+            elif len(parts) >= 3:
+                message_type = parts[2]
+        elif len(parts) >= 2 and parts[0] == "device":
+            device_id = parts[1]
+            if len(parts) >= 3:
+                message_type = parts[2]
+            if len(parts) >= 4 and parts[2] == "commands":
+                message_type = "commands/" + parts[3]
         
-        if len(parts) >= 3:
-            device_id = parts[2]
-        
-        if len(parts) >= 4:
-            message_type = parts[3]
-        elif len(parts) >= 3:
-            message_type = parts[2]
+        try:
+            payload_data = json.loads(payload.decode('utf-8'))
+            edge_key = payload_data.get('edge_key') or payload_data.get('edgeKey')
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
         
         return cls(
             topic=topic,
             payload=payload,
             gateway_id=gateway_id,
             device_id=device_id,
+            edge_key=edge_key,
             message_type=message_type,
             timestamp=datetime.utcnow(),
         )
