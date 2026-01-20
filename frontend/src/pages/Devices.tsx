@@ -46,7 +46,8 @@ export default function Devices({ currentSite }: DevicesProps) {
   })
 
   const cloneMutation = useMutation({
-    mutationFn: (id: number) => api.dataSources.clone(id),
+    mutationFn: (device: { id: number; name: string }) => 
+      api.deviceClone.clone(device.id, `${device.name} (Copy)`),
     onSuccess: () => {
       success('Device cloned successfully')
       queryClient.invalidateQueries({ queryKey: ['dataSources'] })
@@ -225,7 +226,7 @@ export default function Devices({ currentSite }: DevicesProps) {
                   <Settings size={16} />
                 </button>
                 <button
-                  onClick={() => cloneMutation.mutate(device.id)}
+                  onClick={() => cloneMutation.mutate({ id: device.id, name: device.name })}
                   style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
                   title="Clone Device"
                 >
@@ -280,7 +281,7 @@ export default function Devices({ currentSite }: DevicesProps) {
                   <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>{device.source_type}</div>
                 </div>
                 <button
-                  onClick={() => cloneMutation.mutate(device.id)}
+                  onClick={() => cloneMutation.mutate({ id: device.id, name: device.name })}
                   disabled={cloneMutation.isPending}
                   style={{
                     display: 'flex',

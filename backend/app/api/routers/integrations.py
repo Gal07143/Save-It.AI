@@ -1524,6 +1524,19 @@ def delete_device_alert(alert_id: int, db: Session = Depends(get_db)) -> Dict[st
     return {"success": True, "message": "Device alert deleted"}
 
 
+@router.delete("/{source_id}")
+def delete_data_source(source_id: int, db: Session = Depends(get_db)):
+    """Delete a data source by ID."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    db.delete(source)
+    db.commit()
+    
+    return {"success": True, "message": "Data source deleted successfully"}
+
+
 @router.get("/{source_id}", response_model=DataSourceResponse)
 def get_data_source(source_id: int, db: Session = Depends(get_db)):
     """Get data source by ID. NOTE: This route must be last to avoid matching paths like /validation-rules."""
