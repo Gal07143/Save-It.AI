@@ -243,8 +243,95 @@ class EmailService:
         )
     
     async def _send_via_provider(self, message: EmailMessage):
-        """Send email via configured provider (placeholder)."""
-        logger.debug(f"Sending email via provider: {message.id}")
+        """Send email via configured provider (SMTP or SendGrid)."""
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        provider = os.getenv("EMAIL_PROVIDER", "smtp").lower()
+        
+        if provider == "sendgrid":
+            await self._send_via_sendgrid(message)
+        else:
+            await self._send_via_smtp(message)
+    
+    async def _send_via_smtp(self, message: EmailMessage):
+        """Send email via SMTP."""
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        smtp_host = os.getenv("SMTP_HOST", "")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USER", "")
+        smtp_password = os.getenv("SMTP_PASSWORD", "")
+        
+        if not smtp_host:
+            raise ValueError("SMTP_HOST not configured")
+        
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = message.subject
+        msg["From"] = message.from_address or self._from_address
+        msg["To"] = ", ".join(message.to)
+        
+        if message.cc:
+            msg["Cc"] = ", ".join(message.cc)
+        if message.reply_to:
+            msg["Reply-To"] = message.reply_to
+        
+        if message.body_text:
+            msg.attach(MIMEText(message.body_text, "plain"))
+        msg.attach(MIMEText(message.body_html, "html"))
+        
+        recipients = message.to + message.cc + message.bcc
+        
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            if smtp_user and smtp_password:
+                server.login(smtp_user, smtp_password)
+            server.sendmail(msg["From"], recipients, msg.as_string())
+        
+        logger.info(f"Email sent via SMTP: {message.id}")
+    
+    async def _send_via_sendgrid(self, message: EmailMessage):
+        """Send email via SendGrid API."""
+        import httpx
+        
+        api_key = os.getenv("SENDGRID_API_KEY", "")
+        if not api_key:
+            raise ValueError("SENDGRID_API_KEY not configured")
+        
+        payload = {
+            "personalizations": [{
+                "to": [{"email": email} for email in message.to],
+                "cc": [{"email": email} for email in message.cc] if message.cc else None,
+                "bcc": [{"email": email} for email in message.bcc] if message.bcc else None,
+            }],
+            "from": {"email": message.from_address or self._from_address},
+            "subject": message.subject,
+            "content": [
+                {"type": "text/plain", "value": message.body_text or ""},
+                {"type": "text/html", "value": message.body_html},
+            ],
+        }
+        
+        if message.reply_to:
+            payload["reply_to"] = {"email": message.reply_to}
+        
+        payload["personalizations"][0] = {k: v for k, v in payload["personalizations"][0].items() if v}
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.sendgrid.com/v3/mail/send",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+            response.raise_for_status()
+        
+        logger.info(f"Email sent via SendGrid: {message.id}")
     
     def get_history(
         self,

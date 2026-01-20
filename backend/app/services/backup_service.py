@@ -110,11 +110,53 @@ class BackupService:
         return job
     
     async def _export_data(self, tables: Optional[List[str]] = None) -> dict:
-        """Export data for backup (placeholder implementation)."""
+        """Export data for backup using pg_dump or SQLAlchemy."""
+        from backend.app.core.database import SessionLocal, engine
+        from sqlalchemy import inspect, text
+        import hashlib
+        
+        data = {}
+        inspector = inspect(engine)
+        all_tables = inspector.get_table_names()
+        
+        target_tables = tables if tables else all_tables
+        
+        db = SessionLocal()
+        try:
+            for table_name in target_tables:
+                if table_name not in all_tables:
+                    continue
+                
+                try:
+                    result = db.execute(text(f'SELECT * FROM "{table_name}" LIMIT 10000'))
+                    columns = result.keys()
+                    rows = []
+                    for row in result.fetchall():
+                        row_dict = {}
+                        for i, col in enumerate(columns):
+                            val = row[i]
+                            if hasattr(val, 'isoformat'):
+                                val = val.isoformat()
+                            elif isinstance(val, bytes):
+                                val = val.hex()
+                            row_dict[col] = val
+                        rows.append(row_dict)
+                    data[table_name] = {
+                        "columns": list(columns),
+                        "row_count": len(rows),
+                        "rows": rows,
+                    }
+                except Exception as e:
+                    logger.warning(f"Failed to export table {table_name}: {e}")
+                    data[table_name] = {"error": str(e)}
+        finally:
+            db.close()
+        
         return {
             "timestamp": datetime.utcnow().isoformat(),
-            "tables": tables or ["all"],
-            "data": {},
+            "tables": list(data.keys()),
+            "table_count": len(data),
+            "data": data,
         }
     
     async def verify_backup(self, backup_id: str) -> bool:
@@ -146,14 +188,93 @@ class BackupService:
             logger.error(f"Backup verification error: {backup_id} - {e}")
             return False
     
-    async def restore_backup(self, backup_id: str) -> bool:
-        """Restore data from a backup (placeholder)."""
+    async def restore_backup(self, backup_id: str, dry_run: bool = True) -> dict:
+        """
+        Restore data from a backup.
+        
+        Args:
+            backup_id: ID of backup to restore
+            dry_run: If True, only validate backup without restoring
+            
+        Returns:
+            dict with restore status and details
+        """
+        import json
+        from backend.app.core.database import SessionLocal, engine
+        from sqlalchemy import text
+        
         job = next((b for b in self.backup_history if b.id == backup_id), None)
         if not job or not job.file_path:
-            return False
+            return {"success": False, "error": "Backup not found"}
         
-        logger.info(f"Restore from backup: {backup_id}")
-        return True
+        if not os.path.exists(job.file_path):
+            return {"success": False, "error": "Backup file not found"}
+        
+        try:
+            with open(job.file_path, "r") as f:
+                backup_data = json.load(f)
+        except Exception as e:
+            return {"success": False, "error": f"Failed to read backup: {e}"}
+        
+        data = backup_data.get("data", {})
+        tables_to_restore = list(data.keys())
+        
+        if dry_run:
+            return {
+                "success": True,
+                "dry_run": True,
+                "tables": tables_to_restore,
+                "total_rows": sum(t.get("row_count", 0) for t in data.values() if isinstance(t, dict)),
+                "message": "Backup validated successfully. Set dry_run=False to restore.",
+            }
+        
+        db = SessionLocal()
+        restored_tables = []
+        errors = []
+        
+        try:
+            for table_name, table_data in data.items():
+                if not isinstance(table_data, dict) or "error" in table_data:
+                    continue
+                
+                rows = table_data.get("rows", [])
+                if not rows:
+                    continue
+                
+                try:
+                    columns = table_data.get("columns", list(rows[0].keys()) if rows else [])
+                    
+                    for row in rows:
+                        cols = ", ".join([f'"{c}"' for c in columns])
+                        placeholders = ", ".join([f":val_{i}" for i in range(len(columns))])
+                        params = {f"val_{i}": row.get(col) for i, col in enumerate(columns)}
+                        
+                        db.execute(
+                            text(f'INSERT INTO "{table_name}" ({cols}) VALUES ({placeholders}) ON CONFLICT DO NOTHING'),
+                            params
+                        )
+                    
+                    restored_tables.append(table_name)
+                    
+                except Exception as e:
+                    errors.append(f"{table_name}: {e}")
+                    logger.error(f"Failed to restore table {table_name}: {e}")
+            
+            db.commit()
+            logger.info(f"Restored backup {backup_id}: {len(restored_tables)} tables")
+            
+        except Exception as e:
+            db.rollback()
+            return {"success": False, "error": f"Restore failed: {e}"}
+        finally:
+            db.close()
+        
+        return {
+            "success": True,
+            "dry_run": False,
+            "restored_tables": restored_tables,
+            "errors": errors,
+        }
     
     async def cleanup_old_data(self) -> dict:
         """Clean up data older than retention policy."""
