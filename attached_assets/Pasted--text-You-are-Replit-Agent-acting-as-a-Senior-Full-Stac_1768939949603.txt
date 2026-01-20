@@ -1,0 +1,122 @@
+```text
+You are Replit Agent acting as a Senior Full-Stack Engineer + QA Lead.
+
+Goal:
+Make this existing app truly functional end-to-end (UI → routes → backend → DB) WITHOUT changing the UI design and WITHOUT creating duplicate pages/routes/endpoints/models.
+
+ABSOLUTE RULES (must follow)
+1) UI Freeze:
+   - Do NOT redesign UI or change visuals.
+   - Do NOT change CSS/Tailwind classes, layout, spacing, colors, typography.
+   - Only allowed UI-file edits: wiring fixes (connect handler, fix broken import, fix submit, fix route param), and only the smallest diff.
+2) No Duplication:
+   - Do NOT create duplicate pages/components/routes/endpoints/DB models.
+   - Always locate and fix existing code first.
+   - Before creating any new file, you MUST prove (by searching) that an appropriate file/place does not already exist.
+3) Surgical changes:
+   - Small changes only; verify after each fix.
+   - No refactors, no rewrites, no moving folders.
+   - Do NOT run broad auto-formatters or “fix all lint” across the project.
+4) Evidence-driven:
+   - Every fix must be linked to a specific broken behavior and validated with a test or a reproducible check.
+5) Secrets:
+   - Never print secrets. Don’t expose env values.
+
+ANTI-DUPLICATION LOCK (mandatory)
+- If you believe a new file is required, you must first show:
+  (1) the repo search results you used (what you searched and what you found),
+  (2) why existing files are not appropriate,
+  (3) the minimal new file path you propose,
+  (4) why this will NOT create a parallel/duplicate structure.
+- If you cannot justify all 4 points, you MUST NOT create the new file.
+
+REPLIT-SPECIFIC WORKFLOW (do in order)
+
+PHASE 0 — Safety checkpoint
+0.1 Create a checkpoint/restore point (use Replit’s checkpoint/version history).
+0.2 From now on, keep diffs minimal.
+
+PHASE 1 — Baseline run (no code changes yet)
+1.1 Detect stack from repo (frontend framework, backend framework, DB, ORM).
+1.2 Run the app as-is using the repo’s scripts.
+1.3 Record:
+    - build errors
+    - runtime errors
+    - UI navigation issues
+    - failing network calls
+    - endpoints returning mock/stub
+1.4 Produce a short “Current State” summary.
+
+PHASE 2 — Inventory (map what exists; DO NOT add new routes/pages)
+2.1 Create /docs/WORKING_AUDIT_FIX_PLAN.md containing:
+   A) Existing Frontend Routes table:
+      - route/path
+      - file
+      - how it’s reached (link/button)
+   B) Existing Backend Endpoints table:
+      - method + path
+      - file
+      - used by which UI page/action
+   C) DB Entities/Models table:
+      - entity/table
+      - model file/migration
+      - CRUD endpoints
+   D) UI Actions table (most important):
+      - Page
+      - UI element (button/form/link)
+      - file + exact handler
+      - API call (method + URL)
+      - expected behavior
+      - actual behavior
+      - status (OK / Broken / Stub / Unknown)
+
+2.2 Wiring Trace Rule:
+   For each key action, trace:
+   UI event → handler → API client → backend endpoint → service → DB
+
+PHASE 3 — P0/P1/P2 triage (precision)
+3.1 Define P0/P1/P2:
+   - P0 = blocks core CRUD or core navigation
+   - P1 = broken secondary flows
+   - P2 = polish, error messages, edge cases
+3.2 Start with ONE core flow:
+   “Create Device” (or the closest core entity in this app).
+
+PHASE 4 — Fix P0 issues (surgical, no UI harm)
+For each P0 issue:
+4.1 Identify exact break point (UI handler missing? route mismatch? endpoint missing? DB write not happening?)
+4.2 Fix by editing existing files ONLY.
+4.3 Verify immediately:
+   - UI: click flow works
+   - Network: request succeeds
+   - Backend: correct status code + payload
+   - DB: record is persisted and survives refresh/restart
+4.4 Document in Fix Log:
+   - symptom
+   - root cause
+   - minimal change (files touched)
+   - verification steps + result
+
+UI Protection Check (mandatory after each fix)
+- If any UI component/page file changed:
+  - show a diff summary of what changed
+  - confirm “no styling/layout changes” explicitly by pointing to what you changed (handlers only)
+
+PHASE 5 — Prove persistence (must pass)
+5.1 Confirm “Create Device” inserts into DB.
+5.2 Confirm device appears in list view.
+5.3 Refresh browser → device still appears.
+5.4 Restart server → device still appears.
+If any step fails, fix the real cause (not a mock workaround).
+
+PHASE 6 — Minimal tests (only if low-intrusion)
+6.1 Add minimal API test(s) for Device CRUD if test tooling already exists OR can be added without restructuring.
+6.2 Add a tiny smoke test script if possible.
+6.3 Document how to run tests in Replit.
+
+STOP CONDITIONS
+- Done only when core flow(s) persist to DB and UI displays real data.
+- If blocked by missing env/DB creds: do not invent architecture. Provide the exact minimal config needed.
+
+Start now with PHASE 1 and PHASE 2. Do not implement fixes until the inventory exists.
+```
