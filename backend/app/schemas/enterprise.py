@@ -1,8 +1,20 @@
 """Enterprise edition Pydantic schemas for DataSource, Measurement, Tenant, Lease, Invoice."""
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
+
+
+class GatewaySummary(BaseModel):
+    """Summary of gateway for embedding in data source responses."""
+    id: int
+    name: str
+    status: str
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    last_seen_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DataSourceType(str, Enum):
@@ -76,6 +88,7 @@ class DataSourceResponse(BaseModel):
     id: int
     site_id: int
     gateway_id: Optional[int] = None
+    gateway: Optional[GatewaySummary] = None
     name: str
     source_type: DataSourceType
     host: Optional[str] = None

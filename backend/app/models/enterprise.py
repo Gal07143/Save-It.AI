@@ -76,6 +76,7 @@ class DataSource(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     measurements = relationship("Measurement", back_populates="data_source", cascade="all, delete-orphan")
+    gateway = relationship("Gateway", foreign_keys=[gateway_id])
 
 
 class Measurement(Base):

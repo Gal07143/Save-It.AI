@@ -33,15 +33,68 @@ def create_data_source(source: DataSourceCreate, db: Session = Depends(get_db)):
 @router.get("", response_model=List[DataSourceResponse])
 def list_data_sources(
     site_id: Optional[int] = None,
+    gateway_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """List all data sources, optionally filtered by site."""
-    query = db.query(DataSource)
+    """List all data sources, optionally filtered by site or gateway."""
+    from sqlalchemy.orm import joinedload
+    query = db.query(DataSource).options(joinedload(DataSource.gateway))
     if site_id:
         query = query.filter(DataSource.site_id == site_id)
-    return query.offset(skip).limit(limit).all()
+    if gateway_id:
+        query = query.filter(DataSource.gateway_id == gateway_id)
+    sources = query.offset(skip).limit(limit).all()
+    
+    result = []
+    for source in sources:
+        source_dict = {
+            "id": source.id,
+            "site_id": source.site_id,
+            "gateway_id": source.gateway_id,
+            "gateway": None,
+            "name": source.name,
+            "source_type": source.source_type,
+            "host": source.host,
+            "port": source.port,
+            "slave_id": source.slave_id,
+            "polling_interval_seconds": source.polling_interval_seconds,
+            "is_active": bool(source.is_active),
+            "last_poll_at": source.last_poll_at,
+            "last_error": source.last_error,
+            "mqtt_broker_url": source.mqtt_broker_url,
+            "mqtt_topic": source.mqtt_topic,
+            "mqtt_port": source.mqtt_port,
+            "mqtt_use_tls": source.mqtt_use_tls,
+            "webhook_url": source.webhook_url,
+            "webhook_auth_type": source.webhook_auth_type,
+            "max_retries": source.max_retries,
+            "retry_delay_seconds": source.retry_delay_seconds,
+            "backoff_multiplier": source.backoff_multiplier,
+            "current_retry_count": source.current_retry_count,
+            "next_retry_at": source.next_retry_at,
+            "connection_status": source.connection_status,
+            "last_successful_poll_at": source.last_successful_poll_at,
+            "firmware_version": source.firmware_version,
+            "firmware_updated_at": source.firmware_updated_at,
+            "hardware_version": source.hardware_version,
+            "serial_number": source.serial_number,
+            "manufacturer": source.manufacturer,
+            "model": source.model,
+            "created_at": source.created_at,
+        }
+        if source.gateway:
+            source_dict["gateway"] = {
+                "id": source.gateway.id,
+                "name": source.gateway.name,
+                "status": source.gateway.status.value if hasattr(source.gateway.status, 'value') else str(source.gateway.status),
+                "manufacturer": source.gateway.manufacturer,
+                "model": source.gateway.model,
+                "last_seen_at": source.gateway.last_seen_at,
+            }
+        result.append(source_dict)
+    return result
 
 
 @router.post("/bulk-import", response_model=BulkDeviceImportResponse)
