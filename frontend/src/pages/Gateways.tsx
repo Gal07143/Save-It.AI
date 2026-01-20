@@ -10,6 +10,7 @@ import { useToast } from '../contexts/ToastContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import GatewayStatusBadge from '../components/GatewayStatusBadge'
 import GatewayCredentialsCard from '../components/GatewayCredentialsCard'
+import DeviceOnboardingWizard from './DeviceOnboardingWizard'
 
 interface GatewaysProps {
   currentSite: number | null
@@ -22,9 +23,11 @@ export default function Gateways({ currentSite }: GatewaysProps) {
   const [credentials, setCredentials] = useState<GatewayRegistration | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [gatewayToDelete, setGatewayToDelete] = useState<Gateway | null>(null)
+  const [showDeviceWizard, setShowDeviceWizard] = useState(false)
+  const [_selectedGatewayForDevice, setSelectedGatewayForDevice] = useState<number | null>(null)
   const { success, error: showError } = useToast()
   const queryClient = useQueryClient()
-  const [, setLocation] = useLocation()
+  const [, _setLocation] = useLocation()
 
   const [newGateway, setNewGateway] = useState({
     name: '',
@@ -228,7 +231,10 @@ export default function Gateways({ currentSite }: GatewaysProps) {
                       Credentials
                     </button>
                     <button
-                      onClick={() => setLocation(`/device-wizard?gateway=${gateway.id}`)}
+                      onClick={() => {
+                        setSelectedGatewayForDevice(gateway.id)
+                        setShowDeviceWizard(true)
+                      }}
                       className="btn btn-primary btn-sm"
                       title="Add Device to Gateway"
                       style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
@@ -385,6 +391,21 @@ export default function Gateways({ currentSite }: GatewaysProps) {
         message={`Are you sure you want to delete "${gatewayToDelete?.name}"? Devices connected to this gateway will be disconnected.`}
         confirmLabel="Delete"
         variant="danger"
+      />
+      
+      <DeviceOnboardingWizard
+        isOpen={showDeviceWizard}
+        onClose={() => {
+          setShowDeviceWizard(false)
+          setSelectedGatewayForDevice(null)
+        }}
+        currentSite={currentSite}
+        onComplete={(_dataSourceId: number) => {
+          setShowDeviceWizard(false)
+          setSelectedGatewayForDevice(null)
+          queryClient.invalidateQueries({ queryKey: ['dataSources'] })
+          success('Device added to gateway successfully')
+        }}
       />
     </div>
   )

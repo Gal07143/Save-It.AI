@@ -208,10 +208,6 @@ function AppRoutes() {
         )}
       </Route>
       
-      <Route path="/device-wizard">
-        {() => <Redirect to="/devices" />}
-      </Route>
-      
       <Route path="/device-config">
         {() => (
           <ProtectedRoute>

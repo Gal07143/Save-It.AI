@@ -11,6 +11,7 @@ import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import GatewayStatusBadge from '../components/GatewayStatusBadge'
+import DeviceOnboardingWizard from './DeviceOnboardingWizard'
 
 interface DevicesProps {
   currentSite: number | null
@@ -22,6 +23,8 @@ export default function Devices({ currentSite }: DevicesProps) {
   const [showDeviceDetails, setShowDeviceDetails] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deviceToDelete, setDeviceToDelete] = useState<any>(null)
+  const [showDeviceWizard, setShowDeviceWizard] = useState(false)
+  const [_editDeviceId, setEditDeviceId] = useState<number | null>(null)
   const { success, error: showError } = useToast()
   const queryClient = useQueryClient()
   const [, setLocation] = useLocation()
@@ -82,7 +85,20 @@ export default function Devices({ currentSite }: DevicesProps) {
   }
 
   const handleEditDevice = (device: any) => {
-    setLocation(`/device-wizard?edit=${device.id}`)
+    setEditDeviceId(device.id)
+    setShowDeviceWizard(true)
+  }
+  
+  const handleAddDevice = () => {
+    setEditDeviceId(null)
+    setShowDeviceWizard(true)
+  }
+  
+  const handleWizardComplete = (_dataSourceId: number) => {
+    setShowDeviceWizard(false)
+    setEditDeviceId(null)
+    queryClient.invalidateQueries({ queryKey: ['dataSources'] })
+    success('Device configured successfully')
   }
 
   const renderAllDevices = () => (
@@ -99,7 +115,7 @@ export default function Devices({ currentSite }: DevicesProps) {
             Manage Gateways
           </button>
           <button
-            onClick={() => setLocation('/device-wizard')}
+            onClick={handleAddDevice}
             className="btn btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
@@ -120,7 +136,7 @@ export default function Devices({ currentSite }: DevicesProps) {
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <button
-              onClick={() => setLocation('/device-wizard')}
+              onClick={handleAddDevice}
               className="btn btn-primary"
             >
               <Plus size={16} />
@@ -555,6 +571,16 @@ export default function Devices({ currentSite }: DevicesProps) {
         message={`Are you sure you want to delete "${deviceToDelete?.name}"? This action cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"
+      />
+      
+      <DeviceOnboardingWizard
+        isOpen={showDeviceWizard}
+        onClose={() => {
+          setShowDeviceWizard(false)
+          setEditDeviceId(null)
+        }}
+        currentSite={currentSite}
+        onComplete={handleWizardComplete}
       />
     </div>
   )
