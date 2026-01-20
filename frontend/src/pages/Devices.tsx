@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { 
   Cpu, Search, CheckCircle, Upload, Copy, QrCode, 
-  Plus, Wifi, WifiOff, Trash2, Eye, Settings
+  Plus, Wifi, WifiOff, Trash2, Eye, Settings, Router
 } from 'lucide-react'
 import { api } from '../services/api'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 import ConfirmDialog from '../components/ConfirmDialog'
+import GatewayStatusBadge from '../components/GatewayStatusBadge'
 
 interface DevicesProps {
   currentSite: number | null
@@ -135,7 +136,19 @@ export default function Devices({ currentSite }: DevicesProps) {
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {device.gateway && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Router size={14} color="#64748b" />
+                    <GatewayStatusBadge 
+                      status={device.gateway.status} 
+                      gatewayName={device.gateway.name}
+                      size="sm"
+                    />
+                  </div>
+                )}
+                
                 <span style={{
                   padding: '0.25rem 0.75rem',
                   borderRadius: '9999px',
