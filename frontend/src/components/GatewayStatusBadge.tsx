@@ -105,7 +105,7 @@ interface GatewayCardProps {
 }
 
 export function GatewayCard({
-  id,
+  id: _id,
   name,
   status,
   manufacturer,

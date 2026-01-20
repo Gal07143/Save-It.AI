@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useLocation } from 'wouter'
 import { 
   Cpu, Search, CheckCircle, Upload, Copy, QrCode, 
   Plus, Wifi, WifiOff, Trash2, Eye, Settings, Router, X,
@@ -24,7 +24,7 @@ export default function Devices({ currentSite }: DevicesProps) {
   const [deviceToDelete, setDeviceToDelete] = useState<any>(null)
   const { success, error: showError } = useToast()
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const [, setLocation] = useLocation()
 
   const { data: dataSources, isLoading } = useQuery({
     queryKey: ['dataSources', currentSite],
@@ -82,7 +82,7 @@ export default function Devices({ currentSite }: DevicesProps) {
   }
 
   const handleEditDevice = (device: any) => {
-    navigate(`/device-wizard?edit=${device.id}`)
+    setLocation(`/device-wizard?edit=${device.id}`)
   }
 
   const renderAllDevices = () => (
@@ -91,7 +91,7 @@ export default function Devices({ currentSite }: DevicesProps) {
         <h3 style={{ margin: 0, color: 'white' }}>Device Inventory</h3>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button
-            onClick={() => navigate('/gateways')}
+            onClick={() => setLocation('/gateways')}
             className="btn btn-secondary"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
@@ -99,7 +99,7 @@ export default function Devices({ currentSite }: DevicesProps) {
             Manage Gateways
           </button>
           <button
-            onClick={() => navigate('/device-wizard')}
+            onClick={() => setLocation('/device-wizard')}
             className="btn btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
@@ -120,7 +120,7 @@ export default function Devices({ currentSite }: DevicesProps) {
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <button
-              onClick={() => navigate('/device-wizard')}
+              onClick={() => setLocation('/device-wizard')}
               className="btn btn-primary"
             >
               <Plus size={16} />
@@ -172,7 +172,7 @@ export default function Devices({ currentSite }: DevicesProps) {
                 {device.gateway && (
                   <div 
                     style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                    onClick={() => navigate('/gateways')}
+                    onClick={() => setLocation('/gateways')}
                     title="View gateway"
                   >
                     <Router size={14} color="#64748b" />
@@ -534,7 +534,7 @@ export default function Devices({ currentSite }: DevicesProps) {
             </div>
             <div className="modal-footer">
               <button
-                onClick={() => navigate(`/device-health`)}
+                onClick={() => setLocation(`/device-health`)}
                 className="btn btn-outline"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >

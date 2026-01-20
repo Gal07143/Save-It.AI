@@ -92,6 +92,16 @@ function AppRoutes() {
         )}
       </Route>
       
+      <Route path="/dashboard">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <Dashboard />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
       <Route path="/sites">
         {() => (
           <ProtectedRoute>
@@ -198,6 +208,10 @@ function AppRoutes() {
         )}
       </Route>
       
+      <Route path="/device-wizard">
+        {() => <Redirect to="/devices" />}
+      </Route>
+      
       <Route path="/device-config">
         {() => (
           <ProtectedRoute>
@@ -232,7 +246,7 @@ function AppRoutes() {
         {() => (
           <ProtectedRoute>
             <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
-              <Gateways />
+              <Gateways currentSite={currentSite} />
             </Layout>
           </ProtectedRoute>
         )}

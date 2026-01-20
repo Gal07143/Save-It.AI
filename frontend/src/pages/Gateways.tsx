@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useLocation } from 'wouter'
 import { 
   Radio, Wifi, Plus, Trash2, XCircle, 
   RefreshCw, Clock, Activity, Key, Router, AlertCircle
@@ -24,7 +24,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
   const [gatewayToDelete, setGatewayToDelete] = useState<Gateway | null>(null)
   const { success, error: showError } = useToast()
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const [, setLocation] = useLocation()
 
   const [newGateway, setNewGateway] = useState({
     name: '',
@@ -228,7 +228,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
                       Credentials
                     </button>
                     <button
-                      onClick={() => navigate(`/device-wizard?gateway=${gateway.id}`)}
+                      onClick={() => setLocation(`/device-wizard?gateway=${gateway.id}`)}
                       className="btn btn-primary btn-sm"
                       title="Add Device to Gateway"
                       style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
