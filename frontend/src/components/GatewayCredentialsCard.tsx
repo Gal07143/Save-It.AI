@@ -30,11 +30,11 @@ interface GatewayCredentials {
   registered_at: string
 }
 
-interface GatewayCredentialsCardProps {
+export interface GatewayCredentialsCardProps {
   credentials: GatewayCredentials | null
   isLoading?: boolean
-  onRegister: () => void
-  onRotate: () => void
+  onRegister?: () => void
+  onRotate?: () => void
   protocol?: 'mqtt' | 'webhook' | 'both'
 }
 
@@ -199,25 +199,27 @@ export default function GatewayCredentialsCard({
         <p style={{ color: '#94a3b8', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
           Register this gateway to generate connection credentials
         </p>
-        <button
-          onClick={onRegister}
-          style={{
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.5rem',
-            padding: '0.75rem 1.5rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <Key size={16} />
-          Register Gateway
-        </button>
+        {onRegister && (
+          <button
+            onClick={onRegister}
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            <Key size={16} />
+            Register Gateway
+          </button>
+        )}
       </div>
     )
   }
@@ -266,25 +268,27 @@ export default function GatewayCredentialsCard({
             {copiedAll ? <Check size={16} /> : <Copy size={16} />}
             {copiedAll ? 'Copied All!' : 'Copy All'}
           </button>
-          <button
-            onClick={onRotate}
-            style={{
-              background: 'rgba(245, 158, 11, 0.2)',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.5rem',
-              color: '#f59e0b',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              fontSize: '0.875rem',
-            }}
-            title="Generate new credentials (invalidates old ones)"
-          >
-            <RefreshCw size={16} />
-            Rotate
-          </button>
+          {onRotate && (
+            <button
+              onClick={onRotate}
+              style={{
+                background: 'rgba(245, 158, 11, 0.2)',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0.5rem 1rem',
+                borderRadius: '0.5rem',
+                color: '#f59e0b',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.375rem',
+                fontSize: '0.875rem',
+              }}
+              title="Generate new credentials (invalidates old ones)"
+            >
+              <RefreshCw size={16} />
+              Rotate
+            </button>
+          )}
         </div>
       </div>
 

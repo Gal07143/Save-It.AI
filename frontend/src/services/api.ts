@@ -173,6 +173,11 @@ export const api = {
     list: (siteId?: number) => fetchApi<Gateway[]>(`/gateways${siteId ? `?site_id=${siteId}` : ''}`),
     get: (id: number) => fetchApi<Gateway>(`/gateways/${id}`),
     create: (data: Partial<Gateway>) => fetchApi<Gateway>('/gateways', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<Gateway>) => fetchApi<Gateway>(`/gateways/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<void>(`/gateways/${id}`, { method: 'DELETE' }),
+    register: (id: number) => fetchApi<GatewayRegistration>(`/gateways/${id}/register`, { method: 'POST' }),
+    rotateCredentials: (id: number) => fetchApi<GatewayRegistration>(`/gateways/${id}/rotate-credentials`, { method: 'POST' }),
+    getCredentials: (id: number) => fetchApi<GatewayRegistration>(`/gateways/${id}/credentials`),
   },
   deviceTemplates: {
     list: () => fetchApi<DeviceTemplate[]>('/device-templates'),
@@ -697,6 +702,35 @@ export interface Gateway {
   firmware_version?: string
   description?: string
   heartbeat_interval_seconds?: number
+}
+
+export interface MQTTConfig {
+  host: string
+  port: number
+  tls_port: number
+  username: string
+  password: string
+  client_id: string
+  publish_topic: string
+  heartbeat_topic: string
+  subscribe_topic: string
+}
+
+export interface WebhookConfig {
+  url: string
+  api_key: string
+  secret_key: string
+  method: string
+  content_type: string
+}
+
+export interface GatewayRegistration {
+  gateway_id: number
+  gateway_name: string
+  status: string
+  mqtt: MQTTConfig
+  webhook: WebhookConfig
+  registered_at: string
 }
 
 export interface DeviceTemplate {
