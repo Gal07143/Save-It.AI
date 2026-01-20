@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { 
   X, ChevronRight, ChevronLeft, Check, Wifi, WifiOff, 
-  Server, Database, CheckCircle, Cpu, Zap, Battery, RefreshCw
+  Server, Database, CheckCircle, Cpu, Zap, Battery, RefreshCw, Plus, Router
 } from 'lucide-react'
+import { GatewayStatusIndicator } from '../components/GatewayStatusBadge'
 
 interface DeviceOnboardingWizardProps {
   isOpen: boolean
@@ -424,24 +425,120 @@ export default function DeviceOnboardingWizard({
                 ))}
               </div>
 
-              {state.deviceCategory !== 'gateway' && (gateways?.length ?? 0) > 0 && (
+              {state.deviceCategory !== 'gateway' && (
                 <div style={{ marginTop: '1.5rem' }}>
-                  <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#cbd5e1', display: 'block', marginBottom: '0.5rem' }}>
-                    Connect via Gateway (optional)
-                  </label>
-                  <select
-                    value={state.gatewayId || ''}
-                    onChange={(e) => setState(prev => ({ 
-                      ...prev, gatewayId: e.target.value ? parseInt(e.target.value) : null 
-                    }))}
-                    className="form-input"
-                    style={{ width: '100%' }}
-                  >
-                    <option value="">Direct connection (no gateway)</option>
-                    {gateways?.map((gw: any) => (
-                      <option key={gw.id} value={gw.id}>{gw.name}</option>
-                    ))}
-                  </select>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#cbd5e1' }}>
+                      <Router size={14} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                      Connect via Gateway (optional)
+                    </label>
+                    <a
+                      href="/devices?action=register-gateway"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        fontSize: '0.75rem',
+                        color: '#3b82f6',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <Plus size={12} />
+                      Register New Gateway
+                    </a>
+                  </div>
+                  
+                  {(gateways?.length ?? 0) > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setState(prev => ({ ...prev, gatewayId: null }))}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.75rem 1rem',
+                          borderRadius: '8px',
+                          border: state.gatewayId === null ? '2px solid #3b82f6' : '1px solid #334155',
+                          backgroundColor: state.gatewayId === null ? 'rgba(59, 130, 246, 0.1)' : '#1e293b',
+                          color: '#f1f5f9',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span>Direct connection (no gateway)</span>
+                        {state.gatewayId === null && <CheckCircle size={16} style={{ color: '#3b82f6' }} />}
+                      </button>
+                      
+                      {gateways?.map((gw: any) => (
+                        <button
+                          key={gw.id}
+                          type="button"
+                          onClick={() => setState(prev => ({ ...prev, gatewayId: gw.id }))}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.75rem 1rem',
+                            borderRadius: '8px',
+                            border: state.gatewayId === gw.id ? '2px solid #3b82f6' : '1px solid #334155',
+                            backgroundColor: state.gatewayId === gw.id ? 'rgba(59, 130, 246, 0.1)' : '#1e293b',
+                            color: '#f1f5f9',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <GatewayStatusIndicator status={gw.status || 'offline'} />
+                            <div>
+                              <div style={{ fontWeight: 500 }}>{gw.name}</div>
+                              {gw.manufacturer && (
+                                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                  {[gw.manufacturer, gw.model].filter(Boolean).join(' ')}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {state.gatewayId === gw.id && <CheckCircle size={16} style={{ color: '#3b82f6' }} />}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '1.5rem',
+                      borderRadius: '8px',
+                      backgroundColor: '#0f172a',
+                      border: '1px dashed #334155',
+                      textAlign: 'center',
+                    }}>
+                      <Router size={24} style={{ color: '#64748b', marginBottom: '0.5rem' }} />
+                      <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: '0 0 0.75rem' }}>
+                        No gateways configured for this site
+                      </p>
+                      <a
+                        href="/devices?action=register-gateway"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                          color: '#3b82f6',
+                          fontSize: '0.875rem',
+                          textDecoration: 'none',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                        }}
+                      >
+                        <Plus size={14} />
+                        Register a Gateway
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
