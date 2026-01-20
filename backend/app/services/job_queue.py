@@ -51,7 +51,17 @@ class JobQueue:
     For high-volume production, consider Celery + Redis/RabbitMQ.
     """
     
-    def __init__(self, max_workers: int = 4, persist_to_db: bool = True):
+    def __init__(self, max_workers: int = 4, persist_to_db: bool = False):
+        """
+        Initialize job queue.
+        
+        Args:
+            max_workers: Number of concurrent workers
+            persist_to_db: Enable database persistence (requires background_jobs table)
+        
+        Note: Database persistence is disabled by default. Enable when background_jobs
+        table migration is applied. For now, in-memory queue is sufficient.
+        """
         self._jobs: Dict[str, Job] = {}
         self._queue: asyncio.Queue = None
         self._workers: List[asyncio.Task] = []

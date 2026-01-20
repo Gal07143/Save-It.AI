@@ -263,9 +263,11 @@ class DataIngestionService:
         )
         self.db.add(event)
         try:
-            self.db.flush()
+            self.db.commit()
+            logger.info(f"Alarm event committed: {rule.name} for device {device.id}")
         except Exception as e:
-            logger.error(f"Failed to flush alarm event: {e}")
+            self.db.rollback()
+            logger.error(f"Failed to commit alarm event: {e}")
         return event
     
     def add_alarm_handler(self, handler: callable):
