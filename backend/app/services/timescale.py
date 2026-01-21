@@ -1,8 +1,11 @@
 """TimescaleDB preparation for time-series meter data."""
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 
 def check_timescaledb_available(db: Session) -> bool:
@@ -24,7 +27,7 @@ def enable_timescaledb(db: Session) -> bool:
         return True
     except Exception as e:
         db.rollback()
-        print(f"Could not enable TimescaleDB: {e}")
+        logger.warning(f"Could not enable TimescaleDB: {e}")
         return False
 
 
@@ -69,7 +72,7 @@ def create_hypertable(
         return True
     except Exception as e:
         db.rollback()
-        print(f"Could not create hypertable: {e}")
+        logger.warning(f"Could not create hypertable: {e}")
         return False
 
 
@@ -100,7 +103,7 @@ def setup_retention_policy(
         return True
     except Exception as e:
         db.rollback()
-        print(f"Could not set retention policy: {e}")
+        logger.warning(f"Could not set retention policy: {e}")
         return False
 
 
@@ -141,7 +144,7 @@ def setup_compression_policy(
         return True
     except Exception as e:
         db.rollback()
-        print(f"Could not set compression policy: {e}")
+        logger.warning(f"Could not set compression policy: {e}")
         return False
 
 

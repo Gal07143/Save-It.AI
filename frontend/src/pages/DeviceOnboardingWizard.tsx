@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'wouter'
 import { api } from '../services/api'
 import { 
   X, ChevronRight, ChevronLeft, Check, Wifi, WifiOff, 
@@ -432,10 +433,8 @@ export default function DeviceOnboardingWizard({
                       <Router size={14} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
                       Connect via Gateway (optional)
                     </label>
-                    <a
+                    <Link
                       href="/devices?action=register-gateway"
-                      target="_blank"
-                      rel="noopener noreferrer"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -447,7 +446,7 @@ export default function DeviceOnboardingWizard({
                     >
                       <Plus size={12} />
                       Register New Gateway
-                    </a>
+                    </Link>
                   </div>
                   
                   {(gateways?.length ?? 0) > 0 ? (
@@ -517,10 +516,8 @@ export default function DeviceOnboardingWizard({
                       <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: '0 0 0.75rem' }}>
                         No gateways configured for this site
                       </p>
-                      <a
+                      <Link
                         href="/devices?action=register-gateway"
-                        target="_blank"
-                        rel="noopener noreferrer"
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -536,7 +533,7 @@ export default function DeviceOnboardingWizard({
                       >
                         <Plus size={14} />
                         Register a Gateway
-                      </a>
+                      </Link>
                     </div>
                   )}
                 </div>

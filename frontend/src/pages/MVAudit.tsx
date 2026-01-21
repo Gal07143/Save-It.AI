@@ -150,7 +150,6 @@ export default function MVAudit({ currentSite }: { currentSite: number | null })
       summary: summaryStats,
       results: filteredResults
     }
-    console.log('Exporting PDF:', reportData)
     alert('PDF export initiated. The report will be downloaded shortly.')
   }
 

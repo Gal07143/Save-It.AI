@@ -65,7 +65,7 @@ def run_bess_simulation(request: BESSSimulationInput, db: Session = Depends(get_
     try:
         irr = npf.irr(cash_flows)
         irr = float(irr) if irr and not (irr != irr) else None
-    except:
+    except (ValueError, FloatingPointError):
         irr = None
 
     payback = request.total_investment / net_annual if net_annual > 0 else 99

@@ -1,10 +1,13 @@
 """Audit logging middleware for tracking user actions."""
 import json
 import time
+import logging
 from datetime import datetime
 from typing import Optional
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+
+logger = logging.getLogger(__name__)
 
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
@@ -81,7 +84,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                 if body_bytes:
                     body = json.loads(body_bytes)
                     body = self._sanitize_body(body)
-            except:
+            except (json.JSONDecodeError, UnicodeDecodeError):
                 body = None
         
         response = await call_next(request)
@@ -118,9 +121,9 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             try:
                 self._store_audit_log(audit_entry)
             except Exception as e:
-                print(f"Failed to store audit log: {e}")
+                logger.error(f"Failed to store audit log: {e}")
         else:
-            print(f"AUDIT: {json.dumps(audit_entry)}")
+            logger.info(f"AUDIT: {json.dumps(audit_entry)}")
         
         return response
     

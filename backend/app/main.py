@@ -7,6 +7,9 @@ for B2B clients.
 """
 import os
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -63,12 +66,12 @@ async def lifespan(app: FastAPI):
         seed_device_templates(db)
         seed_all_device_data(db)
     except Exception as e:
-        print(f"Warning: Could not seed templates: {e}")
+        logger.warning(f"Could not seed templates: {e}")
     finally:
         db.close()
     
     await job_queue.start()
-    print("Background job queue started")
+    logger.info("Background job queue started")
     
     from backend.app.services.polling_service import polling_service
     from backend.app.services.scheduler_service import scheduler_service, register_default_tasks
@@ -78,33 +81,33 @@ async def lifespan(app: FastAPI):
     from backend.app.services.graceful_shutdown import shutdown_service
     
     await polling_service.start()
-    print("Polling service started")
+    logger.info("Polling service started")
     
     register_default_tasks()
     await scheduler_service.start()
-    print("Scheduler service started")
+    logger.info("Scheduler service started")
     
     await register_default_handlers()
-    print("Event handlers registered")
+    logger.info("Event handlers registered")
     
     await health_service.start()
-    print("Health service started")
+    logger.info("Health service started")
     
     register_local_services()
     await service_registry.start()
-    print("Service registry started")
+    logger.info("Service registry started")
     
     shutdown_service.register_handler("polling", polling_service.stop, priority=100)
     shutdown_service.register_handler("scheduler", scheduler_service.stop, priority=90)
     shutdown_service.register_handler("health", health_service.stop, priority=80)
     shutdown_service.register_handler("service_registry", service_registry.stop, priority=70)
     shutdown_service.register_handler("job_queue", job_queue.stop, priority=60)
-    print("Graceful shutdown handlers registered")
+    logger.info("Graceful shutdown handlers registered")
     
     yield
     
     await shutdown_service.shutdown()
-    print("Background services stopped")
+    logger.info("Background services stopped")
 
 
 app = FastAPI(

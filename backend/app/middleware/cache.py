@@ -118,7 +118,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
             try:
                 body_json = json.loads(body_bytes)
                 cache.set(key, body_json, ttl)
-            except:
+            except (json.JSONDecodeError, UnicodeDecodeError):
                 pass
             
             new_response = Response(

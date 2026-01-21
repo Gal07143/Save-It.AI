@@ -156,7 +156,7 @@ def calculate_pv_design(request: PVDesignRequest, db: Session = Depends(get_db))
     try:
         irr = npf.irr(cash_flows)
         irr = float(irr) if irr and not (irr != irr) else None
-    except:
+    except (ValueError, FloatingPointError):
         irr = None
     
     payback = total_capex / annual_savings if annual_savings > 0 else 99

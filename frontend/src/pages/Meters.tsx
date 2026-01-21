@@ -145,13 +145,11 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
   }
 
   const handleConnect = () => {
-    console.log('Connecting meter:', selectedMeter?.id, 'with config:', connectionConfig)
     setShowConnectModal(false)
     setSelectedMeter(null)
   }
 
-  const handleTestConnection = (meter: MeterWithConnectivity) => {
-    console.log('Testing connection for meter:', meter.id)
+  const handleTestConnection = (_meter: MeterWithConnectivity) => {
   }
 
   const getStatusColor = (status: string) => {
