@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'wouter'
 import { api } from '../services/api'
 import { 
   Building2, Gauge, Receipt, AlertTriangle, TrendingUp, Zap, 
@@ -261,7 +262,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">Recent Alerts</h2>
-            <a href="/notifications" style={{ color: '#10b981', textDecoration: 'none', fontSize: '0.875rem' }}>View All</a>
+            <Link href="/notifications" style={{ color: '#10b981', textDecoration: 'none', fontSize: '0.875rem' }}>View All</Link>
           </div>
           {notifications && notifications.length > 0 ? (
             <div>
@@ -296,22 +297,22 @@ export default function Dashboard() {
             <h2 className="card-title">Quick Actions</h2>
           </div>
           <div style={{ display: 'grid', gap: '0.5rem' }}>
-            <a href="/bills" className="btn btn-primary" style={{ textDecoration: 'none', justifyContent: 'center', fontSize: '0.875rem' }}>
+            <Link href="/bills" className="btn btn-primary" style={{ textDecoration: 'none', justifyContent: 'center', fontSize: '0.875rem' }}>
               <Receipt size={16} style={{ marginRight: '0.5rem' }} />
               Scan Bill with AI
-            </a>
-            <a href="/gap-analysis" className="btn btn-outline" style={{ textDecoration: 'none', justifyContent: 'center', fontSize: '0.875rem' }}>
+            </Link>
+            <Link href="/gap-analysis" className="btn btn-outline" style={{ textDecoration: 'none', justifyContent: 'center', fontSize: '0.875rem' }}>
               <Target size={16} style={{ marginRight: '0.5rem' }} />
               Run Gap Analysis
-            </a>
-            <a href="/bess" className="btn btn-outline" style={{ textDecoration: 'none', justifyContent: 'center', fontSize: '0.875rem' }}>
+            </Link>
+            <Link href="/bess" className="btn btn-outline" style={{ textDecoration: 'none', justifyContent: 'center', fontSize: '0.875rem' }}>
               <Battery size={16} style={{ marginRight: '0.5rem' }} />
               BESS Simulation
-            </a>
-            <a href="/supplier-comparison" className="btn btn-outline" style={{ textDecoration: 'none', justifyContent: 'center', fontSize: '0.875rem' }}>
+            </Link>
+            <Link href="/supplier-comparison" className="btn btn-outline" style={{ textDecoration: 'none', justifyContent: 'center', fontSize: '0.875rem' }}>
               <Sun size={16} style={{ marginRight: '0.5rem' }} />
               Compare Suppliers
-            </a>
+            </Link>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import {
   TrendingUp, Zap, ChevronRight, Loader2, Bot, Minimize2
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { useLocation } from 'wouter'
 import { api } from '../services/api'
 
 interface AIAssistantProps {
@@ -171,6 +172,7 @@ const getContextualSuggestions = (path: string, data: any): Suggestion[] => {
 }
 
 export default function AIAssistant({ currentSite, currentPath }: AIAssistantProps) {
+  const [, setLocation] = useLocation()
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -424,7 +426,7 @@ export default function AIAssistant({ currentSite, currentPath }: AIAssistantPro
                             <button
                               onClick={() => {
                                 if (suggestion.actionPath) {
-                                  window.location.href = suggestion.actionPath
+                                  setLocation(suggestion.actionPath)
                                 }
                               }}
                               style={{

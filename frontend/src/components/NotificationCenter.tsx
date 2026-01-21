@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Bell, Check, AlertCircle, Info, CheckCircle, AlertTriangle } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'wouter'
 import { api, Notification as AppNotification } from '../services/api'
 
 const typeIcons: Record<string, React.ElementType> = {
@@ -227,7 +228,7 @@ export default function NotificationCenter() {
                 borderTop: '1px solid #334155',
                 textAlign: 'center',
               }}>
-                <a
+                <Link
                   href="/notifications"
                   style={{
                     color: '#10b981',
@@ -237,7 +238,7 @@ export default function NotificationCenter() {
                   onClick={() => setIsOpen(false)}
                 >
                   View all notifications
-                </a>
+                </Link>
               </div>
             )}
           </div>
