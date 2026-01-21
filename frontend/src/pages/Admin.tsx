@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Shield, Users, Building2, FileText, Key, Activity, Settings, Plus, User } from 'lucide-react'
+import { Shield, Users, Building2, FileText, Key, Activity, Settings, Plus, User, Database, AlertTriangle, Trash2 } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 const API_BASE = '/api/v1'
 
@@ -42,9 +43,12 @@ export default function Admin() {
   const [showAddOrg, setShowAddOrg] = useState(false)
   const [showAddRole, setShowAddRole] = useState(false)
   const [showAddApiKey, setShowAddApiKey] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
+  const [resetResult, setResetResult] = useState<{ success: boolean; message: string; deleted_counts?: Record<string, number> } | null>(null)
   const [newUser, setNewUser] = useState({ email: '', first_name: '', last_name: '', role: 'viewer' })
   const [newOrg, setNewOrg] = useState({ name: '', slug: '', subscription_plan: 'basic' })
-  const { success } = useToast()
+  const { success, error: showError } = useToast()
   const queryClient = useQueryClient()
 
   const { data: organizations } = useQuery<Organization[]>({
@@ -71,6 +75,33 @@ export default function Admin() {
     },
   })
 
+  const handleResetDemoData = async () => {
+    setIsResetting(true)
+    setResetResult(null)
+    try {
+      const response = await fetch(`${API_BASE}/reset-demo-data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const result = await response.json()
+      if (response.ok) {
+        setResetResult(result)
+        success('Demo data has been reset successfully')
+        queryClient.invalidateQueries()
+      } else {
+        setResetResult({ success: false, message: result.detail || 'Failed to reset demo data' })
+        showError(result.detail || 'Failed to reset demo data')
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to reset demo data'
+      setResetResult({ success: false, message })
+      showError(message)
+    } finally {
+      setIsResetting(false)
+      setShowResetConfirm(false)
+    }
+  }
+
   const tabs: Tab[] = [
     { id: 'users', label: 'Users', icon: Users },
     { id: 'organizations', label: 'Organizations', icon: Building2 },
@@ -78,6 +109,7 @@ export default function Admin() {
     { id: 'audit', label: 'Audit Logs', icon: FileText },
     { id: 'apikeys', label: 'API Keys', icon: Key },
     { id: 'health', label: 'System Health', icon: Activity },
+    { id: 'data', label: 'Data Management', icon: Database },
   ]
 
   const renderTabContent = (tabId: string) => {
@@ -379,6 +411,129 @@ export default function Admin() {
           </div>
         )
 
+      case 'data':
+        return (
+          <div className="card">
+            <div className="card-header">
+              <h2 className="card-title">Data Management</h2>
+            </div>
+            
+            <div style={{ padding: '1.5rem' }}>
+              <div style={{ 
+                padding: '1.5rem', 
+                background: 'rgba(239, 68, 68, 0.1)', 
+                borderRadius: '12px', 
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                  <div style={{ 
+                    padding: '0.75rem', 
+                    background: 'rgba(239, 68, 68, 0.2)', 
+                    borderRadius: '8px',
+                    flexShrink: 0
+                  }}>
+                    <AlertTriangle size={24} color="#ef4444" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#f1f5f9', marginBottom: '0.5rem' }}>
+                      Reset Demo Data
+                    </h3>
+                    <p style={{ color: '#94a3b8', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1rem' }}>
+                      This will remove all demo/sample data from the system, including sites, meters, gateways, 
+                      devices, readings, bills, and tenants. System templates, device catalogs, and user accounts 
+                      will be preserved. This action cannot be undone.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => setShowResetConfirm(true)}
+                      disabled={isResetting}
+                      style={{
+                        background: '#ef4444',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <Trash2 size={16} />
+                      {isResetting ? 'Resetting...' : 'Reset Demo Data'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {resetResult && (
+                <div style={{ 
+                  padding: '1rem', 
+                  background: resetResult.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                  borderRadius: '8px', 
+                  border: `1px solid ${resetResult.success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                  marginBottom: '1.5rem'
+                }}>
+                  <p style={{ 
+                    color: resetResult.success ? '#10b981' : '#ef4444', 
+                    fontWeight: 500, 
+                    marginBottom: resetResult.deleted_counts ? '0.75rem' : 0 
+                  }}>
+                    {resetResult.message}
+                  </p>
+                  {resetResult.deleted_counts && Object.keys(resetResult.deleted_counts).length > 0 && (
+                    <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                      <strong>Deleted records:</strong>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        {Object.entries(resetResult.deleted_counts).map(([table, count]) => (
+                          <span key={table} style={{ 
+                            background: 'rgba(30, 41, 59, 0.5)', 
+                            padding: '0.25rem 0.5rem', 
+                            borderRadius: '4px',
+                            fontSize: '0.75rem'
+                          }}>
+                            {table}: {count}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ marginTop: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 500, marginBottom: '1rem', color: '#f1f5f9' }}>
+                  What Gets Preserved
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                  {[
+                    'Device Models (blueprints)',
+                    'Device Products (catalog)',
+                    'Device Policies',
+                    'Integration Templates',
+                    'PV Module Catalog',
+                    'BESS Vendor/Models',
+                    'Organizations',
+                    'User Accounts',
+                  ].map((item) => (
+                    <div key={item} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.5rem',
+                      padding: '0.5rem 0.75rem',
+                      background: 'rgba(30, 41, 59, 0.5)',
+                      borderRadius: '6px',
+                      fontSize: '0.875rem',
+                      color: '#94a3b8'
+                    }}>
+                      <span style={{ color: '#10b981' }}>✓</span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
       default:
         return null
     }
@@ -544,6 +699,16 @@ export default function Admin() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleResetDemoData}
+        title="Reset Demo Data"
+        message="Are you sure you want to reset all demo data? This will permanently delete all sites, meters, gateways, devices, readings, bills, and tenants. System templates and user accounts will be preserved. This action cannot be undone."
+        confirmText={isResetting ? 'Resetting...' : 'Reset Data'}
+        variant="danger"
+      />
     </div>
   )
 }

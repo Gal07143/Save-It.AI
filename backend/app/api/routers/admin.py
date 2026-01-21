@@ -131,3 +131,34 @@ def lock_period(lock_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(lock)
     return lock
+
+
+@router.post("/reset-demo-data")
+def reset_demo_data_endpoint(db: Session = Depends(get_db)):
+    """
+    Reset all demo/instance data while preserving system templates.
+    
+    This clears sites, meters, gateways, devices, readings, bills, tenants,
+    and other instance data. System templates, catalogs, and policies are preserved.
+    
+    WARNING: This action cannot be undone. For production use, add proper
+    role-based authorization (super_admin only).
+    """
+    from backend.app.services.reset_demo_data import reset_demo_data
+    
+    result = reset_demo_data(db)
+    
+    if result["success"]:
+        audit_log = AuditLog(
+            action="reset_demo_data",
+            entity_type="system",
+            entity_id=0,
+            details=f"Deleted records: {result.get('deleted_counts', {})}"
+        )
+        db.add(audit_log)
+        db.commit()
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return result
