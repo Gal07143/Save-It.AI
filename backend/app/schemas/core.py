@@ -129,6 +129,7 @@ AssetTreeNode.model_rebuild()
 class MeterCreate(BaseModel):
     site_id: int
     asset_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     meter_id: str = Field(..., min_length=1, max_length=100)
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
@@ -143,6 +144,7 @@ class MeterUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     asset_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     manufacturer: Optional[str] = None
     model: Optional[str] = None
     serial_number: Optional[str] = None
@@ -154,6 +156,7 @@ class MeterResponse(BaseModel):
     id: int
     site_id: int
     asset_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     meter_id: str
     name: str
     description: Optional[str] = None

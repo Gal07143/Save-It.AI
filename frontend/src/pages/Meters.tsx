@@ -16,6 +16,7 @@ interface MeterWithConnectivity {
   last_reading_at: string | null
   asset_id: number | null
   site_id: number
+  data_source_id: number | null
   connectivity?: {
     protocol: 'modbus_tcp' | 'mbus' | 'modbus_rtu' | null
     address: string
@@ -35,6 +36,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
   const queryClient = useQueryClient()
   const { data: meters, isLoading } = useQuery({ queryKey: ['meters'], queryFn: () => api.meters.list() })
   const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
+  const { data: devices } = useQuery({ queryKey: ['dataSources'], queryFn: () => api.dataSources.list() })
   
   const [showAddMeter, setShowAddMeter] = useState(false)
   const [showConnectModal, setShowConnectModal] = useState(false)
@@ -48,6 +50,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
     meter_id: '',
     name: '',
     site_id: '',
+    data_source_id: '',
     is_active: true
   })
 
@@ -77,7 +80,11 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
       const response = await fetch('/api/v1/meters', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, site_id: parseInt(data.site_id) })
+        body: JSON.stringify({ 
+          ...data, 
+          site_id: parseInt(data.site_id),
+          data_source_id: data.data_source_id ? parseInt(data.data_source_id) : null
+        })
       })
       if (!response.ok) throw new Error('Failed to create meter')
       return response.json()
@@ -85,7 +92,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meters'] })
       setShowAddMeter(false)
-      setNewMeter({ meter_id: '', name: '', site_id: '', is_active: true })
+      setNewMeter({ meter_id: '', name: '', site_id: '', data_source_id: '', is_active: true })
     }
   })
 
@@ -211,6 +218,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
               <tr>
                 <th>Meter ID</th>
                 <th>Name</th>
+                <th>Connected Device</th>
                 <th>Protocol</th>
                 <th>Address</th>
                 <th>Gateway</th>
@@ -229,6 +237,16 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                     </code>
                   </td>
                   <td style={{ fontWeight: 500 }}>{meter.name}</td>
+                  <td>
+                    {meter.data_source_id ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
+                        <Link2 size={14} color="#10b981" />
+                        {devices?.find((d: any) => d.id === meter.data_source_id)?.name || `Device #${meter.data_source_id}`}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Not linked</span>
+                    )}
+                  </td>
                   <td>
                     <span style={{
                       padding: '0.25rem 0.5rem',
@@ -508,6 +526,21 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                     <option key={site.id} value={site.id}>{site.name}</option>
                   ))}
                 </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Connected Device (Optional)</label>
+                <select
+                  value={newMeter.data_source_id}
+                  onChange={e => setNewMeter({ ...newMeter, data_source_id: e.target.value })}
+                >
+                  <option value="">No Device / Manual Entry</option>
+                  {devices?.map((device: any) => (
+                    <option key={device.id} value={device.id}>{device.name} ({device.source_type})</option>
+                  ))}
+                </select>
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                  Link this meter to a device for automatic data collection
+                </p>
               </div>
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
