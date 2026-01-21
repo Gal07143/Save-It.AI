@@ -71,6 +71,7 @@ def create_meter(meter: MeterCreate, db: Session = Depends(get_db)):
     db_meter = Meter(
         site_id=meter.site_id,
         asset_id=meter.asset_id,
+        data_source_id=meter.data_source_id,
         meter_id=meter.meter_id,
         name=meter.name,
         description=meter.description,

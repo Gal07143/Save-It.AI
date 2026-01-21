@@ -20,6 +20,7 @@ class MeterCreate(MeterBase):
     """Schema for creating a new Meter."""
     site_id: int
     asset_id: Optional[int] = None
+    data_source_id: Optional[int] = None
 
 
 class MeterUpdate(BaseModel):
@@ -27,6 +28,7 @@ class MeterUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     asset_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     manufacturer: Optional[str] = None
     model: Optional[str] = None
     serial_number: Optional[str] = None
@@ -39,6 +41,7 @@ class MeterResponse(MeterBase):
     id: int
     site_id: int
     asset_id: Optional[int] = None
+    data_source_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

@@ -63,6 +63,7 @@ class Meter(SoftDeleteMixin, Base):
     id = Column(Integer, primary_key=True, index=True)
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True, index=True)
+    data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=True, index=True)
     meter_id = Column(String(100), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -76,6 +77,7 @@ class Meter(SoftDeleteMixin, Base):
 
     site = relationship("Site", back_populates="meters")
     asset = relationship("Asset", back_populates="meter")
+    data_source = relationship("DataSource")
     readings = relationship("MeterReading", back_populates="meter", cascade="all, delete-orphan")
 
 
