@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from backend.app.core.database import get_db
 from backend.app.models.integrations import Gateway, GatewayStatus, CommunicationLog, GatewayCredentials
+from backend.app.services.webhook_handler import webhook_handler
 from backend.app.schemas.integrations import (
     GatewayCreate,
     GatewayUpdate,
@@ -107,6 +108,7 @@ def register_gateway(gateway_id: int, db: Session = Depends(get_db)):
     webhook_creds = _generate_webhook_credentials(gateway_id)
     
     if existing_creds:
+        webhook_handler.invalidate_cache_for_gateway(gateway_id)
         existing_creds.mqtt_username = mqtt_creds["username"]
         existing_creds.mqtt_password_hash = mqtt_creds["password_hash"]
         existing_creds.mqtt_client_id = mqtt_creds["client_id"]

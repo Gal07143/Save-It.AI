@@ -13,6 +13,9 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from collections import defaultdict
 
+from backend.app.core.database import SessionLocal
+from backend.app.models.integrations import GatewayCredentials as GatewayCredentialsModel
+
 logger = logging.getLogger(__name__)
 
 
@@ -136,6 +139,41 @@ class WebhookHandler:
             del self._credentials[old_api_key]
         return self.generate_credentials(gateway_id)
     
+    def invalidate_cache_for_gateway(self, gateway_id: int) -> None:
+        """Invalidate all cached credentials for a gateway."""
+        keys_to_remove = [
+            api_key for api_key, creds in self._credentials.items()
+            if creds.gateway_id == gateway_id
+        ]
+        for key in keys_to_remove:
+            del self._credentials[key]
+    
+    def _load_credentials_from_db(self, api_key: str) -> Optional[WebhookCredentials]:
+        """Load credentials from database and cache them."""
+        try:
+            db = SessionLocal()
+            try:
+                db_creds = db.query(GatewayCredentialsModel).filter(
+                    GatewayCredentialsModel.webhook_api_key == api_key
+                ).first()
+                
+                if db_creds:
+                    creds = WebhookCredentials(
+                        gateway_id=db_creds.gateway_id,
+                        api_key=db_creds.webhook_api_key,
+                        secret_key=db_creds.webhook_secret_key or "",
+                        created_at=db_creds.created_at or datetime.utcnow(),
+                        last_rotated=db_creds.last_rotated,
+                    )
+                    self._credentials[api_key] = creds
+                    return creds
+                return None
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error loading credentials from DB: {e}")
+            return None
+
     def validate_request(
         self,
         api_key: str,
@@ -150,11 +188,13 @@ class WebhookHandler:
         """
         self._stats["requests_received"] += 1
         
-        if api_key not in self._credentials:
+        creds = self._credentials.get(api_key)
+        if not creds:
+            creds = self._load_credentials_from_db(api_key)
+        
+        if not creds:
             self._stats["auth_failures"] += 1
             return False, "Invalid API key", None
-        
-        creds = self._credentials[api_key]
         
         if not self._rate_limiter.allow(api_key):
             self._stats["rate_limited"] += 1
