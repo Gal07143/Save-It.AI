@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Bell, CheckCircle, AlertTriangle, Info, XCircle } from 'lucide-react'
+import { Bell, CheckCircle, AlertTriangle, Info, XCircle, LucideIcon } from 'lucide-react'
 
-const severityConfig: Record<string, { icon: any; color: string; bg: string }> = {
+const severityConfig: Record<string, { icon: LucideIcon; color: string; bg: string }> = {
   critical: { icon: XCircle, color: '#dc2626', bg: '#fee2e2' },
   warning: { icon: AlertTriangle, color: '#d97706', bg: '#fef3c7' },
   info: { icon: Info, color: '#2563eb', bg: '#dbeafe' },

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Calendar, Plus, Check, Clock, AlertTriangle, X, Wrench } from 'lucide-react'
-import { api, MaintenanceScheduleItem } from '../services/api'
+import { api, MaintenanceScheduleItem, DataSource } from '../services/api'
 
 interface MaintenanceManagerProps {
   siteId?: number | null
-  dataSources: any[]
+  dataSources: DataSource[]
 }
 
 export default function MaintenanceManager({ siteId, dataSources }: MaintenanceManagerProps) {
@@ -171,7 +171,7 @@ export default function MaintenanceManager({ siteId, dataSources }: MaintenanceM
                   onChange={e => setNewSchedule({ ...newSchedule, data_source_id: e.target.value })}
                 >
                   <option value="">Select device...</option>
-                  {dataSources.map((ds: any) => (
+                  {dataSources.map((ds: DataSource) => (
                     <option key={ds.id} value={ds.id}>{ds.name}</option>
                   ))}
                 </select>

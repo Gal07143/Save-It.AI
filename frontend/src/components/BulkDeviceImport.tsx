@@ -40,8 +40,8 @@ export default function BulkDeviceImport({ siteId, isOpen, onClose }: BulkDevice
       const result = await api.dataSources.bulkImportCSV(siteId, file)
       setImportResult(result)
       queryClient.invalidateQueries({ queryKey: ['data-sources'] })
-    } catch (err: any) {
-      setError(err.message || 'Import failed')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Import failed')
     } finally {
       setIsImporting(false)
     }

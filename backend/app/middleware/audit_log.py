@@ -7,6 +7,8 @@ from typing import Optional
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from backend.app.utils.ip import get_client_ip
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,10 +44,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         return True
     
     def _get_client_ip(self, request: Request) -> str:
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        return get_client_ip(request)
     
     def _get_user_id(self, request: Request) -> Optional[int]:
         if hasattr(request.state, "user"):

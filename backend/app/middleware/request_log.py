@@ -4,6 +4,8 @@ import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from backend.app.utils.ip import get_client_ip
+
 logger = logging.getLogger("saveit.requests")
 logger.setLevel(logging.INFO)
 
@@ -25,10 +27,7 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
     SKIP_PATHS = {"/docs", "/openapi.json", "/redoc", "/favicon.ico"}
     
     def _get_client_ip(self, request: Request) -> str:
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        return get_client_ip(request)
     
     async def dispatch(self, request: Request, call_next):
         for skip_path in self.SKIP_PATHS:

@@ -48,10 +48,14 @@ class DeviceOnboardingService:
         """
         Register a new device and generate credentials.
         Returns device info and connection credentials.
+
+        Note: This method does not commit the transaction. The caller is
+        responsible for committing or rolling back based on the outcome.
+        All operations are performed within a consistent transaction state.
         """
         if device_type == DeviceType.PERIPHERAL and not gateway_id:
             raise ValueError("Peripheral devices require a gateway_id")
-        
+
         if gateway_id and edge_key:
             existing = self.db.query(Device).filter(
                 Device.gateway_id == gateway_id,
@@ -60,12 +64,12 @@ class DeviceOnboardingService:
             ).first()
             if existing:
                 raise ValueError(f"Edge key '{edge_key}' already in use for this gateway")
-        
+
         if not edge_key and gateway_id:
             edge_key = f"dev_{secrets.token_hex(4)}"
-        
+
         credentials = self._generate_credentials(device_type, auth_type)
-        
+
         device = Device(
             site_id=site_id,
             name=name,
@@ -90,21 +94,27 @@ class DeviceOnboardingService:
             is_online=0,
             config_sync_status=ConfigSyncStatus.PENDING,
         )
-        
-        self.db.add(device)
-        self.db.flush()
-        
-        if model_id:
-            self._propagate_model_datapoints(device.id, model_id)
-        
-        formatted_credentials = self._format_credentials(device, credentials)
-        
-        logger.info(f"Registered device {device.id}: {name} ({device_type.value})")
-        
-        return {
-            "device": device,
-            "credentials": formatted_credentials,
-        }
+
+        try:
+            self.db.add(device)
+            self.db.flush()
+
+            if model_id:
+                self._propagate_model_datapoints(device.id, model_id)
+
+            formatted_credentials = self._format_credentials(device, credentials)
+
+            logger.info(f"Registered device {device.id}: {name} ({device_type.value})")
+
+            return {
+                "device": device,
+                "credentials": formatted_credentials,
+            }
+        except Exception as e:
+            # Rollback on any error to ensure consistent state
+            self.db.rollback()
+            logger.error(f"Failed to register device {name}: {e}")
+            raise
     
     def _generate_credentials(
         self,

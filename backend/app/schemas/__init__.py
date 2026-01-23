@@ -201,6 +201,17 @@ from backend.app.schemas.integrations import (
     ApplyTemplateRequest,
 )
 
+from backend.app.schemas.response import (
+    APIResponse,
+    PaginatedResponse,
+    ErrorResponse,
+    ErrorDetail,
+    PaginationMeta,
+    success_response,
+    error_response,
+    paginated_response,
+)
+
 __all__ = [
     # Base
     "BaseModel",

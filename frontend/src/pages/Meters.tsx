@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../services/api'
+import { api, Meter, DataSource } from '../services/api'
 import { 
   Gauge, CheckCircle, XCircle, Clock, Plus, Wifi, WifiOff, 
   Settings, RefreshCw, Link2, Radio, AlertTriangle, Trash2,
@@ -62,7 +62,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
     pollInterval: 60
   })
 
-  const metersWithConnectivity: MeterWithConnectivity[] = (meters || []).map((m: any, i: number) => ({
+  const metersWithConnectivity: MeterWithConnectivity[] = (meters || []).map((m: Meter, i: number) => ({
     ...m,
     connectivity: {
       protocol: i % 3 === 0 ? 'modbus_tcp' : i % 3 === 1 ? 'mbus' : 'modbus_rtu',
@@ -239,7 +239,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                     {meter.data_source_id ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
                         <Link2 size={14} color="#10b981" />
-                        {devices?.find((d: any) => d.id === meter.data_source_id)?.name || `Device #${meter.data_source_id}`}
+                        {devices?.find((d: DataSource) => d.id === meter.data_source_id)?.name || `Device #${meter.data_source_id}`}
                       </span>
                     ) : (
                       <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Not linked</span>
@@ -532,7 +532,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                   onChange={e => setNewMeter({ ...newMeter, data_source_id: e.target.value })}
                 >
                   <option value="">No Device / Manual Entry</option>
-                  {devices?.map((device: any) => (
+                  {devices?.map((device: DataSource) => (
                     <option key={device.id} value={device.id}>{device.name} ({device.source_type})</option>
                   ))}
                 </select>

@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronDown, FolderTree
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, PanelAssetExtracted } from '../services/api'
+import { api, PanelAssetExtracted, AssetTreeNode } from '../services/api'
 
 interface AssetNode {
   id: string
@@ -326,7 +326,7 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
       const loadedNodes: AssetNode[] = []
       const loadedConnections: Connection[] = []
       
-      const processAsset = (asset: any, x: number, y: number, level: number) => {
+      const processAsset = (asset: AssetTreeNode, x: number, y: number, level: number) => {
         const node: AssetNode = {
           id: `asset-${asset.id}`,
           name: asset.name,
@@ -349,13 +349,13 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
         }
         
         if (asset.children) {
-          asset.children.forEach((child: any, i: number) => {
+          asset.children.forEach((child: AssetTreeNode, i: number) => {
             processAsset(child, x + i * 180 - (asset.children.length - 1) * 90, y, level + 1)
           })
         }
       }
-      
-      existingAssets.forEach((asset: any, i: number) => {
+
+      existingAssets.forEach((asset: AssetTreeNode, i: number) => {
         processAsset(asset, 400 + i * 300, 100, 0)
       })
       

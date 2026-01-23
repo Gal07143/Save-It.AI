@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models import Site
+from backend.app.models import Site, User, UserRole
 from backend.app.models.base import soft_delete_filter, include_deleted_filter
 from backend.app.schemas import SiteCreate, SiteUpdate, SiteResponse
 from backend.app.middleware.multi_tenant import TenantContext, MultiTenantValidation
+from backend.app.api.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/sites", tags=["sites"])
 
@@ -48,8 +49,20 @@ def get_site(site_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=SiteResponse)
-def create_site(site: SiteCreate, db: Session = Depends(get_db)):
-    """Create a new site."""
+def create_site(
+    site: SiteCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new site. Users can only create sites in their organization."""
+    # Validate user can create in the specified organization
+    if current_user.role != UserRole.SUPER_ADMIN:
+        if site.organization_id != current_user.organization_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot create sites in other organizations"
+            )
+
     db_site = Site(**site.model_dump())
     db.add(db_site)
     db.commit()
@@ -58,16 +71,33 @@ def create_site(site: SiteCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{site_id}", response_model=SiteResponse)
-def update_site(site_id: int, site: SiteUpdate, db: Session = Depends(get_db)):
-    """Update a site."""
+def update_site(
+    site_id: int,
+    site: SiteUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a site. Users can only update sites they have access to."""
     db_site = db.query(Site).filter(Site.id == site_id).first()
     if not db_site:
         raise HTTPException(status_code=404, detail="Site not found")
-    
+
+    # Validate user has access to this site
+    if not MultiTenantValidation.validate_site_access(db, site_id):
+        raise HTTPException(status_code=403, detail="Access denied to this site")
+
+    # Prevent changing organization_id unless super admin
     update_data = site.model_dump(exclude_unset=True)
+    if 'organization_id' in update_data and current_user.role != UserRole.SUPER_ADMIN:
+        if update_data['organization_id'] != db_site.organization_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot transfer site to another organization"
+            )
+
     for field, value in update_data.items():
         setattr(db_site, field, value)
-    
+
     db.commit()
     db.refresh(db_site)
     return db_site

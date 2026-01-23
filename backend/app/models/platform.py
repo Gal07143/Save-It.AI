@@ -74,6 +74,9 @@ class Organization(Base):
     subscription_plan = Column(String(50), default="starter")
     is_active = Column(Integer, default=1)
     mfa_required = Column(Integer, default=0)
+    # Secure status page token (hash of the public token)
+    status_page_token_hash = Column(String(64), unique=True, nullable=True, index=True)
+    status_page_enabled = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

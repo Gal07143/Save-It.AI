@@ -5,13 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models import Meter, MeterReading
+from backend.app.models import Meter, MeterReading, User, UserRole, Site
 from backend.app.models.base import soft_delete_filter, include_deleted_filter
 from backend.app.schemas import (
     MeterCreate, MeterUpdate, MeterResponse,
     MeterReadingCreate, MeterReadingResponse
 )
 from backend.app.middleware.multi_tenant import TenantContext, MultiTenantValidation
+from backend.app.api.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/meters", tags=["meters"])
 
@@ -62,12 +63,20 @@ def get_meter(meter_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=MeterResponse)
-def create_meter(meter: MeterCreate, db: Session = Depends(get_db)):
-    """Create a new meter."""
+def create_meter(
+    meter: MeterCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new meter. Users can only create meters for sites they have access to."""
+    # Validate user has access to the parent site
+    if not MultiTenantValidation.validate_site_access(db, meter.site_id):
+        raise HTTPException(status_code=403, detail="Access denied to this site")
+
     existing = db.query(Meter).filter(Meter.meter_id == meter.meter_id).first()
     if existing:
         raise HTTPException(status_code=400, detail="Meter ID already exists")
-    
+
     db_meter = Meter(
         site_id=meter.site_id,
         asset_id=meter.asset_id,
@@ -88,30 +97,52 @@ def create_meter(meter: MeterCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{meter_id}", response_model=MeterResponse)
-def update_meter(meter_id: int, meter: MeterUpdate, db: Session = Depends(get_db)):
-    """Update a meter."""
+def update_meter(
+    meter_id: int,
+    meter: MeterUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a meter. Users can only update meters they have access to."""
     db_meter = db.query(Meter).filter(Meter.id == meter_id).first()
     if not db_meter:
         raise HTTPException(status_code=404, detail="Meter not found")
-    
+
+    # Validate user has access to this meter
+    if not MultiTenantValidation.validate_meter_access(db, meter_id):
+        raise HTTPException(status_code=403, detail="Access denied to this meter")
+
+    # If changing site_id, validate access to the new site
     update_data = meter.model_dump(exclude_unset=True)
+    if 'site_id' in update_data and update_data['site_id'] != db_meter.site_id:
+        if not MultiTenantValidation.validate_site_access(db, update_data['site_id']):
+            raise HTTPException(status_code=403, detail="Access denied to the target site")
+
     for field, value in update_data.items():
         if field in ['is_active', 'is_bidirectional'] and isinstance(value, bool):
             value = 1 if value else 0
         setattr(db_meter, field, value)
-    
+
     db.commit()
     db.refresh(db_meter)
     return db_meter
 
 
 @router.delete("/{meter_id}")
-def delete_meter(meter_id: int, db: Session = Depends(get_db)):
-    """Delete a meter."""
+def delete_meter(
+    meter_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a meter. Users can only delete meters they have access to."""
     db_meter = db.query(Meter).filter(Meter.id == meter_id).first()
     if not db_meter:
         raise HTTPException(status_code=404, detail="Meter not found")
-    
+
+    # Validate user has access to this meter
+    if not MultiTenantValidation.validate_meter_access(db, meter_id):
+        raise HTTPException(status_code=403, detail="Access denied to this meter")
+
     db.delete(db_meter)
     db.commit()
     return {"message": "Meter deleted successfully"}
@@ -122,7 +153,7 @@ def get_meter_readings(
     meter_id: int,
     start_time: Optional[datetime] = Query(None),
     end_time: Optional[datetime] = Query(None),
-    limit: int = 1000,
+    limit: int = Query(1000, ge=1, le=10000),
     db: Session = Depends(get_db)
 ):
     """Get readings for a specific meter."""

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, Plus, X, Power, AlertTriangle, AlertCircle, Info } from 'lucide-react'
-import { api, DeviceAlertItem } from '../services/api'
+import { api, DeviceAlertItem, DataSource } from '../services/api'
 
 interface DeviceAlertsManagerProps {
   siteId?: number | null
-  dataSources: any[]
+  dataSources: DataSource[]
 }
 
 const alertTypes = [
@@ -199,7 +199,7 @@ export default function DeviceAlertsManager({ siteId, dataSources }: DeviceAlert
                   onChange={e => setNewAlert({ ...newAlert, data_source_id: e.target.value })}
                 >
                   <option value="">Select device...</option>
-                  {dataSources.map((ds: any) => (
+                  {dataSources.map((ds: DataSource) => (
                     <option key={ds.id} value={ds.id}>{ds.name}</option>
                   ))}
                 </select>

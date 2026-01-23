@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from 'wouter'
-import { api } from '../services/api'
+import { api, Bill } from '../services/api'
 
 interface AIAssistantProps {
   currentSite: number | null
@@ -28,7 +28,12 @@ interface Message {
   timestamp: Date
 }
 
-const getContextualSuggestions = (path: string, data: any): Suggestion[] => {
+interface ContextData {
+  notifications?: unknown[]
+  bills?: Bill[]
+}
+
+const getContextualSuggestions = (path: string, data: ContextData | null): Suggestion[] => {
   const suggestions: Suggestion[] = []
   
   if (path === '/' || path === '/dashboard') {
@@ -59,7 +64,7 @@ const getContextualSuggestions = (path: string, data: any): Suggestion[] => {
       title: 'Quick Bill Entry',
       description: 'Use OCR scanning to automatically extract data from bill images.',
     })
-    if (data?.bills?.some((b: any) => !b.is_validated)) {
+    if (data?.bills?.some((b: Bill) => !b.is_validated)) {
       suggestions.push({
         id: 'validate',
         type: 'action',

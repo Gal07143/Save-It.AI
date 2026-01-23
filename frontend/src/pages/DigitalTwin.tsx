@@ -840,7 +840,7 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
       const loadedNodes: AssetNode[] = []
       const loadedConnections: Connection[] = []
 
-      const processAsset = (asset: any, x: number, y: number, level: number) => {
+      const processAsset = (asset: AssetTreeNode, x: number, y: number, level: number) => {
         const node: AssetNode = {
           id: `asset-${asset.id}`,
           name: asset.name,
@@ -863,13 +863,13 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
         }
 
         if (asset.children) {
-          asset.children.forEach((child: any, i: number) => {
+          asset.children.forEach((child: AssetTreeNode, i: number) => {
             processAsset(child, x + i * 180 - (asset.children.length - 1) * 90, y, level + 1)
           })
         }
       }
 
-      existingAssets.forEach((asset: any, i: number) => {
+      existingAssets.forEach((asset: AssetTreeNode, i: number) => {
         processAsset(asset, 400 + i * 300, 100, 0)
       })
 

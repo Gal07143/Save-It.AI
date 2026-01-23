@@ -4,7 +4,7 @@ import {
   FileCode, Shield, FolderTree, Database, Download, Settings,
   Plus, Edit, Upload, Copy
 } from 'lucide-react'
-import { api } from '../services/api'
+import { api, DeviceTemplate, DataSource } from '../services/api'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 import ValidationRulesManager from '../components/ValidationRulesManager'
@@ -47,8 +47,8 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
               try {
                 await api.deviceTemplates.seed()
                 success('Standard templates seeded')
-              } catch (e: any) {
-                showError(e.message || 'Failed to seed templates')
+              } catch (e: unknown) {
+                showError(e instanceof Error ? e.message : 'Failed to seed templates')
               }
             }}
             style={{
@@ -95,7 +95,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-          {templates.map((template: any) => (
+          {templates.map((template: DeviceTemplate) => (
             <div key={template.id} className="card" style={{ padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
@@ -148,7 +148,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
             }}
           >
             <option value="">Choose a device...</option>
-            {dataSources?.map((ds: any) => (
+            {dataSources?.map((ds: DataSource) => (
               <option key={ds.id} value={ds.id}>{ds.name}</option>
             ))}
           </select>
@@ -199,7 +199,7 @@ export default function DeviceConfig({ currentSite }: DeviceConfigProps) {
             Export Template
           </h4>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            {templates?.slice(0, 5).map((template: any) => (
+            {templates?.slice(0, 5).map((template: DeviceTemplate) => (
               <div
                 key={template.id}
                 style={{

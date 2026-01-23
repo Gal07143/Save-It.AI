@@ -4,7 +4,7 @@ import {
   Activity, RefreshCw, Cpu, AlertTriangle, FileText, BarChart3,
   CheckCircle, XCircle, Clock, Wifi, WifiOff, TrendingUp
 } from 'lucide-react'
-import { api } from '../services/api'
+import { api, DataSource } from '../services/api'
 import TabPanel, { Tab } from '../components/TabPanel'
 import DeviceHealthDashboard from '../components/DeviceHealthDashboard'
 import RetryManager from '../components/RetryManager'
@@ -28,8 +28,8 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
     queryFn: () => api.dataSources.healthDashboard(currentSite || undefined)
   })
 
-  const onlineCount = dataSources?.filter((d: any) => d.is_active).length || 0
-  const offlineCount = dataSources?.filter((d: any) => !d.is_active).length || 0
+  const onlineCount = dataSources?.filter((d: DataSource) => d.is_active).length || 0
+  const offlineCount = dataSources?.filter((d: DataSource) => !d.is_active).length || 0
 
   const tabs: Tab[] = [
     { id: 'health-dashboard', label: 'Health Dashboard', icon: Activity },
@@ -59,7 +59,7 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
             }}
           >
             <option value="">All Devices</option>
-            {dataSources?.map((ds: any) => (
+            {dataSources?.map((ds: DataSource) => (
               <option key={ds.id} value={ds.id}>{ds.name}</option>
             ))}
           </select>
@@ -148,7 +148,7 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
       <div className="card" style={{ padding: '1.5rem' }}>
         <h4 style={{ color: 'white', marginBottom: '1rem' }}>Device Response Times</h4>
         <div style={{ display: 'grid', gap: '0.75rem' }}>
-          {dataSources?.slice(0, 5).map((device: any) => {
+          {dataSources?.slice(0, 5).map((device: DataSource) => {
             const responseTime = 20 + Math.random() * 100
             const quality = 90 + Math.random() * 10
             return (

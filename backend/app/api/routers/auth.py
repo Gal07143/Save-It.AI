@@ -1,9 +1,10 @@
 """Authentication API endpoints."""
 import os
 import secrets
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Cookie
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 import bcrypt
@@ -11,6 +12,7 @@ from jose import JWTError, jwt
 
 from backend.app.core.database import get_db
 from backend.app.models import User, Organization, UserRole
+from backend.app.utils.password import hash_password, verify_password as verify_pw
 from backend.app.schemas import (
     LoginRequest,
     RegisterRequest,
@@ -19,9 +21,31 @@ from backend.app.schemas import (
     AuthUserResponse,
 )
 
+# Cookie configuration
+COOKIE_NAME = "access_token"
+COOKIE_MAX_AGE = 60 * 60 * 24  # 24 hours in seconds
+COOKIE_SECURE = os.getenv("DEBUG", "false").lower() != "true"  # Secure in production
+COOKIE_SAMESITE = "lax"  # Protects against CSRF while allowing normal navigation
+
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
-SECRET_KEY = os.getenv("SESSION_SECRET", secrets.token_urlsafe(32))
+# Require SESSION_SECRET to be set in production for security
+SECRET_KEY = os.getenv("SESSION_SECRET")
+if not SECRET_KEY:
+    # In development, allow a fallback with a warning
+    if os.getenv("DEBUG", "false").lower() == "true":
+        SECRET_KEY = secrets.token_urlsafe(32)
+        logger.warning(
+            "SESSION_SECRET not set - using temporary key. "
+            "This is acceptable for development but MUST be set in production."
+        )
+    else:
+        raise RuntimeError(
+            "SESSION_SECRET environment variable must be set in production. "
+            "Generate a secure key with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+        )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -30,12 +54,12 @@ security = HTTPBearer(auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    return verify_pw(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password."""
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    return hash_password(password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -55,53 +79,91 @@ def decode_access_token(token: str) -> Optional[dict]:
         return None
 
 
+def set_auth_cookie(response: Response, token: str) -> None:
+    """Set the authentication cookie with secure settings."""
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        max_age=COOKIE_MAX_AGE,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        path="/",
+    )
+
+
+def clear_auth_cookie(response: Response) -> None:
+    """Clear the authentication cookie."""
+    response.delete_cookie(
+        key=COOKIE_NAME,
+        path="/",
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+    )
+
+
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
-    """Get the current authenticated user from JWT token."""
-    if not credentials:
+    """Get the current authenticated user from JWT token.
+
+    Supports both:
+    - Authorization header (Bearer token) - for API clients
+    - HttpOnly cookie (access_token) - for browser clients
+    """
+    token = None
+
+    # First, try to get token from Authorization header
+    if credentials:
+        token = credentials.credentials
+
+    # Fall back to HttpOnly cookie if no Authorization header
+    if not token:
+        token = request.cookies.get(COOKIE_NAME)
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    token = credentials.credentials
+
     payload = decode_access_token(token)
-    
+
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
         )
-    
+
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is disabled",
         )
-    
+
     return user
 
 
 @router.post("/register", response_model=TokenResponse)
-def register(request: RegisterRequest, db: Session = Depends(get_db)):
+def register(request: RegisterRequest, response: Response, db: Session = Depends(get_db)):
     """Register a new user account."""
     existing_user = db.query(User).filter(User.email == request.email).first()
     if existing_user:
@@ -109,14 +171,14 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
+
     org_name = request.organization_name or f"{request.email.split('@')[0]}'s Organization"
     slug = org_name.lower().replace(" ", "-").replace("'", "")[:50]
-    
+
     existing_org = db.query(Organization).filter(Organization.slug == slug).first()
     if existing_org:
         slug = f"{slug}-{secrets.token_hex(4)}"
-    
+
     organization = Organization(
         name=org_name,
         slug=slug,
@@ -124,7 +186,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(organization)
     db.flush()
-    
+
     user = User(
         organization_id=organization.id,
         email=request.email,
@@ -137,9 +199,12 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    
+
     access_token = create_access_token(data={"sub": str(user.id)})
-    
+
+    # Set HttpOnly cookie for browser clients
+    set_auth_cookie(response, access_token)
+
     return TokenResponse(
         access_token=access_token,
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -160,22 +225,22 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
     """Authenticate user and return access token."""
     user = db.query(User).filter(User.email == request.email).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    
+
     if user.locked_until and user.locked_until > datetime.utcnow():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is temporarily locked due to too many failed login attempts"
         )
-    
+
     if not verify_password(request.password, user.password_hash):
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
         if user.failed_login_attempts >= 5:
@@ -185,21 +250,24 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is disabled"
         )
-    
+
     user.failed_login_attempts = 0
     user.locked_until = None
     user.last_login_at = datetime.utcnow()
     db.commit()
     db.refresh(user)
-    
+
     access_token = create_access_token(data={"sub": str(user.id)})
-    
+
+    # Set HttpOnly cookie for browser clients
+    set_auth_cookie(response, access_token)
+
     return TokenResponse(
         access_token=access_token,
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -238,8 +306,9 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/logout")
-def logout():
-    """Logout current user (client-side token invalidation)."""
+def logout(response: Response):
+    """Logout current user by clearing the authentication cookie."""
+    clear_auth_cookie(response)
     return {"message": "Successfully logged out"}
 
 

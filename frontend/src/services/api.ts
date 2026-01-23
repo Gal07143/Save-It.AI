@@ -1,34 +1,27 @@
-import { getAuthToken } from '../contexts/AuthContext'
-
 const API_BASE = '/api/v1'
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const token = getAuthToken()
-  
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options?.headers,
   }
-  
-  if (token) {
-    (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`
-  }
-  
+
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    credentials: 'include',  // Include HttpOnly cookies
     headers,
     ...options,
   })
-  
+
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem('auth_token')
+      // Redirect to login on authentication failure
       window.location.href = '/login'
       throw new Error('Session expired')
     }
     const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
     throw new Error(error.detail || 'An error occurred')
   }
-  
+
   return response.json()
 }
 
@@ -70,26 +63,20 @@ export const api = {
     validate: (id: number) => fetchApi<BillValidationResult>(`/bills/${id}/validate`, { method: 'POST' }),
     create: (data: Partial<Bill>) => fetchApi<Bill>('/bills', { method: 'POST', body: JSON.stringify(data) }),
     ocrScan: async (file: File): Promise<OCRBillResult> => {
-      const token = getAuthToken()
       const formData = new FormData()
       formData.append('file', file)
-      
-      const headers: HeadersInit = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      
+
       const response = await fetch(`${API_BASE}/bills/ocr-scan`, {
         method: 'POST',
-        headers,
+        credentials: 'include',
         body: formData,
       })
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'OCR scan failed' }))
         throw new Error(error.detail || 'OCR scan failed')
       }
-      
+
       return response.json()
     },
   },
@@ -98,26 +85,20 @@ export const api = {
     solarRoi: (data: SolarROIInput) => fetchApi<SolarROIResult>('/analysis/solar-roi', { method: 'POST', body: JSON.stringify(data) }),
     bessSimulation: (data: BESSSimulationInput) => fetchApi<BESSSimulationResult>('/analysis/bess-simulation', { method: 'POST', body: JSON.stringify(data) }),
     analyzePanelDiagram: async (file: File): Promise<PanelDiagramResult> => {
-      const token = getAuthToken()
       const formData = new FormData()
       formData.append('file', file)
-      
-      const headers: HeadersInit = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      
+
       const response = await fetch(`${API_BASE}/analysis/panel-diagram`, {
         method: 'POST',
-        headers,
+        credentials: 'include',
         body: formData,
       })
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Analysis failed' }))
         throw new Error(error.detail || 'Analysis failed')
       }
-      
+
       return response.json()
     },
   },
@@ -144,26 +125,20 @@ export const api = {
     bulkImport: (data: BulkDeviceImportRequest) => 
       fetchApi<BulkDeviceImportResponse>('/data-sources/bulk-import', { method: 'POST', body: JSON.stringify(data) }),
     bulkImportCSV: async (siteId: number, file: File): Promise<BulkDeviceImportResponse> => {
-      const token = getAuthToken()
       const formData = new FormData()
       formData.append('file', file)
-      
-      const headers: HeadersInit = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      
+
       const response = await fetch(`${API_BASE}/data-sources/bulk-import/csv?site_id=${siteId}`, {
         method: 'POST',
-        headers,
+        credentials: 'include',
         body: formData,
       })
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Import failed' }))
         throw new Error(error.detail || 'Import failed')
       }
-      
+
       return response.json()
     },
     healthDashboard: (siteId?: number) => 
@@ -419,21 +394,17 @@ export const api = {
     get: (id: number) => fetchApi<BESSDataset>(`/bess/datasets/${id}`),
     create: (data: Partial<BESSDataset>) => fetchApi<BESSDataset>('/bess/datasets', { method: 'POST', body: JSON.stringify(data) }),
     uploadCsv: async (datasetId: number, file: File, options?: { timestampColumn?: string; demandColumn?: string }) => {
-      const token = getAuthToken()
       const formData = new FormData()
       formData.append('file', file)
       if (options?.timestampColumn) formData.append('timestamp_column', options.timestampColumn)
       if (options?.demandColumn) formData.append('demand_column', options.demandColumn)
-      
-      const headers: HeadersInit = {}
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      
+
       const response = await fetch(`${API_BASE}/bess/datasets/${datasetId}/upload-csv`, {
         method: 'POST',
-        headers,
+        credentials: 'include',
         body: formData,
       })
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Upload failed' }))
         throw new Error(error.detail || 'Upload failed')

@@ -1,6 +1,6 @@
 """Tariff API endpoints."""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
@@ -13,8 +13,8 @@ router = APIRouter(prefix="/api/v1/tariffs", tags=["tariffs"])
 @router.get("", response_model=List[TariffResponse])
 def list_tariffs(
     site_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
     """List all tariffs, optionally filtered by site."""

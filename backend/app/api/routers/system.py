@@ -155,27 +155,42 @@ def rotate_api_key(key_id: int, db: Session = Depends(get_db), admin: User = Dep
 def export_user_data(
     user_id: int = Query(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Export all data associated with a user for GDPR compliance.
-    
-    Returns a comprehensive data package.
+
+    Users can export their own data, or admins can export data for users
+    in their organization. Super admins can export any user's data.
     """
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
+    # Authorization check: user must be the subject or an admin
+    if current_user.id != user_id:
+        if current_user.role not in [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN]:
+            raise HTTPException(status_code=403, detail="Can only export your own data")
+
+        # Org admins can only export data for users in their organization
+        target_user = db.query(User).filter(User.id == user_id).first()
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if current_user.role == UserRole.ORG_ADMIN and target_user.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Cannot export data for users outside your organization")
+    else:
+        target_user = db.query(User).filter(User.id == user_id).first()
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
     audit_logs = db.query(AuditLog).filter(AuditLog.user_id == user_id).all()
-    
+
     export_data = {
         "export_date": datetime.utcnow().isoformat(),
         "user": {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
-            "created_at": user.created_at.isoformat() if user.created_at else None,
-            "last_login_at": user.last_login_at.isoformat() if hasattr(user, 'last_login_at') and user.last_login_at else None,
+            "id": target_user.id,
+            "email": target_user.email,
+            "name": target_user.name,
+            "role": target_user.role.value if hasattr(target_user.role, 'value') else str(target_user.role),
+            "created_at": target_user.created_at.isoformat() if target_user.created_at else None,
+            "last_login_at": target_user.last_login_at.isoformat() if hasattr(target_user, 'last_login_at') and target_user.last_login_at else None,
         },
         "audit_logs": [{
             "action": log.action,
@@ -189,7 +204,7 @@ def export_user_data(
             "preferences",
         ],
     }
-    
+
     return export_data
 
 

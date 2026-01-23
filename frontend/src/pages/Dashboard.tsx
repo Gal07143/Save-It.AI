@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'wouter'
 import { api } from '../services/api'
-import { 
-  Building2, Gauge, Receipt, AlertTriangle, TrendingUp, Zap, 
+import QueryError from '../components/QueryError'
+import {
+  Building2, Gauge, Receipt, AlertTriangle, TrendingUp, Zap,
   Leaf, RefreshCw, Clock, ArrowUpRight, ArrowDownRight,
   Target, Battery, Sun, Activity
 } from 'lucide-react'
@@ -33,13 +34,21 @@ export default function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
-  const { data: meters } = useQuery({ queryKey: ['meters'], queryFn: () => api.meters.list() })
-  const { data: bills } = useQuery({ queryKey: ['bills'], queryFn: () => api.bills.list() })
-  const { data: notifications } = useQuery({ 
-    queryKey: ['notifications'], 
-    queryFn: () => api.notifications.list(undefined, true) 
+  const { data: sites, isError: sitesError, refetch: refetchSites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
+  const { data: meters, isError: metersError, refetch: refetchMeters } = useQuery({ queryKey: ['meters'], queryFn: () => api.meters.list() })
+  const { data: bills, isError: billsError, refetch: refetchBills } = useQuery({ queryKey: ['bills'], queryFn: () => api.bills.list() })
+  const { data: notifications, isError: notificationsError, refetch: refetchNotifications } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.notifications.list(undefined, true)
   })
+
+  const hasError = sitesError || metersError || billsError || notificationsError
+  const handleRefetchAll = () => {
+    refetchSites()
+    refetchMeters()
+    refetchBills()
+    refetchNotifications()
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -68,6 +77,15 @@ export default function Dashboard() {
     { label: 'Pending Bills', value: bills?.filter(b => !b.is_validated).length || 0, icon: Receipt, color: '#f59e0b' },
     { label: 'Active Alerts', value: notifications?.length || 0, icon: AlertTriangle, color: '#ef4444' },
   ]
+
+  if (hasError) {
+    return (
+      <div>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Energy Dashboard</h1>
+        <QueryError message="Failed to load dashboard data" onRetry={handleRefetchAll} />
+      </div>
+    )
+  }
 
   return (
     <div>

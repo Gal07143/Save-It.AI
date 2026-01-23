@@ -5,7 +5,7 @@ import {
   Radio, Wifi, Plus, Trash2, XCircle, 
   RefreshCw, Clock, Activity, Key, Router, AlertCircle
 } from 'lucide-react'
-import { api, Gateway, GatewayRegistration } from '../services/api'
+import { api, Gateway, GatewayRegistration, DataSource } from '../services/api'
 import { useToast } from '../contexts/ToastContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import GatewayStatusBadge from '../components/GatewayStatusBadge'
@@ -53,7 +53,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
       setShowAddGateway(false)
       setNewGateway({ name: '', ip_address: '', description: '' })
     },
-    onError: (err: any) => showError(err.message || 'Failed to create gateway')
+    onError: (err: Error) => showError(err.message || 'Failed to create gateway')
   })
 
   const deleteMutation = useMutation({
@@ -64,7 +64,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
       setShowDeleteConfirm(false)
       setGatewayToDelete(null)
     },
-    onError: (err: any) => showError(err.message || 'Failed to delete gateway')
+    onError: (err: Error) => showError(err.message || 'Failed to delete gateway')
   })
 
   const registerMutation = useMutation({
@@ -75,7 +75,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
       setShowCredentials(true)
       queryClient.invalidateQueries({ queryKey: ['gateways'] })
     },
-    onError: (err: any) => showError(err.message || 'Failed to register gateway')
+    onError: (err: Error) => showError(err.message || 'Failed to register gateway')
   })
 
   const rotateMutation = useMutation({
@@ -85,7 +85,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
       setCredentials(data)
       setShowCredentials(true)
     },
-    onError: (err: any) => showError(err.message || 'Failed to rotate credentials')
+    onError: (err: Error) => showError(err.message || 'Failed to rotate credentials')
   })
 
   const handleAddGateway = () => {
@@ -109,17 +109,18 @@ export default function Gateways({ currentSite }: GatewaysProps) {
       setSelectedGateway(gateway)
       setCredentials(creds)
       setShowCredentials(true)
-    } catch (err: any) {
-      if (err.message?.includes('not registered')) {
+    } catch (err: unknown) {
+      const error = err as Error
+      if (error.message?.includes('not registered')) {
         handleRegister(gateway)
       } else {
-        showError(err.message || 'Failed to get credentials')
+        showError(error.message || 'Failed to get credentials')
       }
     }
   }
 
   const getDevicesForGateway = (gatewayId: number) => {
-    return dataSources?.filter((ds: any) => ds.gateway_id === gatewayId) || []
+    return dataSources?.filter((ds: DataSource) => ds.gateway_id === gatewayId) || []
   }
 
   const getStatusColor = (status: string) => {
@@ -259,7 +260,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
                       Connected Devices
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {devices.slice(0, 5).map((device: any) => (
+                      {devices.slice(0, 5).map((device: DataSource) => (
                         <span
                           key={device.id}
                           style={{

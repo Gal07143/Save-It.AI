@@ -1,6 +1,6 @@
 """Notification API endpoints."""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -31,8 +31,8 @@ class ConnectionRestoredRequest(BaseModel):
 def list_notifications(
     site_id: Optional[int] = None,
     unread_only: bool = False,
-    skip: int = 0,
-    limit: int = 50,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db)
 ):
     """Get all notifications, optionally filtered by site."""

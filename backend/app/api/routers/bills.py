@@ -1,6 +1,6 @@
 """Bill API endpoints."""
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
@@ -14,8 +14,8 @@ router = APIRouter(prefix="/api/v1/bills", tags=["bills"])
 @router.get("", response_model=List[BillResponse])
 def list_bills(
     site_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
     """Get all bills, optionally filtered by site."""

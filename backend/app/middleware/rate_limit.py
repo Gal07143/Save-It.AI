@@ -6,6 +6,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from backend.app.utils.ip import get_client_ip
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
@@ -34,10 +36,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         }
     
     def _get_client_ip(self, request: Request) -> str:
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        return get_client_ip(request)
     
     def _get_limit_for_path(self, path: str) -> Tuple[int, int]:
         for prefix, limits in self.endpoint_limits.items():

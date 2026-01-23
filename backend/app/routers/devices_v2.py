@@ -6,12 +6,12 @@ Implements Zoho IoT-style device operations.
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backend.app.core.database import get_db
 from backend.app.models.devices import (
     Device, DeviceModel, DeviceProduct, DeviceDatapoint, DeviceTelemetry,
-    DeviceEvent, DeviceType, AuthType, ConfigSyncStatus
+    DeviceEvent, DeviceType, AuthType, ConfigSyncStatus, Datapoint
 )
 from backend.app.models.integrations import Gateway
 from backend.app.schemas.devices import (
@@ -40,8 +40,13 @@ def list_devices(
     db: Session = Depends(get_db),
 ):
     """List all devices with optional filtering."""
-    query = db.query(Device)
-    
+    # Use eager loading to avoid N+1 queries
+    query = db.query(Device).options(
+        joinedload(Device.model),
+        joinedload(Device.product),
+        joinedload(Device.gateway),
+    )
+
     if site_id:
         query = query.filter(Device.site_id == site_id)
     if gateway_id:
@@ -58,26 +63,21 @@ def list_devices(
         query = query.filter(Device.is_online == (1 if is_online else 0))
     if is_active is not None:
         query = query.filter(Device.is_active == (1 if is_active else 0))
-    
+
     devices = query.order_by(Device.name).offset(skip).limit(limit).all()
-    
+
     result = []
     for device in devices:
         resp = DeviceResponse.model_validate(device)
-        if device.model_id:
-            model = db.query(DeviceModel).filter(DeviceModel.id == device.model_id).first()
-            if model:
-                resp.model_name = model.name
-        if device.product_id:
-            product = db.query(DeviceProduct).filter(DeviceProduct.id == device.product_id).first()
-            if product:
-                resp.product_name = f"{product.manufacturer} {product.name}"
-        if device.gateway_id:
-            gateway = db.query(Gateway).filter(Gateway.id == device.gateway_id).first()
-            if gateway:
-                resp.gateway_name = gateway.name
+        # Access eagerly loaded relationships (no additional queries)
+        if device.model:
+            resp.model_name = device.model.name
+        if device.product:
+            resp.product_name = f"{device.product.manufacturer} {device.product.name}"
+        if device.gateway:
+            resp.gateway_name = device.gateway.name
         result.append(resp)
-    
+
     return result
 
 
@@ -146,20 +146,24 @@ def get_device(
     db: Session = Depends(get_db),
 ):
     """Get a device by ID."""
-    device = db.query(Device).filter(Device.id == device_id).first()
+    # Use eager loading to avoid N+1 queries
+    device = db.query(Device).options(
+        joinedload(Device.model),
+        joinedload(Device.product),
+        joinedload(Device.gateway),
+    ).filter(Device.id == device_id).first()
+
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
-    
+
     resp = DeviceResponse.model_validate(device)
-    if device.model_id:
-        model = db.query(DeviceModel).filter(DeviceModel.id == device.model_id).first()
-        if model:
-            resp.model_name = model.name
-    if device.product_id:
-        product = db.query(DeviceProduct).filter(DeviceProduct.id == device.product_id).first()
-        if product:
-            resp.product_name = f"{product.manufacturer} {product.name}"
-    
+    if device.model:
+        resp.model_name = device.model.name
+    if device.product:
+        resp.product_name = f"{device.product.manufacturer} {device.product.name}"
+    if device.gateway:
+        resp.gateway_name = device.gateway.name
+
     return resp
 
 
@@ -342,26 +346,27 @@ def get_device_datapoints(
     device = db.query(Device).filter(Device.id == device_id).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
-    
-    device_dps = db.query(DeviceDatapoint).filter(
+
+    # Use eager loading to avoid N+1 queries
+    device_dps = db.query(DeviceDatapoint).options(
+        joinedload(DeviceDatapoint.datapoint)
+    ).filter(
         DeviceDatapoint.device_id == device_id
     ).all()
-    
+
     result = []
     for ddp in device_dps:
-        from backend.app.models.devices import Datapoint
-        dp = db.query(Datapoint).filter(Datapoint.id == ddp.datapoint_id).first()
-        if dp:
+        if ddp.datapoint:
             result.append({
-                "name": dp.name,
-                "display_name": dp.display_name,
-                "unit": dp.unit,
+                "name": ddp.datapoint.name,
+                "display_name": ddp.datapoint.display_name,
+                "unit": ddp.datapoint.unit,
                 "current_value": ddp.current_value,
                 "previous_value": ddp.previous_value,
                 "last_updated_at": ddp.last_updated_at.isoformat() if ddp.last_updated_at else None,
                 "quality": ddp.quality,
             })
-    
+
     return result
 
 

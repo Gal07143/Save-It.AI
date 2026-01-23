@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Wifi, WifiOff, AlertTriangle, HelpCircle, RefreshCw } from 'lucide-react'
+import { Wifi, WifiOff, AlertTriangle, HelpCircle, RefreshCw, LucideIcon } from 'lucide-react'
 import { api, DeviceHealthDashboard as HealthDashboard, DeviceHealthSummary } from '../services/api'
 import { formatNumber } from '../utils/formatNumber'
 
@@ -8,7 +8,7 @@ interface DeviceHealthDashboardProps {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { color: string; bg: string; icon: any }> = {
+  const config: Record<string, { color: string; bg: string; icon: LucideIcon }> = {
     online: { color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: Wifi },
     offline: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', icon: WifiOff },
     error: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', icon: AlertTriangle },

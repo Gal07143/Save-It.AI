@@ -21,8 +21,6 @@ export default function FileUpload({
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [uploadProgress, setUploadProgress] = useState<number>(0)
-  const [_isUploading, _setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const validateFile = (file: File): string | null => {
@@ -187,27 +185,6 @@ export default function FileUpload({
               <X size={20} />
             </button>
           </div>
-          
-          {_isUploading && (
-            <div style={{ marginTop: '1rem' }}>
-              <div style={{
-                height: '4px',
-                background: '#334155',
-                borderRadius: '2px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${uploadProgress}%`,
-                  background: '#10b981',
-                  transition: 'width 0.3s'
-                }} />
-              </div>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>
-                Uploading... {uploadProgress}%
-              </p>
-            </div>
-          )}
         </div>
       )}
       

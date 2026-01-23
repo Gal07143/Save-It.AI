@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'wouter'
-import { api } from '../services/api'
+import { api, DeviceTemplate, Site, Gateway, Meter } from '../services/api'
 import { 
   X, ChevronRight, ChevronLeft, Check, Wifi, WifiOff, 
   Server, Database, CheckCircle, Cpu, Zap, Battery, RefreshCw, Plus, Router
@@ -131,7 +131,7 @@ export default function DeviceOnboardingWizard({
     enabled: !!effectiveSiteId
   })
 
-  const filteredTemplates = templates?.filter((t: any) => {
+  const filteredTemplates = templates?.filter((t: DeviceTemplate) => {
     if (!state.deviceCategory) return true
     if (state.deviceCategory === 'energy_meter') return t.device_type === 'energy_meter'
     if (state.deviceCategory === 'solar_inverter') return t.device_type === 'solar_inverter'
@@ -162,7 +162,7 @@ export default function DeviceOnboardingWizard({
 
   const createDataSourceMutation = useMutation({
     mutationFn: () => {
-      const payload: any = {
+      const payload: Record<string, string | number | boolean | null | undefined> = {
         name: state.deviceName,
         site_id: state.siteId || currentSite,
         source_type: state.protocol,
@@ -267,7 +267,7 @@ export default function DeviceOnboardingWizard({
 
   useEffect(() => {
     if (state.templateId && templates) {
-      const template = templates.find((t: any) => t.id === state.templateId)
+      const template = templates.find((t: DeviceTemplate) => t.id === state.templateId)
       if (template && !state.deviceName) {
         setState(prev => ({
           ...prev,
@@ -279,7 +279,7 @@ export default function DeviceOnboardingWizard({
 
   if (!isOpen) return null
 
-  const selectedSite = sites?.find((s: any) => s.id === effectiveSiteId)
+  const selectedSite = sites?.find((s: Site) => s.id === effectiveSiteId)
 
   return (
     <div className="modal-overlay" style={{ 
@@ -363,7 +363,7 @@ export default function DeviceOnboardingWizard({
                     style={{ width: '100%' }}
                   >
                     <option value="">Choose a site...</option>
-                    {sites?.map((site: any) => (
+                    {sites?.map((site: Site) => (
                       <option key={site.id} value={site.id}>{site.name}</option>
                     ))}
                   </select>
@@ -471,7 +471,7 @@ export default function DeviceOnboardingWizard({
                         {state.gatewayId === null && <CheckCircle size={16} style={{ color: '#3b82f6' }} />}
                       </button>
                       
-                      {gateways?.map((gw: any) => (
+                      {gateways?.map((gw: Gateway) => (
                         <button
                           key={gw.id}
                           type="button"
@@ -809,7 +809,7 @@ export default function DeviceOnboardingWizard({
                   }))}
                 >
                   <option value="">No template (manual configuration)</option>
-                  {filteredTemplates.map((t: any) => (
+                  {filteredTemplates.map((t: DeviceTemplate) => (
                     <option key={t.id} value={t.id}>
                       {t.manufacturer} {t.model} ({t.device_type})
                     </option>
@@ -831,7 +831,7 @@ export default function DeviceOnboardingWizard({
                     }))}
                   >
                     <option value="">No meter link</option>
-                    {meters?.map((m: any) => (
+                    {meters?.map((m: Meter) => (
                       <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
                   </select>
@@ -844,7 +844,7 @@ export default function DeviceOnboardingWizard({
                   borderRadius: '8px', border: '1px solid #334155'
                 }}>
                   {(() => {
-                    const template = templates?.find((t: any) => t.id === state.templateId)
+                    const template = templates?.find((t: DeviceTemplate) => t.id === state.templateId)
                     if (!template) return null
                     return (
                       <div>
@@ -923,7 +923,7 @@ export default function DeviceOnboardingWizard({
                   <span style={{ fontSize: '0.875rem', color: '#64748b' }}>Template:</span>
                   <span style={{ fontSize: '0.875rem', color: '#f1f5f9' }}>
                     {state.templateId 
-                      ? templates?.find((t: any) => t.id === state.templateId)?.model || 'Selected'
+                      ? templates?.find((t: DeviceTemplate) => t.id === state.templateId)?.model || 'Selected'
                       : 'None (manual configuration)'
                     }
                   </span>
@@ -932,7 +932,7 @@ export default function DeviceOnboardingWizard({
                     <>
                       <span style={{ fontSize: '0.875rem', color: '#64748b' }}>Linked Meter:</span>
                       <span style={{ fontSize: '0.875rem', color: '#f1f5f9' }}>
-                        {meters?.find((m: any) => m.id === state.meterId)?.name || 'Selected'}
+                        {meters?.find((m: Meter) => m.id === state.meterId)?.name || 'Selected'}
                       </span>
                     </>
                   )}

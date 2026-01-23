@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../services/api'
+import { api, Gateway, DataSource, DeviceTemplate, ModbusRegister, Site, Meter, QRCodeData } from '../services/api'
 import { 
   Plug, CheckCircle, XCircle, Clock, AlertTriangle, Server, 
   FileCode, Settings, Plus, Wifi, WifiOff, RefreshCw, Play,
@@ -44,7 +44,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [testHost, setTestHost] = useState('')
   const [testPort, setTestPort] = useState(502)
   const [testSlaveId, setTestSlaveId] = useState(1)
-  const [testResult, setTestResult] = useState<any>(null)
+  const [testResult, setTestResult] = useState<{ success: boolean; error?: string; message?: string; response_time_ms?: number } | null>(null)
   const [expandedTemplate, setExpandedTemplate] = useState<number | null>(null)
   const [showApplyTemplate, setShowApplyTemplate] = useState(false)
   const [applyTemplateId, setApplyTemplateId] = useState<number | null>(null)
@@ -61,7 +61,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [cloneSlaveId, setCloneSlaveId] = useState<number | undefined>(undefined)
   const [showQRModal, setShowQRModal] = useState(false)
   const [_qrSourceId, setQRSourceId] = useState<number | null>(null)
-  const [qrData, setQRData] = useState<any>(null)
+  const [qrData, setQRData] = useState<QRCodeData | null>(null)
   const [showDiscovery, setShowDiscovery] = useState(false)
   const [showCommissioning, setShowCommissioning] = useState(false)
   const [commissioningSourceId, setCommissioningSourceId] = useState<number | null>(null)
@@ -198,7 +198,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
 
   const createDataSourceMutation = useMutation({
     mutationFn: async (data: typeof newSource) => {
-      const payload: any = {
+      const payload: Partial<DataSource> & { is_active: number } = {
         name: data.name,
         site_id: parseInt(data.site_id),
         source_type: data.source_type,
@@ -280,7 +280,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
             </tr>
           </thead>
           <tbody>
-            {gateways.map((gw: any) => (
+            {gateways.map((gw: Gateway) => (
               <tr key={gw.id}>
                 <td style={{ fontWeight: 500 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -368,7 +368,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
             </tr>
           </thead>
           <tbody>
-            {dataSources.map((source: any) => (
+            {dataSources.map((source: DataSource) => (
               <tr key={source.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedSource(source.id)}>
                 <td style={{ fontWeight: 500 }}>{source.name}</td>
                 <td>
@@ -519,7 +519,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         <p>Loading templates...</p>
       ) : templates && templates.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {templates.map((template: any) => (
+          {templates.map((template: DeviceTemplate) => (
             <div 
               key={template.id} 
               style={{ 
@@ -669,7 +669,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
             </tr>
           </thead>
           <tbody>
-            {registers.map((reg: any) => (
+            {registers.map((reg: ModbusRegister) => (
               <tr key={reg.id}>
                 <td style={{ fontWeight: 500 }}>{reg.name}</td>
                 <td style={{ fontFamily: 'monospace' }}>{reg.register_address}</td>
@@ -729,11 +729,11 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       <div className="grid grid-4" style={{ marginBottom: '1.5rem' }}>
         <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
           <h3 style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>Active Sources</h3>
-          <div className="stat-value">{dataSources?.filter((d: any) => d.is_active).length || 0}</div>
+          <div className="stat-value">{dataSources?.filter((d: DataSource) => d.is_active).length || 0}</div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
           <h3 style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>Gateways Online</h3>
-          <div className="stat-value">{gateways?.filter((g: any) => g.status === 'online').length || 0}</div>
+          <div className="stat-value">{gateways?.filter((g: Gateway) => g.status === 'online').length || 0}</div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #8b5cf6' }}>
           <h3 style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>Device Templates</h3>
@@ -741,7 +741,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
         </div>
         <div className="card" style={{ borderLeft: '4px solid #f59e0b' }}>
           <h3 style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>With Errors</h3>
-          <div className="stat-value">{dataSources?.filter((d: any) => d.last_error).length || 0}</div>
+          <div className="stat-value">{dataSources?.filter((d: DataSource) => d.last_error).length || 0}</div>
         </div>
       </div>
 
@@ -965,9 +965,9 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   }}
                 >
                   <option value="">Select a data source...</option>
-                  {dataSources?.filter((ds: any) => 
+                  {dataSources?.filter((ds: DataSource) => 
                     ds.source_type === 'modbus_tcp' || ds.source_type === 'modbus_rtu'
-                  ).map((ds: any) => (
+                  ).map((ds: DataSource) => (
                     <option key={ds.id} value={ds.id}>
                       {ds.name} ({sourceTypeLabels[ds.source_type]})
                     </option>
@@ -975,7 +975,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                 </select>
               </div>
               
-              {dataSources?.filter((ds: any) => 
+              {dataSources?.filter((ds: DataSource) => 
                 ds.source_type === 'modbus_tcp' || ds.source_type === 'modbus_rtu'
               ).length === 0 && (
                 <div style={{ 
@@ -1006,7 +1006,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   }}
                 >
                   <option value="">No meter (create registers only)</option>
-                  {meters?.map((m: any) => (
+                  {meters?.map((m: Meter) => (
                     <option key={m.id} value={m.id}>
                       {m.name} ({m.meter_id})
                     </option>
@@ -1127,7 +1127,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   onChange={e => setNewSource({ ...newSource, site_id: e.target.value })}
                 >
                   <option value="">Select Site</option>
-                  {sites?.map((site: any) => (
+                  {sites?.map((site: Site) => (
                     <option key={site.id} value={site.id}>{site.name}</option>
                   ))}
                 </select>
@@ -1155,7 +1155,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   onChange={e => setNewSource({ ...newSource, gateway_id: e.target.value })}
                 >
                   <option value="">Direct Connection (No Gateway)</option>
-                  {gateways?.filter((gw: any) => !newSource.site_id || gw.site_id === parseInt(newSource.site_id)).map((gw: any) => (
+                  {gateways?.filter((gw: Gateway) => !newSource.site_id || gw.site_id === parseInt(newSource.site_id)).map((gw: Gateway) => (
                     <option key={gw.id} value={gw.id}>{gw.name} ({gw.ip_address || 'No IP'})</option>
                   ))}
                 </select>
@@ -1343,7 +1343,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   onChange={e => setNewGateway({ ...newGateway, site_id: e.target.value })}
                 >
                   <option value="">Select Site</option>
-                  {sites?.map((site: any) => (
+                  {sites?.map((site: Site) => (
                     <option key={site.id} value={site.id}>{site.name}</option>
                   ))}
                 </select>

@@ -6,7 +6,8 @@ import {
   Plus, Wifi, WifiOff, Trash2, Eye, Settings, Router, X,
   Activity, RefreshCw, ExternalLink
 } from 'lucide-react'
-import { api } from '../services/api'
+import { api, DataSource } from '../services/api'
+import QueryError from '../components/QueryError'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -19,17 +20,17 @@ interface DevicesProps {
 
 export default function Devices({ currentSite }: DevicesProps) {
   const [activeTab, setActiveTab] = useState('all-devices')
-  const [selectedDevice, setSelectedDevice] = useState<any>(null)
+  const [selectedDevice, setSelectedDevice] = useState<DataSource | null>(null)
   const [showDeviceDetails, setShowDeviceDetails] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deviceToDelete, setDeviceToDelete] = useState<any>(null)
+  const [deviceToDelete, setDeviceToDelete] = useState<DataSource | null>(null)
   const [showDeviceWizard, setShowDeviceWizard] = useState(false)
-  const [_editDeviceId, setEditDeviceId] = useState<number | null>(null)
+  const [, setEditDeviceId] = useState<number | null>(null)
   const { success, error: showError } = useToast()
   const queryClient = useQueryClient()
   const [, setLocation] = useLocation()
 
-  const { data: dataSources, isLoading } = useQuery({
+  const { data: dataSources, isLoading, isError, refetch } = useQuery({
     queryKey: ['dataSources', currentSite],
     queryFn: () => api.dataSources.list(currentSite || undefined)
   })
@@ -42,7 +43,7 @@ export default function Devices({ currentSite }: DevicesProps) {
       setShowDeleteConfirm(false)
       setDeviceToDelete(null)
     },
-    onError: (err: any) => showError(err.message || 'Failed to delete device')
+    onError: (err: Error) => showError(err.message || 'Failed to delete device')
   })
 
   const cloneMutation = useMutation({
@@ -52,11 +53,11 @@ export default function Devices({ currentSite }: DevicesProps) {
       success('Device cloned successfully')
       queryClient.invalidateQueries({ queryKey: ['dataSources'] })
     },
-    onError: (err: any) => showError(err.message || 'Failed to clone device')
+    onError: (err: Error) => showError(err.message || 'Failed to clone device')
   })
 
   const testConnectionMutation = useMutation({
-    mutationFn: (device: any) => api.dataSources.testConnection({
+    mutationFn: (device: DataSource) => api.dataSources.testConnection({
       host: device.host,
       port: device.port,
       slave_id: device.slave_id || 1
@@ -68,7 +69,7 @@ export default function Devices({ currentSite }: DevicesProps) {
         showError(data.error || 'Connection failed')
       }
     },
-    onError: (err: any) => showError(err.message || 'Connection test failed')
+    onError: (err: Error) => showError(err.message || 'Connection test failed')
   })
 
   const tabs: Tab[] = [
@@ -80,12 +81,12 @@ export default function Devices({ currentSite }: DevicesProps) {
     { id: 'qr-codes', label: 'QR Codes', icon: QrCode }
   ]
 
-  const handleViewDevice = (device: any) => {
+  const handleViewDevice = (device: DataSource) => {
     setSelectedDevice(device)
     setShowDeviceDetails(true)
   }
 
-  const handleEditDevice = (device: any) => {
+  const handleEditDevice = (device: DataSource) => {
     setEditDeviceId(device.id)
     setShowDeviceWizard(true)
   }
@@ -126,7 +127,9 @@ export default function Devices({ currentSite }: DevicesProps) {
         </div>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <QueryError message="Failed to load devices" onRetry={() => refetch()} />
+      ) : isLoading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>Loading devices...</div>
       ) : !dataSources?.length ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
@@ -154,7 +157,7 @@ export default function Devices({ currentSite }: DevicesProps) {
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '1rem' }}>
-          {dataSources.map((device: any) => (
+          {dataSources.map((device: DataSource) => (
             <div
               key={device.id}
               className="card"
@@ -263,7 +266,7 @@ export default function Devices({ currentSite }: DevicesProps) {
         <div className="card" style={{ padding: '1.5rem' }}>
           <h4 style={{ color: 'white', marginBottom: '1rem' }}>Select Device to Clone</h4>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            {dataSources.map((device: any) => (
+            {dataSources.map((device: DataSource) => (
               <div
                 key={device.id}
                 style={{
@@ -341,7 +344,7 @@ export default function Devices({ currentSite }: DevicesProps) {
             </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-            {dataSources.map((device: any) => (
+            {dataSources.map((device: DataSource) => (
               <div
                 key={device.id}
                 style={{

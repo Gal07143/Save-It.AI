@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'wouter'
-import { api } from '../services/api'
+import { api, AssetTreeNode, Meter } from '../services/api'
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
 import { useToast } from '../contexts/ToastContext'
 
@@ -96,8 +96,8 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
 
   const currentSite = sites?.find(s => s.id === siteId)
 
-  const flattenAssets = (assets: any[]): any[] => {
-    let result: any[] = []
+  const flattenAssets = (assets: AssetTreeNode[]): AssetTreeNode[] => {
+    let result: AssetTreeNode[] = []
     for (const asset of assets) {
       result.push(asset)
       if (asset.children?.length) {
@@ -134,7 +134,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
       const xGroups: Record<string, number> = { source: 50, meter: 200, transformer: 350, storage: 50, load: 500 }
       const typeCounters: Record<string, number> = {}
       
-      return allAssets.map((asset: any) => {
+      return allAssets.map((asset: AssetTreeNode) => {
         const type = getAssetPowerFlowType(asset.asset_type)
         typeCounters[type] = (typeCounters[type] || 0) + 1
         const yOffset = (typeCounters[type] - 1) * 100
@@ -702,7 +702,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
               </div>
               <div>
                 <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>Total Meters</div>
-                <div style={{ fontWeight: 500 }}>{Array.isArray(meters) ? meters.filter((m: any) => m.site_id === siteId).length : 0}</div>
+                <div style={{ fontWeight: 500 }}>{Array.isArray(meters) ? meters.filter((m: Meter) => m.site_id === siteId).length : 0}</div>
               </div>
               <div>
                 <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>Contract Demand</div>

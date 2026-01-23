@@ -1,17 +1,18 @@
 """API key authentication for external API consumers."""
 import secrets
-import hashlib
 from datetime import datetime
 from typing import Optional
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import APIKeyHeader
+
+from backend.app.utils.hashing import hash_string
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 def hash_api_key(api_key: str) -> str:
     """Hash an API key for secure storage."""
-    return hashlib.sha256(api_key.encode()).hexdigest()
+    return hash_string(api_key)
 
 
 def generate_api_key(prefix: str = "saveit") -> tuple[str, str]:
