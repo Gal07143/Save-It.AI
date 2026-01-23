@@ -6,7 +6,8 @@ while preserving system templates, models, policies, and catalogs.
 """
 import logging
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, MetaData, Table
+from sqlalchemy.exc import NoSuchTableError
 
 logger = logging.getLogger(__name__)
 
@@ -92,19 +93,30 @@ def reset_demo_data(db: Session) -> dict:
     deleted_counts = {}
     
     try:
-        for table in TABLES_TO_DELETE:
+        # Reflect tables using the engine bound to the Session. Reflecting treats names as identifiers
+        # rather than string-concatenated SQL, which avoids SQL injection risks reported by Bandit.
+        engine = db.get_bind()
+        metadata = MetaData()
+
+        for table_name in TABLES_TO_DELETE:
             try:
-                result = db.execute(text(f"DELETE FROM {table}"))
-                deleted_counts[table] = result.rowcount
+                # Reflect the table from the database; this treats the name as an identifier, not raw SQL text.
+                tbl = Table(table_name, metadata, autoload_with=engine)
+                result = db.execute(tbl.delete())
+                # result.rowcount may be None for some DBAPIs; normalize to int.
+                deleted_counts[table_name] = int(result.rowcount or 0)
+            except NoSuchTableError:
+                logger.warning(f"Table not found, skipping: {table_name}")
+                deleted_counts[table_name] = 0
             except Exception as table_error:
-                logger.warning(f"Could not delete from {table}: {table_error}")
-                deleted_counts[table] = 0
-        
+                logger.warning(f"Could not delete from {table_name}: {table_error}")
+                deleted_counts[table_name] = 0
+
         db.commit()
-        
+
         total_deleted = sum(deleted_counts.values())
         logger.info(f"Reset demo data complete. Deleted {total_deleted} records across {len(deleted_counts)} tables.")
-        
+
         return {
             "success": True,
             "message": f"Successfully reset demo data. Deleted {total_deleted} records.",
@@ -123,7 +135,7 @@ def reset_demo_data(db: Session) -> dict:
                 "users",
             ]
         }
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to reset demo data: {e}")
