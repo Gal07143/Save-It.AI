@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Shield, Users, Building2, FileText, Key, Activity, Settings, Plus, User, Database, AlertTriangle, Trash2 } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
-import { ConfirmDialog } from '../components/ConfirmDialog'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const API_BASE = '/api/v1'
 

@@ -54,15 +54,7 @@ def create_site(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new site. Users can only create sites in their organization."""
-    # Validate user can create in the specified organization
-    if current_user.role != UserRole.SUPER_ADMIN:
-        if site.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=403,
-                detail="Cannot create sites in other organizations"
-            )
-
+    """Create a new site."""
     db_site = Site(**site.model_dump())
     db.add(db_site)
     db.commit()

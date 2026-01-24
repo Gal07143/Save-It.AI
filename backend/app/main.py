@@ -105,7 +105,37 @@ async def lifespan(app: FastAPI):
     shutdown_service.register_handler("service_registry", service_registry.stop, priority=70)
     shutdown_service.register_handler("job_queue", job_queue.stop, priority=60)
     logger.info("Graceful shutdown handlers registered")
-    
+
+    # Start MQTT Broker and Subscriber for IoT device communication
+    from backend.app.services.mqtt_broker import mqtt_broker
+    from backend.app.services.mqtt_subscriber import mqtt_subscriber, DataIngestionHandler
+    import asyncio
+
+    try:
+        await mqtt_broker.start()
+        logger.info(f"MQTT Broker started on port {mqtt_broker.port}")
+
+        # Setup data ingestion handler for MQTT messages
+        ingestion_handler = DataIngestionHandler(SessionLocal)
+        mqtt_subscriber.add_handler("data", ingestion_handler.handle_data_message)
+        mqtt_subscriber.add_handler("telemetry", ingestion_handler.handle_data_message)
+        mqtt_subscriber.add_handler("heartbeat", ingestion_handler.handle_heartbeat)
+        mqtt_subscriber.add_handler("status", ingestion_handler.handle_status)
+
+        # Subscribe to all gateway and device topics
+        await mqtt_subscriber.subscribe("saveit/#")
+        await mqtt_subscriber.subscribe("device/#")
+
+        # Start subscriber in background task
+        asyncio.create_task(mqtt_subscriber.start())
+        logger.info("MQTT Subscriber started")
+
+        # Register shutdown handlers for MQTT services
+        shutdown_service.register_handler("mqtt_subscriber", mqtt_subscriber.stop, priority=95)
+        shutdown_service.register_handler("mqtt_broker", mqtt_broker.stop, priority=50)
+    except Exception as e:
+        logger.warning(f"Could not start MQTT services: {e}")
+
     yield
     
     await shutdown_service.shutdown()
@@ -167,12 +197,14 @@ def health_check():
 def api_health_check():
     """Detailed API health check with component status."""
     from sqlalchemy import text
-    
+    from backend.app.services.mqtt_broker import mqtt_broker
+
     components = {
         "api": {"status": "healthy"},
         "database": {"status": "unknown"},
+        "mqtt_broker": {"status": "unknown"},
     }
-    
+
     try:
         db = SessionLocal()
         db.execute(text("SELECT 1"))
@@ -180,11 +212,19 @@ def api_health_check():
         components["database"] = {"status": "healthy"}
     except Exception as e:
         components["database"] = {"status": "unhealthy", "error": str(e)}
-    
+
+    # Check MQTT broker status
+    mqtt_status = mqtt_broker.get_status()
+    components["mqtt_broker"] = {
+        "status": "healthy" if mqtt_status.get("running") else "stopped",
+        "port": mqtt_status.get("port"),
+        "connected_clients": mqtt_status.get("connected_clients", 0),
+    }
+
     overall_status = "healthy" if all(
-        c["status"] == "healthy" for c in components.values()
+        c.get("status") in ["healthy", "stopped"] for c in components.values()
     ) else "degraded"
-    
+
     return {
         "status": overall_status,
         "timestamp": datetime.utcnow().isoformat(),

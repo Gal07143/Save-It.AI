@@ -25,8 +25,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
-    MQTT_BROKER_HOST: str = os.getenv("MQTT_BROKER_HOST", "localhost")
+    # MQTT Broker Settings
+    MQTT_BROKER_HOST: str = os.getenv("MQTT_BROKER_HOST", "0.0.0.0")
     MQTT_BROKER_PORT: int = int(os.getenv("MQTT_BROKER_PORT", "1883"))
+    MQTT_BROKER_TLS_PORT: int = int(os.getenv("MQTT_BROKER_TLS_PORT", "8883"))
+    MQTT_PUBLIC_HOST: str = os.getenv("MQTT_PUBLIC_HOST", "localhost")
+    MQTT_ENABLE_TLS: bool = os.getenv("MQTT_ENABLE_TLS", "false").lower() == "true"
 
     EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "smtp")
     SMTP_HOST: str = os.getenv("SMTP_HOST", "")
