@@ -207,15 +207,33 @@ class MetricsRegistry:
         return all_metrics
     
     def to_prometheus(self) -> str:
-        """Export metrics in Prometheus format."""
+        """Export metrics in Prometheus exposition format."""
         lines = []
+        seen_metrics = set()
+
         for metric in self.collect_all():
-            label_str = ",".join(f'{k}="{v}"' for k, v in metric.labels.items())
+            # Add HELP and TYPE lines for each metric family (once)
+            base_name = metric.name.rsplit("_", 1)[0] if metric.name.endswith(("_sum", "_count", "_bucket")) else metric.name
+            if base_name not in seen_metrics:
+                if metric.help_text:
+                    lines.append(f"# HELP {base_name} {metric.help_text}")
+                lines.append(f"# TYPE {base_name} {metric.type.value}")
+                seen_metrics.add(base_name)
+
+            # Format labels
+            label_str = ",".join(f'{k}="{v}"' for k, v in sorted(metric.labels.items()))
             if label_str:
                 lines.append(f"{metric.name}{{{label_str}}} {metric.value}")
             else:
                 lines.append(f"{metric.name} {metric.value}")
-        return "\n".join(lines)
+
+        return "\n".join(lines) + "\n"
+
+    def get_metric_value(self, name: str, labels: Optional[Dict[str, str]] = None) -> Optional[float]:
+        """Get a specific metric value."""
+        if name in self.metrics:
+            return self.metrics[name].get(labels)
+        return None
 
 
 metrics_registry = MetricsRegistry()
@@ -259,3 +277,82 @@ websocket_connections = metrics_registry.gauge(
     "websocket_connections",
     "Number of active WebSocket connections"
 )
+
+# Additional production metrics
+active_sites = metrics_registry.gauge(
+    "saveit_active_sites",
+    "Number of active sites"
+)
+
+data_points_ingested = metrics_registry.counter(
+    "saveit_data_points_ingested_total",
+    "Total data points ingested"
+)
+
+database_connections = metrics_registry.gauge(
+    "saveit_database_connections",
+    "Number of active database connections"
+)
+
+cache_hits = metrics_registry.counter(
+    "saveit_cache_hits_total",
+    "Total cache hits"
+)
+
+cache_misses = metrics_registry.counter(
+    "saveit_cache_misses_total",
+    "Total cache misses"
+)
+
+rate_limit_exceeded = metrics_registry.counter(
+    "saveit_rate_limit_exceeded_total",
+    "Total rate limit exceeded events"
+)
+
+mqtt_messages_received = metrics_registry.counter(
+    "saveit_mqtt_messages_received_total",
+    "Total MQTT messages received"
+)
+
+mqtt_messages_published = metrics_registry.counter(
+    "saveit_mqtt_messages_published_total",
+    "Total MQTT messages published"
+)
+
+api_errors = metrics_registry.counter(
+    "saveit_api_errors_total",
+    "Total API errors by type"
+)
+
+forecast_jobs_completed = metrics_registry.counter(
+    "saveit_forecast_jobs_completed_total",
+    "Total forecast jobs completed"
+)
+
+bill_validations = metrics_registry.counter(
+    "saveit_bill_validations_total",
+    "Total bill validations performed"
+)
+
+
+def update_database_pool_metrics():
+    """Update database connection pool metrics."""
+    try:
+        from backend.app.core.database import get_pool_status
+        pool_status = get_pool_status()
+        database_connections.set(pool_status.get("checked_out", 0), {"state": "active"})
+        database_connections.set(pool_status.get("checked_in", 0), {"state": "idle"})
+        database_connections.set(pool_status.get("overflow", 0), {"state": "overflow"})
+    except Exception:
+        pass
+
+
+def update_site_metrics(db_session):
+    """Update site-related metrics from database."""
+    try:
+        from backend.app.models import Site
+        from sqlalchemy import func
+        count = db_session.query(func.count(Site.id)).filter(Site.is_active == 1).scalar()
+        active_sites.set(count or 0)
+    except Exception:
+        pass

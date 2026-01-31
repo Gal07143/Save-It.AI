@@ -1,4 +1,4 @@
-"""Request tracing service for debugging and observability."""
+"""Request tracing service for debugging and observability with OpenTelemetry support."""
 from typing import Dict, Optional, Any, List
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -6,8 +6,16 @@ from contextvars import ContextVar
 import uuid
 import time
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+# OpenTelemetry configuration
+OTEL_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
+OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "saveit-backend")
+
+_otel_tracer = None
 
 _trace_context: ContextVar[Optional["TraceContext"]] = ContextVar("trace_context", default=None)
 
@@ -158,6 +166,117 @@ def get_correlation_id() -> Optional[str]:
     """Get the current correlation/trace ID."""
     context = _trace_context.get()
     return context.trace_id if context else None
+
+
+def init_opentelemetry() -> bool:
+    """Initialize OpenTelemetry tracing."""
+    global _otel_tracer
+
+    if not OTEL_ENABLED:
+        logger.info("OpenTelemetry tracing disabled")
+        return False
+
+    try:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+
+        # Create resource with service name
+        resource = Resource.create({SERVICE_NAME: OTEL_SERVICE_NAME})
+
+        # Create tracer provider
+        provider = TracerProvider(resource=resource)
+
+        # Create OTLP exporter (for Jaeger/Tempo)
+        exporter = OTLPSpanExporter(endpoint=OTEL_EXPORTER_OTLP_ENDPOINT)
+
+        # Add batch processor for efficient export
+        provider.add_span_processor(BatchSpanProcessor(exporter))
+
+        # Set as global tracer provider
+        trace.set_tracer_provider(provider)
+
+        # Get tracer
+        _otel_tracer = trace.get_tracer(__name__)
+
+        logger.info(f"OpenTelemetry initialized: endpoint={OTEL_EXPORTER_OTLP_ENDPOINT}")
+        return True
+
+    except ImportError:
+        logger.warning("opentelemetry packages not installed, OTLP export disabled")
+        return False
+    except Exception as e:
+        logger.error(f"Failed to initialize OpenTelemetry: {e}")
+        return False
+
+
+def instrument_fastapi(app):
+    """Instrument FastAPI application with OpenTelemetry."""
+    if not OTEL_ENABLED:
+        return
+
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        FastAPIInstrumentor.instrument_app(app)
+        logger.info("FastAPI instrumented with OpenTelemetry")
+    except ImportError:
+        logger.warning("opentelemetry-instrumentation-fastapi not installed")
+    except Exception as e:
+        logger.error(f"Failed to instrument FastAPI: {e}")
+
+
+def instrument_sqlalchemy(engine):
+    """Instrument SQLAlchemy with OpenTelemetry."""
+    if not OTEL_ENABLED:
+        return
+
+    try:
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        SQLAlchemyInstrumentor().instrument(engine=engine)
+        logger.info("SQLAlchemy instrumented with OpenTelemetry")
+    except ImportError:
+        logger.warning("opentelemetry-instrumentation-sqlalchemy not installed")
+    except Exception as e:
+        logger.error(f"Failed to instrument SQLAlchemy: {e}")
+
+
+def instrument_httpx():
+    """Instrument HTTPX client with OpenTelemetry."""
+    if not OTEL_ENABLED:
+        return
+
+    try:
+        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+        HTTPXClientInstrumentor().instrument()
+        logger.info("HTTPX instrumented with OpenTelemetry")
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.error(f"Failed to instrument HTTPX: {e}")
+
+
+def create_span(name: str, attributes: Optional[Dict[str, Any]] = None):
+    """Create a span for tracing (works with both internal and OTEL)."""
+    if _otel_tracer:
+        from opentelemetry import trace
+        span = _otel_tracer.start_span(name)
+        if attributes:
+            for key, value in attributes.items():
+                span.set_attribute(key, str(value))
+        return span
+
+    # Fallback to internal tracing
+    context = _trace_context.get()
+    if context:
+        return context.start_span(name, attributes)
+    return None
+
+
+# Initialize OpenTelemetry on module import (if enabled)
+if OTEL_ENABLED:
+    init_opentelemetry()
 
 
 class TracingMiddleware:

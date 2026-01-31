@@ -1,0 +1,104 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: saveit-ingress
+  namespace: saveit
+  labels:
+    app.kubernetes.io/name: saveit
+  annotations:
+    # nginx ingress controller annotations
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "DENY" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+
+    # cert-manager for automatic TLS
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+    - hosts:
+        - saveit.example.com
+        - api.saveit.example.com
+      secretName: saveit-tls
+  rules:
+    # API subdomain
+    - host: api.saveit.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: saveit-backend
+                port:
+                  number: 8000
+
+    # Main application domain
+    - host: saveit.example.com
+      http:
+        paths:
+          # API routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: saveit-backend
+                port:
+                  number: 8000
+
+          # WebSocket routes
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: saveit-backend
+                port:
+                  number: 8000
+
+          # OpenAPI documentation
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: saveit-backend
+                port:
+                  number: 8000
+
+          - path: /redoc
+            pathType: Prefix
+            backend:
+              service:
+                name: saveit-backend
+                port:
+                  number: 8000
+
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: saveit-backend
+                port:
+                  number: 8000
+
+          # Frontend (catch-all)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: saveit-frontend
+                port:
+                  number: 80

@@ -145,6 +145,17 @@ from backend.app.models.devices import (
     DeviceEvent,
 )
 
+from backend.app.models.telemetry import (
+    AlarmStatus,
+    AggregationPeriod,
+    KPIType,
+    DeviceAlarm,
+    TelemetryAggregation,
+    KPIDefinition,
+    KPIValue,
+    NoDataTracker,
+)
+
 __all__ = [
     "AssetType",
     "NotificationType",
@@ -251,4 +262,13 @@ __all__ = [
     "ProductRegisterMapping",
     "RemoteModbusConfig",
     "DeviceEvent",
+    # Telemetry & Alarms
+    "AlarmStatus",
+    "AggregationPeriod",
+    "KPIType",
+    "DeviceAlarm",
+    "TelemetryAggregation",
+    "KPIDefinition",
+    "KPIValue",
+    "NoDataTracker",
 ]

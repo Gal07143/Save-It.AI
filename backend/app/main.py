@@ -30,8 +30,11 @@ from backend.app.middleware import (
     error_handler_middleware,
     CacheMiddleware,
     RequestValidationMiddleware,
+    SecurityHeadersMiddleware,
+    CSRFMiddleware,
 )
 from backend.app.middleware.multi_tenant import MultiTenantMiddleware
+from backend.app.core.config import validate_startup_config
 
 
 @asynccontextmanager
@@ -61,8 +64,13 @@ async def lifespan(app: FastAPI):
     from backend.app.services.job_queue import job_queue
     from backend.app.core.database import SessionLocal
     
-    Base.metadata.create_all(bind=engine)
-    
+    # Database tables are created via Alembic migrations.
+    # Run `alembic upgrade head` before starting the application.
+    # In production, migrations should be run as a separate deployment step.
+    if settings.DEBUG:
+        # Only create tables automatically in development mode
+        Base.metadata.create_all(bind=engine)
+
     db = SessionLocal()
     try:
         seed_device_templates(db)
@@ -152,20 +160,53 @@ app = FastAPI(
     redirect_slashes=False
 )
 
+# Validate configuration at startup
+try:
+    validate_startup_config()
+except RuntimeError as e:
+    logger.error(f"Configuration validation failed: {e}")
+    if not settings.DEBUG:
+        raise
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+        "X-CSRF-Token",
+        "X-API-Key",
+    ],
+    expose_headers=[
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset",
+    ],
 )
+
+# Security headers middleware (adds HSTS, CSP, X-Frame-Options, etc.)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CSRF protection (validates tokens on POST/PUT/DELETE/PATCH)
+app.add_middleware(CSRFMiddleware)
 
 app.add_middleware(RequestLogMiddleware)
 app.add_middleware(CacheMiddleware)
 app.add_middleware(RequestValidationMiddleware)
 app.add_middleware(MultiTenantMiddleware)
 app.add_middleware(AuditLogMiddleware, db_session_factory=SessionLocal)
-app.add_middleware(RateLimitMiddleware, default_limit=100, default_window=60, burst_limit=20)
+app.add_middleware(
+    RateLimitMiddleware,
+    default_limit=100,
+    default_window=60,
+    burst_limit=20,
+    redis_url=settings.REDIS_URL if hasattr(settings, 'REDIS_URL') else None,
+)
 
 app.middleware("http")(error_handler_middleware)
 
@@ -243,7 +284,7 @@ def liveness_probe():
 def readiness_probe():
     """Kubernetes readiness probe - is the application ready to serve requests?"""
     from sqlalchemy import text
-    
+
     try:
         db = SessionLocal()
         db.execute(text("SELECT 1"))
@@ -252,6 +293,22 @@ def readiness_probe():
     except Exception:
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=503, content={"status": "not_ready"})
+
+
+@app.get("/metrics")
+def prometheus_metrics():
+    """Prometheus metrics endpoint."""
+    from fastapi.responses import PlainTextResponse
+    from backend.app.services.metrics_service import metrics_registry, update_database_pool_metrics
+
+    # Update dynamic metrics
+    update_database_pool_metrics()
+
+    # Return Prometheus format
+    return PlainTextResponse(
+        content=metrics_registry.to_prometheus(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 if __name__ == "__main__":

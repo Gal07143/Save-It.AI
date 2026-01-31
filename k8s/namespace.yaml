@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: saveit
+  labels:
+    app.kubernetes.io/name: saveit
+    app.kubernetes.io/part-of: saveit-platform

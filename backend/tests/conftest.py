@@ -133,3 +133,201 @@ def admin_auth_headers(client: TestClient, test_super_admin: User) -> dict:
     assert response.status_code == 200
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def authenticated_client(client: TestClient, auth_headers: dict) -> TestClient:
+    """Return a client with authentication headers pre-configured."""
+    client.headers.update(auth_headers)
+    return client
+
+
+# =============================================================================
+# Factory Fixtures
+# =============================================================================
+
+@pytest.fixture
+def site_factory(db: Session, test_organization: Organization):
+    """Factory to create test sites."""
+    from backend.app.models import Site
+
+    def create_site(
+        name: str = "Test Site",
+        address: str = "123 Test St",
+        city: str = "Test City",
+        country: str = "Test Country",
+        timezone: str = "UTC",
+        **kwargs
+    ):
+        site = Site(
+            organization_id=test_organization.id,
+            name=name,
+            address=address,
+            city=city,
+            country=country,
+            timezone=timezone,
+            is_active=1,
+            **kwargs
+        )
+        db.add(site)
+        db.commit()
+        db.refresh(site)
+        return site
+
+    return create_site
+
+
+@pytest.fixture
+def meter_factory(db: Session):
+    """Factory to create test meters."""
+    from backend.app.models import Meter
+
+    def create_meter(
+        site_id: int,
+        name: str = "Test Meter",
+        meter_id: str = None,
+        **kwargs
+    ):
+        import uuid
+        meter = Meter(
+            site_id=site_id,
+            name=name,
+            meter_id=meter_id or f"MTR-{uuid.uuid4().hex[:8].upper()}",
+            is_active=1,
+            **kwargs
+        )
+        db.add(meter)
+        db.commit()
+        db.refresh(meter)
+        return meter
+
+    return create_meter
+
+
+@pytest.fixture
+def asset_factory(db: Session):
+    """Factory to create test assets."""
+    from backend.app.models import Asset
+
+    def create_asset(
+        site_id: int,
+        name: str = "Test Asset",
+        asset_type: str = "switchboard",
+        parent_id: int = None,
+        **kwargs
+    ):
+        asset = Asset(
+            site_id=site_id,
+            name=name,
+            asset_type=asset_type,
+            parent_id=parent_id,
+            is_critical=kwargs.pop("is_critical", False),
+            requires_metering=kwargs.pop("requires_metering", True),
+            **kwargs
+        )
+        db.add(asset)
+        db.commit()
+        db.refresh(asset)
+        return asset
+
+    return create_asset
+
+
+@pytest.fixture
+def user_factory(db: Session, test_organization: Organization):
+    """Factory to create test users."""
+    from backend.app.models import User, UserRole
+
+    _counter = [0]
+
+    def create_user(
+        email: str = None,
+        password: str = "testpassword123",
+        role: UserRole = UserRole.VIEWER,
+        **kwargs
+    ):
+        _counter[0] += 1
+        user = User(
+            organization_id=kwargs.pop("organization_id", test_organization.id),
+            email=email or f"user{_counter[0]}@example.com",
+            password_hash=hash_password(password),
+            first_name=kwargs.pop("first_name", "Test"),
+            last_name=kwargs.pop("last_name", f"User{_counter[0]}"),
+            role=role,
+            is_active=1,
+            **kwargs
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    return create_user
+
+
+@pytest.fixture
+def gateway_factory(db: Session):
+    """Factory to create test gateways."""
+    from backend.app.models.integrations import Gateway
+
+    def create_gateway(
+        site_id: int,
+        name: str = "Test Gateway",
+        **kwargs
+    ):
+        gateway = Gateway(
+            site_id=site_id,
+            name=name,
+            status="online",
+            **kwargs
+        )
+        db.add(gateway)
+        db.commit()
+        db.refresh(gateway)
+        return gateway
+
+    return create_gateway
+
+
+@pytest.fixture
+def data_source_factory(db: Session):
+    """Factory to create test data sources."""
+    from backend.app.models import DataSource
+
+    def create_data_source(
+        site_id: int,
+        name: str = "Test Device",
+        source_type: str = "modbus",
+        **kwargs
+    ):
+        data_source = DataSource(
+            site_id=site_id,
+            name=name,
+            source_type=source_type,
+            is_active=1,
+            **kwargs
+        )
+        db.add(data_source)
+        db.commit()
+        db.refresh(data_source)
+        return data_source
+
+    return create_data_source
+
+
+@pytest.fixture
+def test_site(db: Session, site_factory):
+    """Create a default test site."""
+    return site_factory(name="Default Test Site")
+
+
+@pytest.fixture
+def test_meter(db: Session, test_site, meter_factory):
+    """Create a default test meter."""
+    return meter_factory(site_id=test_site.id)
+
+
+@pytest.fixture
+def test_asset(db: Session, test_site, asset_factory):
+    """Create a default test asset."""
+    return asset_factory(site_id=test_site.id)

@@ -2,52 +2,57 @@
 import hashlib
 import json
 import time
+import os
 from typing import Dict, Optional, Any
 from functools import wraps
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 
+# Cache version prefix for invalidation on deployment
+# Increment this or set CACHE_VERSION env var to invalidate all caches
+CACHE_VERSION = os.getenv("CACHE_VERSION", "v1")
+
 
 class InMemoryCache:
     """Simple in-memory cache with TTL support."""
-    
+
     def __init__(self, max_size: int = 1000):
         self._cache: Dict[str, tuple] = {}
         self._max_size = max_size
-    
+
     def get(self, key: str) -> Optional[Any]:
         if key not in self._cache:
             return None
-        
+
         value, expires_at = self._cache[key]
         if expires_at and time.time() > expires_at:
             del self._cache[key]
             return None
-        
+
         return value
-    
+
     def set(self, key: str, value: Any, ttl: int = 300) -> None:
         if len(self._cache) >= self._max_size:
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
-        
+
         expires_at = time.time() + ttl if ttl > 0 else None
         self._cache[key] = (value, expires_at)
-    
+
     def delete(self, key: str) -> None:
         if key in self._cache:
             del self._cache[key]
-    
+
     def clear(self) -> None:
         self._cache.clear()
-    
+
     def clear_pattern(self, pattern: str) -> int:
         keys_to_delete = [k for k in self._cache.keys() if pattern in k]
         for key in keys_to_delete:
             del self._cache[key]
         return len(keys_to_delete)
-    
+
     def stats(self) -> Dict[str, int]:
         return {
             "size": len(self._cache),
@@ -59,10 +64,15 @@ cache = InMemoryCache()
 
 
 def cache_key(request: Request) -> str:
-    """Generate a cache key from request path and query params."""
+    """Generate a cache key from request path and query params.
+
+    Uses SHA-256 for collision resistance and includes version prefix
+    for cache invalidation on deployment.
+    """
     query = str(sorted(request.query_params.items()))
     key_str = f"{request.method}:{request.url.path}:{query}"
-    return hashlib.md5(key_str.encode()).hexdigest()
+    hash_value = hashlib.sha256(key_str.encode()).hexdigest()
+    return f"{CACHE_VERSION}:{hash_value}"
 
 
 CACHEABLE_PATHS = {

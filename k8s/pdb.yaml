@@ -1,0 +1,25 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: saveit-backend-pdb
+  namespace: saveit
+  labels:
+    app.kubernetes.io/name: saveit-backend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: saveit-backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: saveit-frontend-pdb
+  namespace: saveit
+  labels:
+    app.kubernetes.io/name: saveit-frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: saveit-frontend

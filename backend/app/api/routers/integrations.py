@@ -12,6 +12,7 @@ from backend.app.core.database import get_db
 from backend.app.models import DataSource, Gateway, DeviceTemplate, ModbusRegister, CommunicationLog
 from backend.app.models.integrations import MaintenanceSchedule, DeviceAlert
 from backend.app.schemas import DataSourceCreate, DataSourceResponse
+from backend.app.schemas.enterprise import DataSourceUpdate
 from backend.app.schemas.integrations import (
     BulkDeviceImportRequest, BulkDeviceImportResponse, BulkImportResultRow,
     DeviceHealthDashboard, DeviceHealthSummary
@@ -1561,4 +1562,20 @@ def get_data_source(source_id: int, db: Session = Depends(get_db)):
     source = db.query(DataSource).filter(DataSource.id == source_id).first()
     if not source:
         raise HTTPException(status_code=404, detail="Data source not found")
+    return source
+
+
+@router.put("/{source_id}", response_model=DataSourceResponse)
+def update_data_source(source_id: int, updates: DataSourceUpdate, db: Session = Depends(get_db)):
+    """Update a data source by ID."""
+    source = db.query(DataSource).filter(DataSource.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+
+    update_data = updates.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(source, key, value)
+
+    db.commit()
+    db.refresh(source)
     return source
