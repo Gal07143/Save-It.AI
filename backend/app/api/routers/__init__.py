@@ -26,11 +26,25 @@ from backend.app.api.routers.modbus_registers import router as modbus_registers_
 from backend.app.api.routers.public import router as public_router
 from backend.app.api.routers.system import router as system_router
 from backend.app.api.routers.webhooks import router as webhooks_router
+from backend.app.api.routers.telemetry import router as telemetry_router
+from backend.app.api.routers.alarms import router as alarms_router
 from backend.app.routers.device_models import router as device_models_router
 from backend.app.routers.device_products import router as device_products_router
 from backend.app.routers.devices_v2 import router as devices_v2_router
 from backend.app.routers.policies import router as policies_router
 from backend.app.routers.certificates import router as certificates_router
+
+# Week 6-8 Service Routers
+from backend.app.api.routers.exports import router as exports_router
+from backend.app.api.routers.device_groups import router as device_groups_router
+from backend.app.api.routers.dashboards import router as dashboards_router
+from backend.app.api.routers.scheduled_reports import router as scheduled_reports_router
+from backend.app.api.routers.geofences import router as geofences_router
+from backend.app.api.routers.work_orders import router as work_orders_router
+from backend.app.api.routers.lifecycle import router as lifecycle_router
+from backend.app.api.routers.health import router as health_router
+from backend.app.api.routers.custom_fields import router as custom_fields_router
+from backend.app.api.routers.notification_channels import router as notification_channels_router
 
 __all__ = [
     "sites_router",
@@ -65,6 +79,19 @@ __all__ = [
     "devices_v2_router",
     "policies_router",
     "certificates_router",
+    "telemetry_router",
+    "alarms_router",
+    # Week 6-8 Service Routers
+    "exports_router",
+    "device_groups_router",
+    "dashboards_router",
+    "scheduled_reports_router",
+    "geofences_router",
+    "work_orders_router",
+    "lifecycle_router",
+    "health_router",
+    "custom_fields_router",
+    "notification_channels_router",
 ]
 
 all_routers = [
@@ -100,4 +127,17 @@ all_routers = [
     devices_v2_router,
     policies_router,
     certificates_router,
+    telemetry_router,
+    alarms_router,
+    # Week 6-8 Service Routers
+    exports_router,
+    device_groups_router,
+    dashboards_router,
+    scheduled_reports_router,
+    geofences_router,
+    work_orders_router,
+    lifecycle_router,
+    health_router,
+    custom_fields_router,
+    notification_channels_router,
 ]

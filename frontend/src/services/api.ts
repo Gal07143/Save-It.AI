@@ -1,9 +1,33 @@
 const API_BASE = '/api/v1'
 
+/**
+ * Get CSRF token from cookie for double-submit pattern.
+ */
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/csrf_token=([^;]+)/)
+  return match ? match[1] : null
+}
+
+/**
+ * Check if the request method requires CSRF protection.
+ */
+function requiresCsrf(method?: string): boolean {
+  const protectedMethods = ['POST', 'PUT', 'DELETE', 'PATCH']
+  return protectedMethods.includes((method || 'GET').toUpperCase())
+}
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options?.headers,
+  }
+
+  // Add CSRF token for state-changing requests
+  if (requiresCsrf(options?.method)) {
+    const csrfToken = getCsrfToken()
+    if (csrfToken) {
+      ;(headers as Record<string, string>)['X-CSRF-Token'] = csrfToken
+    }
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -66,9 +90,16 @@ export const api = {
       const formData = new FormData()
       formData.append('file', file)
 
+      const headers: HeadersInit = {}
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken
+      }
+
       const response = await fetch(`${API_BASE}/bills/ocr-scan`, {
         method: 'POST',
         credentials: 'include',
+        headers,
         body: formData,
       })
 
@@ -88,9 +119,16 @@ export const api = {
       const formData = new FormData()
       formData.append('file', file)
 
+      const headers: HeadersInit = {}
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken
+      }
+
       const response = await fetch(`${API_BASE}/analysis/panel-diagram`, {
         method: 'POST',
         credentials: 'include',
+        headers,
         body: formData,
       })
 
@@ -128,9 +166,16 @@ export const api = {
       const formData = new FormData()
       formData.append('file', file)
 
+      const headers: HeadersInit = {}
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken
+      }
+
       const response = await fetch(`${API_BASE}/data-sources/bulk-import/csv?site_id=${siteId}`, {
         method: 'POST',
         credentials: 'include',
+        headers,
         body: formData,
       })
 
@@ -157,16 +202,30 @@ export const api = {
   deviceTemplates: {
     list: () => fetchApi<DeviceTemplate[]>('/device-templates'),
     get: (id: number) => fetchApi<DeviceTemplate>(`/device-templates/${id}`),
-    apply: (data: { template_id: number; data_source_id: number; meter_id?: number | null }) => 
+    create: (data: Partial<DeviceTemplate>) =>
+      fetchApi<DeviceTemplate>('/device-templates', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<DeviceTemplate>) =>
+      fetchApi<DeviceTemplate>(`/device-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<void>(`/device-templates/${id}`, { method: 'DELETE' }),
+    apply: (data: { template_id: number; data_source_id: number; meter_id?: number | null }) =>
       fetchApi<{ registers_created: number }>('/device-templates/apply', { method: 'POST', body: JSON.stringify(data) }),
     seed: () => fetchApi<{ seeded: number }>('/device-templates/seed', { method: 'POST' }),
-    exportTemplate: (id: number) => fetchApi<{ template: DeviceTemplate; registers: any[] }>(`/device-templates/${id}/export`),
-    importTemplate: (data: { template: Partial<DeviceTemplate>; registers: any[] }) => 
+    exportTemplate: (id: number) => fetchApi<TemplateExport>(`/device-templates/${id}/export`),
+    importTemplate: (data: TemplateImport) =>
       fetchApi<DeviceTemplate>('/device-templates/import', { method: 'POST', body: JSON.stringify(data) }),
   },
   modbusRegisters: {
     list: (dataSourceId: number) => fetchApi<ModbusRegister[]>(`/modbus-registers?data_source_id=${dataSourceId}`),
-    read: (dataSourceId: number) => fetchApi<any>('/modbus-registers/read', { method: 'POST', body: JSON.stringify({ data_source_id: dataSourceId }) }),
+    get: (id: number) => fetchApi<ModbusRegister>(`/modbus-registers/${id}`),
+    create: (data: ModbusRegisterCreate) => fetchApi<ModbusRegister>('/modbus-registers', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<ModbusRegisterCreate>) => fetchApi<ModbusRegister>(`/modbus-registers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<void>(`/modbus-registers/${id}`, { method: 'DELETE' }),
+    read: (dataSourceId: number, registerIds?: number[]) => fetchApi<RegisterReadResult[]>('/modbus-registers/read', {
+      method: 'POST',
+      body: JSON.stringify({ data_source_id: dataSourceId, register_ids: registerIds })
+    }),
+    testConnection: (data: { host: string; port: number; slave_id: number; timeout_seconds?: number }) =>
+      fetchApi<ConnectionTestResult>('/modbus-registers/test-connection', { method: 'POST', body: JSON.stringify(data) }),
   },
   validationRules: {
     list: (siteId?: number, dataSourceId?: number) => {
@@ -399,9 +458,16 @@ export const api = {
       if (options?.timestampColumn) formData.append('timestamp_column', options.timestampColumn)
       if (options?.demandColumn) formData.append('demand_column', options.demandColumn)
 
+      const headers: HeadersInit = {}
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken
+      }
+
       const response = await fetch(`${API_BASE}/bess/datasets/${datasetId}/upload-csv`, {
         method: 'POST',
         credentials: 'include',
+        headers,
         body: formData,
       })
 
@@ -706,12 +772,45 @@ export interface GatewayRegistration {
 
 export interface DeviceTemplate {
   id: number
+  name: string
   device_type: string
   manufacturer: string
   model: string
   protocol: string
   description?: string
+  default_port?: number
+  default_slave_id?: number
+  is_system_template?: boolean
+  is_active?: boolean
   register_count?: number
+  created_at?: string
+}
+
+export interface TemplateRegister {
+  name: string
+  description?: string
+  register_address: number
+  register_type: string
+  data_type: string
+  byte_order?: string
+  register_count?: number
+  scale_factor?: number
+  offset?: number
+  unit?: string
+  is_writable?: boolean
+  display_order?: number
+  category?: string
+}
+
+export interface TemplateExport {
+  version: string
+  template: Partial<DeviceTemplate>
+  registers: TemplateRegister[]
+}
+
+export interface TemplateImport {
+  template: Partial<DeviceTemplate>
+  registers: TemplateRegister[]
 }
 
 export interface ModbusRegister {
@@ -719,15 +818,64 @@ export interface ModbusRegister {
   data_source_id: number
   meter_id?: number
   name: string
+  description?: string
   register_address: number
   register_type: string
   data_type: string
   byte_order?: string
+  register_count?: number
   scale_factor?: number
+  offset?: number
   unit?: string
+  is_writable?: boolean
+  is_active?: boolean
+  poll_priority?: number
   last_value?: number
   last_read_at?: string
+  last_error?: string
   read_error_count?: number
+}
+
+export interface ModbusRegisterCreate {
+  data_source_id: number
+  meter_id?: number
+  name: string
+  description?: string
+  register_address: number
+  register_type: 'holding' | 'input' | 'coil' | 'discrete'
+  data_type: 'int16' | 'uint16' | 'int32' | 'uint32' | 'float32' | 'float64' | 'bool'
+  byte_order?: 'big_endian' | 'little_endian' | 'big_endian_swap' | 'little_endian_swap'
+  register_count?: number
+  scale_factor?: number
+  offset?: number
+  unit?: string
+  is_writable?: boolean
+  is_active?: boolean
+  poll_priority?: number
+}
+
+export interface RegisterReadResult {
+  register_id: number
+  name: string
+  address: number
+  raw_value: number | null
+  scaled_value: number | null
+  unit?: string
+  quality: 'good' | 'bad' | 'stale'
+  read_at: string
+  error?: string
+}
+
+export interface ConnectionTestResult {
+  success: boolean
+  message: string
+  response_time_ms?: number
+  device_info?: {
+    host: string
+    port: number
+    slave_id: number
+    sample_register_0?: number
+  }
 }
 
 export interface BulkDeviceImportRow {
