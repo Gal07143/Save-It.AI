@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Gateway, DataSource, DeviceTemplate, ModbusRegister, Site, Meter, QRCodeData } from '../services/api'
-import { 
-  Plug, CheckCircle, XCircle, Clock, AlertTriangle, Server, 
+import {
+  Plug, CheckCircle, XCircle, Clock, AlertTriangle, Server,
   FileCode, Settings, Plus, Wifi, WifiOff, RefreshCw, Play,
-  ChevronDown, ChevronRight, Activity, Cpu, Database, Download, Upload, Wand2, Heart
+  ChevronDown, ChevronRight, Activity, Cpu, Database, Download, Upload, Wand2, Heart,
+  Edit, Trash2
 } from 'lucide-react'
 import DeviceOnboardingWizard from './DeviceOnboardingWizard'
 import BulkDeviceImport from '../components/BulkDeviceImport'
@@ -65,6 +66,8 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   const [showDiscovery, setShowDiscovery] = useState(false)
   const [showCommissioning, setShowCommissioning] = useState(false)
   const [commissioningSourceId, setCommissioningSourceId] = useState<number | null>(null)
+  const [showEditSource, setShowEditSource] = useState(false)
+  const [editingSource, setEditingSource] = useState<DataSource | null>(null)
   
   const [newSource, setNewSource] = useState({
     name: '',
@@ -239,7 +242,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
   })
 
   const createGatewayMutation = useMutation({
-    mutationFn: (data: typeof newGateway) => 
+    mutationFn: (data: typeof newGateway) =>
       api.gateways.create({
         ...data,
         site_id: parseInt(data.site_id)
@@ -248,6 +251,29 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       queryClient.invalidateQueries({ queryKey: ['gateways'] })
       setShowAddGateway(false)
       setNewGateway({ name: '', site_id: '', ip_address: '', description: '', firmware_version: '', heartbeat_interval_seconds: 60 })
+    }
+  })
+
+  const updateDataSourceMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<DataSource> }) => api.dataSources.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['data-sources'] })
+      setShowEditSource(false)
+      setEditingSource(null)
+    }
+  })
+
+  const deleteDataSourceMutation = useMutation({
+    mutationFn: (id: number) => api.dataSources.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['data-sources'] })
+    }
+  })
+
+  const deleteRegisterMutation = useMutation({
+    mutationFn: (id: number) => api.modbusRegisters.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['modbus-registers', selectedSource] })
     }
   })
 
@@ -453,8 +479,33 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                     >
                       <ChevronRight size={14} />
                     </button>
-                    <button 
-                      className="btn btn-sm" 
+                    <button
+                      className="btn btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingSource(source)
+                        setShowEditSource(true)
+                      }}
+                      title="Edit Data Source"
+                      style={{ color: '#3b82f6' }}
+                    >
+                      <Edit size={14} />
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm(`Delete data source "${source.name}"?`)) {
+                          deleteDataSourceMutation.mutate(source.id)
+                        }
+                      }}
+                      title="Delete Data Source"
+                      style={{ color: '#ef4444' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <button
+                      className="btn btn-sm"
                       onClick={(e) => {
                         e.stopPropagation()
                         setCommissioningSourceId(source.id)
@@ -666,6 +717,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
               <th>Unit</th>
               <th>Last Value</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -694,6 +746,33 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   ) : (
                     <span className="badge" style={{ background: '#475569' }}>Disabled</span>
                   )}
+                </td>
+                <td>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => {
+                        // Navigate to DeviceConfig page register browser with this register selected
+                        window.location.href = `/device-config?source=${selectedSource}&register=${reg.id}`
+                      }}
+                      title="Edit Register"
+                      style={{ color: '#3b82f6' }}
+                    >
+                      <Edit size={14} />
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => {
+                        if (confirm(`Delete register "${reg.name}" at address ${reg.register_address}?`)) {
+                          deleteRegisterMutation.mutate(reg.id)
+                        }
+                      }}
+                      title="Delete Register"
+                      style={{ color: '#ef4444' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -1557,6 +1636,125 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
             queryClient.invalidateQueries({ queryKey: ['data-sources', currentSite] })
           }}
         />
+      )}
+
+      {showEditSource && editingSource && (
+        <div className="modal-overlay" onClick={() => setShowEditSource(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>Edit Data Source</h3>
+              <button className="btn btn-sm" onClick={() => setShowEditSource(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Name *</label>
+                <input
+                  type="text"
+                  value={editingSource.name}
+                  onChange={e => setEditingSource({ ...editingSource, name: e.target.value })}
+                  placeholder="Device name"
+                />
+              </div>
+              {(editingSource.source_type === 'modbus_tcp' || editingSource.source_type === 'modbus_rtu') && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label">Host/IP Address</label>
+                      <input
+                        type="text"
+                        value={editingSource.host || ''}
+                        onChange={e => setEditingSource({ ...editingSource, host: e.target.value })}
+                        placeholder="192.168.1.100"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Port</label>
+                      <input
+                        type="number"
+                        value={editingSource.port || 502}
+                        onChange={e => setEditingSource({ ...editingSource, port: parseInt(e.target.value) || 502 })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Slave ID</label>
+                      <input
+                        type="number"
+                        value={editingSource.slave_id || 1}
+                        onChange={e => setEditingSource({ ...editingSource, slave_id: parseInt(e.target.value) || 1 })}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              {editingSource.source_type === 'mqtt' && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">MQTT Broker URL</label>
+                    <input
+                      type="text"
+                      value={editingSource.mqtt_broker_url || ''}
+                      onChange={e => setEditingSource({ ...editingSource, mqtt_broker_url: e.target.value })}
+                      placeholder="mqtt://broker.example.com"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">MQTT Topic</label>
+                    <input
+                      type="text"
+                      value={editingSource.mqtt_topic || ''}
+                      onChange={e => setEditingSource({ ...editingSource, mqtt_topic: e.target.value })}
+                      placeholder="sensors/meter1/#"
+                    />
+                  </div>
+                </>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label">Polling Interval (seconds)</label>
+                  <input
+                    type="number"
+                    value={editingSource.polling_interval_seconds || 60}
+                    onChange={e => setEditingSource({ ...editingSource, polling_interval_seconds: parseInt(e.target.value) || 60 })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select
+                    value={editingSource.is_active ? '1' : '0'}
+                    onChange={e => setEditingSource({ ...editingSource, is_active: e.target.value === '1' ? 1 : 0 })}
+                  >
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowEditSource(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  updateDataSourceMutation.mutate({
+                    id: editingSource.id,
+                    data: {
+                      name: editingSource.name,
+                      host: editingSource.host,
+                      port: editingSource.port,
+                      slave_id: editingSource.slave_id,
+                      polling_interval_seconds: editingSource.polling_interval_seconds,
+                      is_active: editingSource.is_active,
+                      mqtt_broker_url: editingSource.mqtt_broker_url,
+                      mqtt_topic: editingSource.mqtt_topic,
+                    }
+                  })
+                }}
+                disabled={!editingSource.name.trim() || updateDataSourceMutation.isPending}
+              >
+                {updateDataSourceMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
