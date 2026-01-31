@@ -41,6 +41,7 @@ class WidgetType(Enum):
 class Dashboard(Base):
     """Dashboard definition."""
     __tablename__ = "dashboards"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
@@ -68,6 +69,7 @@ class Dashboard(Base):
 class DashboardWidget(Base):
     """Widget on a dashboard."""
     __tablename__ = "dashboard_widgets"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     dashboard_id = Column(Integer, ForeignKey("dashboards.id", ondelete="CASCADE"), nullable=False, index=True)

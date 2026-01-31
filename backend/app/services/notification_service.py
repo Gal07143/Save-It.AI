@@ -51,9 +51,10 @@ class NotificationStatus(Enum):
     FAILED = "failed"
 
 
-class NotificationTemplate(Base):
-    """Notification template definition."""
-    __tablename__ = "notification_templates"
+class DeliveryTemplate(Base):
+    """Notification delivery template definition."""
+    __tablename__ = "delivery_templates"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
@@ -74,15 +75,16 @@ class NotificationTemplate(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-class Notification(Base):
-    """Notification record."""
-    __tablename__ = "notifications"
+class DeliveryMessage(Base):
+    """Notification delivery message record."""
+    __tablename__ = "delivery_messages"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
-    template_id = Column(Integer, ForeignKey("notification_templates.id"), nullable=True)
+    template_id = Column(Integer, ForeignKey("delivery_templates.id"), nullable=True)
     channel = Column(String(20), nullable=False, index=True)
     priority = Column(String(20), default="normal")
 
@@ -116,9 +118,10 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
-class NotificationPreference(Base):
-    """User notification preferences."""
-    __tablename__ = "notification_preferences"
+class DeliveryPreference(Base):
+    """User notification delivery preferences."""
+    __tablename__ = "delivery_preferences"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
@@ -210,9 +213,9 @@ class NotificationService:
         html_template: Optional[str] = None,
         channels: Optional[List[NotificationChannel]] = None,
         organization_id: Optional[int] = None
-    ) -> NotificationTemplate:
+    ) -> DeliveryTemplate:
         """Create a notification template."""
-        template = NotificationTemplate(
+        template = DeliveryTemplate(
             name=name,
             body_template=body_template,
             subject_template=subject_template,
@@ -249,8 +252,8 @@ class NotificationService:
         html_body = request.html_body
 
         if request.template_id:
-            template = self.db.query(NotificationTemplate).filter(
-                NotificationTemplate.id == request.template_id
+            template = self.db.query(DeliveryTemplate).filter(
+                DeliveryTemplate.id == request.template_id
             ).first()
 
             if template:
@@ -262,7 +265,7 @@ class NotificationService:
                     html_body = self._render_template(template.html_template, vars_dict)
 
         # Create notification record
-        notification = Notification(
+        notification = DeliveryMessage(
             organization_id=organization_id,
             user_id=user_id,
             template_id=request.template_id,
@@ -309,8 +312,8 @@ class NotificationService:
             List of NotificationResults
         """
         # Get user preferences
-        prefs = self.db.query(NotificationPreference).filter(
-            NotificationPreference.user_id == user_id
+        prefs = self.db.query(DeliveryPreference).filter(
+            DeliveryPreference.user_id == user_id
         ).first()
 
         results = []
@@ -379,7 +382,7 @@ class NotificationService:
 
         return results
 
-    def _deliver(self, notification: Notification) -> NotificationResult:
+    def _deliver(self, notification: DeliveryMessage) -> NotificationResult:
         """Deliver a notification."""
         channel = NotificationChannel(notification.channel)
         handler = self._channel_handlers.get(channel)
@@ -440,31 +443,31 @@ class NotificationService:
             result = result.replace(f"{{{{{key}}}}}", str(value))
         return result
 
-    def _send_email(self, notification: Notification) -> bool:
+    def _send_email(self, notification: DeliveryMessage) -> bool:
         """Send email notification."""
         # In production, would use SMTP or email service like SendGrid
         logger.info(f"Email to {notification.recipient}: {notification.subject}")
         return True
 
-    def _send_sms(self, notification: Notification) -> bool:
+    def _send_sms(self, notification: DeliveryMessage) -> bool:
         """Send SMS notification."""
         # In production, would use Twilio or similar
         logger.info(f"SMS to {notification.recipient}: {notification.body[:50]}")
         return True
 
-    def _send_push(self, notification: Notification) -> bool:
+    def _send_push(self, notification: DeliveryMessage) -> bool:
         """Send push notification."""
         # In production, would use FCM, APNs, etc.
         logger.info(f"Push to {notification.recipient}: {notification.body[:50]}")
         return True
 
-    def _send_in_app(self, notification: Notification) -> bool:
+    def _send_in_app(self, notification: DeliveryMessage) -> bool:
         """Store in-app notification."""
         # Already stored in database, just mark as delivered
         notification.delivered_at = datetime.utcnow()
         return True
 
-    def _send_webhook(self, notification: Notification) -> bool:
+    def _send_webhook(self, notification: DeliveryMessage) -> bool:
         """Send webhook notification."""
         import requests
 
@@ -487,7 +490,7 @@ class NotificationService:
             logger.error(f"Webhook failed: {e}")
             return False
 
-    def _send_slack(self, notification: Notification) -> bool:
+    def _send_slack(self, notification: DeliveryMessage) -> bool:
         """Send Slack notification."""
         import requests
 
@@ -507,7 +510,7 @@ class NotificationService:
             logger.error(f"Slack notification failed: {e}")
             return False
 
-    def _send_teams(self, notification: Notification) -> bool:
+    def _send_teams(self, notification: DeliveryMessage) -> bool:
         """Send Microsoft Teams notification."""
         import requests
 
@@ -537,17 +540,17 @@ class NotificationService:
         user_id: int,
         unread_only: bool = False,
         limit: int = 50
-    ) -> List[Notification]:
+    ) -> List[DeliveryMessage]:
         """Get notifications for a user."""
-        query = self.db.query(Notification).filter(
-            Notification.user_id == user_id,
-            Notification.channel == NotificationChannel.IN_APP.value
+        query = self.db.query(DeliveryMessage).filter(
+            DeliveryMessage.user_id == user_id,
+            DeliveryMessage.channel == NotificationChannel.IN_APP.value
         )
 
         if unread_only:
-            query = query.filter(Notification.read_at.is_(None))
+            query = query.filter(DeliveryMessage.read_at.is_(None))
 
-        return query.order_by(Notification.created_at.desc()).limit(limit).all()
+        return query.order_by(DeliveryMessage.created_at.desc()).limit(limit).all()
 
     def mark_as_read(
         self,
@@ -555,10 +558,10 @@ class NotificationService:
         user_id: int
     ) -> int:
         """Mark notifications as read."""
-        count = self.db.query(Notification).filter(
-            Notification.id.in_(notification_ids),
-            Notification.user_id == user_id,
-            Notification.read_at.is_(None)
+        count = self.db.query(DeliveryMessage).filter(
+            DeliveryMessage.id.in_(notification_ids),
+            DeliveryMessage.user_id == user_id,
+            DeliveryMessage.read_at.is_(None)
         ).update({"read_at": datetime.utcnow()}, synchronize_session=False)
 
         return count
@@ -567,9 +570,9 @@ class NotificationService:
         """Process notifications in retry queue."""
         now = datetime.utcnow()
 
-        notifications = self.db.query(Notification).filter(
-            Notification.status == NotificationStatus.QUEUED.value,
-            Notification.next_retry_at <= now
+        notifications = self.db.query(DeliveryMessage).filter(
+            DeliveryMessage.status == NotificationStatus.QUEUED.value,
+            DeliveryMessage.next_retry_at <= now
         ).all()
 
         processed = 0
@@ -588,12 +591,12 @@ class NotificationService:
         """Get notification delivery statistics."""
         cutoff = datetime.utcnow() - timedelta(days=days)
 
-        query = self.db.query(Notification).filter(
-            Notification.created_at >= cutoff
+        query = self.db.query(DeliveryMessage).filter(
+            DeliveryMessage.created_at >= cutoff
         )
 
         if organization_id:
-            query = query.filter(Notification.organization_id == organization_id)
+            query = query.filter(DeliveryMessage.organization_id == organization_id)
 
         notifications = query.all()
 

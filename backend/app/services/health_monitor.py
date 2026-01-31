@@ -34,6 +34,7 @@ class HealthStatus(Enum):
 class HealthCheckResult(Base):
     """Health check result history."""
     __tablename__ = "health_check_results"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
 
@@ -52,6 +53,7 @@ class HealthCheckResult(Base):
 class PerformanceMetric(Base):
     """Performance metric history."""
     __tablename__ = "performance_metrics"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
 

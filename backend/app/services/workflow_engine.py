@@ -49,6 +49,7 @@ class ActionType(Enum):
 class WorkflowRule(Base):
     """Workflow rule definition."""
     __tablename__ = "workflow_rules"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
@@ -77,6 +78,7 @@ class WorkflowRule(Base):
 class WorkflowExecution(Base):
     """Workflow execution history."""
     __tablename__ = "workflow_executions"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     rule_id = Column(Integer, ForeignKey("workflow_rules.id", ondelete="CASCADE"), nullable=False, index=True)

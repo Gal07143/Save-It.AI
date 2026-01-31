@@ -38,6 +38,7 @@ class LifecycleState(Enum):
 class LifecycleTransition(Base):
     """Record of lifecycle state transitions."""
     __tablename__ = "lifecycle_transitions"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -59,6 +60,7 @@ class LifecycleTransition(Base):
 class DeviceWarranty(Base):
     """Device warranty information."""
     __tablename__ = "device_warranties"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -79,6 +81,7 @@ class DeviceWarranty(Base):
 class DeviceLifecycleInfo(Base):
     """Extended device lifecycle information."""
     __tablename__ = "device_lifecycle_info"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False, unique=True)

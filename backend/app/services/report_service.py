@@ -51,6 +51,7 @@ class ScheduleFrequency(Enum):
 class ReportTemplate(Base):
     """Report template definition."""
     __tablename__ = "report_templates"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
@@ -78,6 +79,7 @@ class ReportTemplate(Base):
 class ReportSchedule(Base):
     """Scheduled report configuration."""
     __tablename__ = "report_schedules"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     template_id = Column(Integer, ForeignKey("report_templates.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -104,6 +106,7 @@ class ReportSchedule(Base):
 class GeneratedReport(Base):
     """Generated report record."""
     __tablename__ = "generated_reports"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     template_id = Column(Integer, ForeignKey("report_templates.id"), nullable=True, index=True)

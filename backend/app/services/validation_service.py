@@ -45,6 +45,7 @@ class ValidationRuleType(Enum):
 class ValidationRule(Base):
     """Validation rule definition."""
     __tablename__ = "validation_rules"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
@@ -71,6 +72,7 @@ class ValidationRule(Base):
 class ValidationLog(Base):
     """Log of validation failures."""
     __tablename__ = "validation_logs"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     rule_id = Column(Integer, ForeignKey("validation_rules.id"), nullable=True)

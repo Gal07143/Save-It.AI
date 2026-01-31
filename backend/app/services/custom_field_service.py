@@ -39,9 +39,22 @@ class FieldType(Enum):
     REFERENCE = "reference"     # Reference to another entity
 
 
+class EntityType(Enum):
+    """Entity types that support custom fields."""
+    DEVICE = "device"
+    SITE = "site"
+    USER = "user"
+    ORGANIZATION = "organization"
+    METER = "meter"
+    GATEWAY = "gateway"
+    ALARM = "alarm"
+    ASSET = "asset"
+
+
 class CustomFieldDefinition(Base):
     """Custom field definition."""
     __tablename__ = "custom_field_definitions"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
@@ -90,6 +103,7 @@ class CustomFieldDefinition(Base):
 class CustomFieldValue(Base):
     """Custom field value storage."""
     __tablename__ = "custom_field_values"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     field_id = Column(Integer, ForeignKey("custom_field_definitions.id", ondelete="CASCADE"), nullable=False, index=True)

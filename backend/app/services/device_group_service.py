@@ -13,45 +13,11 @@ from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Table
 
-from backend.app.core.database import Base
 from backend.app.models.devices import Device
+from backend.app.models.integrations import DeviceGroup, DeviceGroupMember
 
 logger = logging.getLogger(__name__)
-
-
-# Many-to-many association table for devices in groups
-device_group_members = Table(
-    'device_group_members',
-    Base.metadata,
-    Column('device_id', Integer, ForeignKey('devices.id', ondelete='CASCADE'), primary_key=True),
-    Column('group_id', Integer, ForeignKey('device_groups.id', ondelete='CASCADE'), primary_key=True),
-    Column('added_at', DateTime, default=datetime.utcnow)
-)
-
-
-class DeviceGroup(Base):
-    """Device group definition."""
-    __tablename__ = "device_groups"
-
-    id = Column(Integer, primary_key=True, index=True)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
-    site_id = Column(Integer, ForeignKey("sites.id"), nullable=True, index=True)
-
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    color = Column(String(20), nullable=True)  # For UI display
-    icon = Column(String(50), nullable=True)
-
-    # Dynamic grouping
-    is_dynamic = Column(Integer, default=0)  # If 1, membership is based on rules
-    rules = Column(Text, nullable=True)  # JSON rules for dynamic membership
-
-    # Metadata
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 @dataclass

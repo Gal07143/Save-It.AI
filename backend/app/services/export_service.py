@@ -44,6 +44,7 @@ class ExportStatus(Enum):
 class ExportJob(Base):
     """Export job tracking."""
     __tablename__ = "export_jobs"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)

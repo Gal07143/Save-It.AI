@@ -49,6 +49,7 @@ class MaintenanceStatus(Enum):
 class MaintenanceSchedule(Base):
     """Recurring maintenance schedule."""
     __tablename__ = "maintenance_schedules"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
@@ -84,6 +85,7 @@ class MaintenanceSchedule(Base):
 class WorkOrder(Base):
     """Maintenance work order."""
     __tablename__ = "work_orders"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
@@ -126,6 +128,7 @@ class WorkOrder(Base):
 class MaintenanceHistory(Base):
     """Historical maintenance records."""
     __tablename__ = "maintenance_history"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False, index=True)

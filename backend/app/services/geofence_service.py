@@ -39,6 +39,7 @@ class GeofenceEventType(Enum):
 class Geofence(Base):
     """Geofence definition."""
     __tablename__ = "geofences"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
@@ -73,6 +74,7 @@ class Geofence(Base):
 class DeviceLocation(Base):
     """Device location history."""
     __tablename__ = "device_locations"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -92,6 +94,7 @@ class DeviceLocation(Base):
 class GeofenceEvent(Base):
     """Geofence crossing event."""
     __tablename__ = "geofence_events"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     geofence_id = Column(Integer, ForeignKey("geofences.id", ondelete="CASCADE"), nullable=False, index=True)

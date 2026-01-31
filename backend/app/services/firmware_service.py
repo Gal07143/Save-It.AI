@@ -48,6 +48,7 @@ class UpdateStatus(Enum):
 class Firmware(Base):
     """Firmware version record."""
     __tablename__ = "firmwares"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("device_products.id"), nullable=False, index=True)
@@ -72,6 +73,7 @@ class Firmware(Base):
 class FirmwareUpdate(Base):
     """Firmware update job for a device."""
     __tablename__ = "firmware_updates"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False, index=True)

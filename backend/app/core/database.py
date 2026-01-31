@@ -1,6 +1,10 @@
 """Database connection and session management."""
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, event
+
+# Load environment variables from .env file
+load_dotenv()
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool
 
