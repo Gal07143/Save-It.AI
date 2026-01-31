@@ -72,12 +72,12 @@ class DeviceManufacturer(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    templates = relationship("DeviceTemplate", back_populates="manufacturer")
+    templates = relationship("DeviceTemplateV2", back_populates="manufacturer")
 
 
-class DeviceTemplate(Base):
-    """Device template with register mappings."""
-    __tablename__ = "device_templates"
+class DeviceTemplateV2(Base):
+    """Device template with register mappings (extended version)."""
+    __tablename__ = "device_templates_v2"
     
     id = Column(Integer, primary_key=True, index=True)
     manufacturer_id = Column(Integer, ForeignKey("device_manufacturers.id"), nullable=False, index=True)
@@ -147,12 +147,12 @@ class RegisterMapping(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    template = relationship("DeviceTemplate", back_populates="register_mappings")
+    template = relationship("DeviceTemplateV2", back_populates="register_mappings")
 
 
-class GatewayCredentials(Base):
-    """Gateway authentication credentials for all protocols."""
-    __tablename__ = "gateway_credentials"
+class GatewayCredentialsV2(Base):
+    """Gateway authentication credentials for all protocols (extended version)."""
+    __tablename__ = "gateway_credentials_v2"
     
     id = Column(Integer, primary_key=True, index=True)
     gateway_id = Column(Integer, ForeignKey("gateways.id", ondelete="CASCADE"), nullable=False, index=True)

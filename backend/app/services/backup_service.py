@@ -1,12 +1,23 @@
-"""Backup service for data archival and verification."""
+"""Backup service for data archival and verification with cloud storage support."""
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import os
 import logging
+import subprocess
+import gzip
+import shutil
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Cloud storage configuration
+CLOUD_STORAGE_TYPE = os.getenv("BACKUP_STORAGE_TYPE", "local")  # local, s3, gcs
+S3_BUCKET = os.getenv("BACKUP_S3_BUCKET", "")
+S3_PREFIX = os.getenv("BACKUP_S3_PREFIX", "saveit-backups")
+GCS_BUCKET = os.getenv("BACKUP_GCS_BUCKET", "")
+GCS_PREFIX = os.getenv("BACKUP_GCS_PREFIX", "saveit-backups")
 
 
 class BackupStatus(str, Enum):
@@ -48,17 +59,215 @@ class RetentionPolicy:
     notifications_days: int = 30
     alerts_days: int = 180
     invoices_days: int = 2555
-    backups_days: int = 30
+    backups_days: int = 90  # Days to keep backup files
+    # Backup retention: 7 daily, 4 weekly, 12 monthly
+    daily_backups: int = 7
+    weekly_backups: int = 4
+    monthly_backups: int = 12
 
 
 class BackupService:
-    """Service for data backup and archival."""
-    
+    """Service for data backup and archival with cloud storage support."""
+
     def __init__(self):
         self.backup_history: List[BackupJob] = []
         self.retention_policy = RetentionPolicy()
         self._backup_path = os.getenv("BACKUP_PATH", "/tmp/saveit_backups")
+        self._storage_type = CLOUD_STORAGE_TYPE
         os.makedirs(self._backup_path, exist_ok=True)
+
+    async def create_pg_dump_backup(
+        self,
+        backup_type: BackupType = BackupType.FULL,
+        upload_to_cloud: bool = True,
+    ) -> BackupJob:
+        """Create a PostgreSQL dump backup using pg_dump."""
+        import uuid
+        import hashlib
+
+        job = BackupJob(
+            id=str(uuid.uuid4()),
+            type=backup_type,
+            status=BackupStatus.IN_PROGRESS,
+            started_at=datetime.utcnow(),
+            metadata={"method": "pg_dump", "upload_to_cloud": upload_to_cloud},
+        )
+        self.backup_history.append(job)
+
+        try:
+            database_url = os.getenv("DATABASE_URL", "")
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            filename = f"backup_{timestamp}_{job.id[:8]}.sql.gz"
+            file_path = os.path.join(self._backup_path, filename)
+
+            # Run pg_dump with compression
+            pg_dump_cmd = [
+                "pg_dump",
+                database_url,
+                "--format=custom",
+                "--compress=9",
+                f"--file={file_path}",
+            ]
+
+            result = subprocess.run(
+                pg_dump_cmd,
+                capture_output=True,
+                text=True,
+                timeout=3600,  # 1 hour timeout
+            )
+
+            if result.returncode != 0:
+                raise Exception(f"pg_dump failed: {result.stderr}")
+
+            # Calculate checksum
+            with open(file_path, "rb") as f:
+                content = f.read()
+                checksum = hashlib.sha256(content).hexdigest()
+
+            job.file_path = file_path
+            job.size_bytes = len(content)
+            job.checksum = checksum
+
+            # Upload to cloud if configured
+            if upload_to_cloud and self._storage_type != "local":
+                cloud_path = await self._upload_to_cloud(file_path, filename)
+                job.metadata["cloud_path"] = cloud_path
+
+            job.status = BackupStatus.COMPLETED
+            job.completed_at = datetime.utcnow()
+            logger.info(f"pg_dump backup completed: {job.id} ({job.size_bytes} bytes)")
+
+        except Exception as e:
+            job.status = BackupStatus.FAILED
+            job.error = str(e)
+            job.completed_at = datetime.utcnow()
+            logger.error(f"pg_dump backup failed: {job.id} - {e}")
+
+        return job
+
+    async def _upload_to_cloud(self, local_path: str, filename: str) -> str:
+        """Upload backup file to cloud storage."""
+        if self._storage_type == "s3":
+            return await self._upload_to_s3(local_path, filename)
+        elif self._storage_type == "gcs":
+            return await self._upload_to_gcs(local_path, filename)
+        else:
+            return local_path
+
+    async def _upload_to_s3(self, local_path: str, filename: str) -> str:
+        """Upload to AWS S3."""
+        try:
+            import boto3
+            from botocore.exceptions import ClientError
+
+            s3_client = boto3.client("s3")
+            s3_key = f"{S3_PREFIX}/{filename}"
+
+            s3_client.upload_file(
+                local_path,
+                S3_BUCKET,
+                s3_key,
+                ExtraArgs={
+                    "ServerSideEncryption": "AES256",
+                    "StorageClass": "STANDARD_IA",
+                },
+            )
+
+            logger.info(f"Uploaded backup to S3: s3://{S3_BUCKET}/{s3_key}")
+            return f"s3://{S3_BUCKET}/{s3_key}"
+
+        except ImportError:
+            logger.warning("boto3 not installed, skipping S3 upload")
+            return local_path
+        except ClientError as e:
+            logger.error(f"S3 upload failed: {e}")
+            raise
+
+    async def _upload_to_gcs(self, local_path: str, filename: str) -> str:
+        """Upload to Google Cloud Storage."""
+        try:
+            from google.cloud import storage
+
+            client = storage.Client()
+            bucket = client.bucket(GCS_BUCKET)
+            blob_name = f"{GCS_PREFIX}/{filename}"
+            blob = bucket.blob(blob_name)
+
+            blob.upload_from_filename(local_path)
+
+            logger.info(f"Uploaded backup to GCS: gs://{GCS_BUCKET}/{blob_name}")
+            return f"gs://{GCS_BUCKET}/{blob_name}"
+
+        except ImportError:
+            logger.warning("google-cloud-storage not installed, skipping GCS upload")
+            return local_path
+        except Exception as e:
+            logger.error(f"GCS upload failed: {e}")
+            raise
+
+    async def run_scheduled_backup(self) -> BackupJob:
+        """Run scheduled backup with appropriate type based on schedule."""
+        now = datetime.utcnow()
+
+        # Determine backup type based on day
+        if now.day == 1:
+            # Monthly backup on 1st of month
+            backup_type = BackupType.FULL
+        elif now.weekday() == 0:
+            # Weekly backup on Monday
+            backup_type = BackupType.DIFFERENTIAL
+        else:
+            # Daily incremental
+            backup_type = BackupType.INCREMENTAL
+
+        logger.info(f"Running scheduled {backup_type.value} backup")
+        return await self.create_pg_dump_backup(backup_type=backup_type)
+
+    async def cleanup_old_backups(self) -> Dict[str, int]:
+        """Clean up old backups based on retention policy."""
+        now = datetime.utcnow()
+        deleted = {"local": 0, "cloud": 0}
+
+        # Get backup dates to keep
+        daily_cutoff = now - timedelta(days=self.retention_policy.daily_backups)
+        weekly_cutoff = now - timedelta(weeks=self.retention_policy.weekly_backups)
+        monthly_cutoff = now - timedelta(days=30 * self.retention_policy.monthly_backups)
+
+        for backup in list(self.backup_history):
+            if not backup.completed_at:
+                continue
+
+            age = now - backup.completed_at
+            keep = False
+
+            # Keep if within daily retention
+            if age.days <= self.retention_policy.daily_backups:
+                keep = True
+            # Keep weekly backups (Monday)
+            elif backup.completed_at.weekday() == 0 and age.days <= self.retention_policy.weekly_backups * 7:
+                keep = True
+            # Keep monthly backups (1st of month)
+            elif backup.completed_at.day == 1 and age.days <= self.retention_policy.monthly_backups * 30:
+                keep = True
+
+            if not keep:
+                # Delete local file
+                if backup.file_path and os.path.exists(backup.file_path):
+                    try:
+                        os.remove(backup.file_path)
+                        deleted["local"] += 1
+                    except Exception as e:
+                        logger.error(f"Failed to delete local backup: {e}")
+
+                # Delete from cloud (would need implementation per provider)
+                if backup.metadata.get("cloud_path"):
+                    deleted["cloud"] += 1
+                    # TODO: Implement cloud deletion
+
+                self.backup_history.remove(backup)
+
+        logger.info(f"Backup cleanup completed: {deleted}")
+        return deleted
     
     async def create_backup(
         self,

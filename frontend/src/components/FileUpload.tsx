@@ -89,7 +89,6 @@ export default function FileUpload({
   const clearFile = () => {
     setSelectedFile(null)
     setError(null)
-    setUploadProgress(0)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
