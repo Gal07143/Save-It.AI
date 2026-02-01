@@ -58,8 +58,8 @@ export default function Devices({ currentSite }: DevicesProps) {
 
   const testConnectionMutation = useMutation({
     mutationFn: (device: DataSource) => api.dataSources.testConnection({
-      host: device.host,
-      port: device.port,
+      host: device.host || '',
+      port: device.port || 502,
       slave_id: device.slave_id || 1
     }),
     onSuccess: (data) => {
@@ -196,9 +196,9 @@ export default function Devices({ currentSite }: DevicesProps) {
                     title="View gateway"
                   >
                     <Router size={14} color="#64748b" />
-                    <GatewayStatusBadge 
-                      status={device.gateway.status} 
-                      gatewayName={device.gateway.name}
+                    <GatewayStatusBadge
+                      status={device.gateway.status || 'unknown'}
+                      gatewayName={device.gateway.name || ''}
                       size="sm"
                     />
                   </div>
@@ -508,10 +508,10 @@ export default function Devices({ currentSite }: DevicesProps) {
                       <div style={{ color: 'white', fontWeight: 500 }}>{selectedDevice.slave_id}</div>
                     </div>
                   )}
-                  {selectedDevice.poll_interval_seconds && (
+                  {selectedDevice.polling_interval_seconds && (
                     <div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Poll Interval</div>
-                      <div style={{ color: 'white', fontWeight: 500 }}>{selectedDevice.poll_interval_seconds}s</div>
+                      <div style={{ color: 'white', fontWeight: 500 }}>{selectedDevice.polling_interval_seconds}s</div>
                     </div>
                   )}
                 </div>
@@ -526,7 +526,7 @@ export default function Devices({ currentSite }: DevicesProps) {
                           <div style={{ color: 'white', fontWeight: 500 }}>{selectedDevice.gateway.name}</div>
                         </div>
                       </div>
-                      <GatewayStatusBadge status={selectedDevice.gateway.status} size="sm" />
+                      <GatewayStatusBadge status={selectedDevice.gateway.status || 'unknown'} size="sm" />
                     </div>
                   </div>
                 )}

@@ -13,10 +13,10 @@ interface MeterWithConnectivity {
   meter_id: string
   name: string
   is_active: boolean
-  last_reading_at: string | null
-  asset_id: number | null
+  last_reading_at?: string | null
+  asset_id?: number | null
   site_id: number
-  data_source_id: number | null
+  data_source_id?: number | null
   connectivity?: {
     protocol: 'modbus_tcp' | 'mbus' | 'modbus_rtu' | null
     address: string
@@ -64,6 +64,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
 
   const metersWithConnectivity: MeterWithConnectivity[] = (meters || []).map((m: Meter, i: number) => ({
     ...m,
+    data_source_id: null,
     connectivity: {
       protocol: i % 3 === 0 ? 'modbus_tcp' : i % 3 === 1 ? 'mbus' : 'modbus_rtu',
       address: i % 3 === 0 ? `192.168.1.${100 + i}:502` : i % 3 === 1 ? `0x0${i + 1}` : `/dev/ttyUSB0:${i + 1}`,

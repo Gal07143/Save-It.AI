@@ -201,12 +201,12 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
 
   const createDataSourceMutation = useMutation({
     mutationFn: async (data: typeof newSource) => {
-      const payload: Partial<DataSource> & { is_active: number } = {
+      const payload: Partial<DataSource> = {
         name: data.name,
         site_id: parseInt(data.site_id),
         source_type: data.source_type,
         polling_interval_seconds: data.polling_interval_seconds,
-        is_active: 1
+        is_active: true
       }
       if (data.gateway_id) {
         payload.gateway_id = parseInt(data.gateway_id)
@@ -734,7 +734,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                 <td style={{ fontFamily: 'monospace' }}>{reg.scale_factor}</td>
                 <td>{reg.unit || '-'}</td>
                 <td style={{ fontFamily: 'monospace', color: '#10b981' }}>
-                  {reg.last_value !== null ? reg.last_value.toFixed(2) : '-'}
+                  {reg.last_value != null ? reg.last_value.toFixed(2) : '-'}
                 </td>
                 <td>
                   {reg.is_active ? (

@@ -16,7 +16,7 @@ interface AssetNode {
   y: number
   parentId: string | null
   children: string[]
-  meterId?: number
+  meterId?: string
   ratedCapacity?: number
   ratedVoltage?: number
 }
@@ -317,7 +317,7 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
 
   const { data: existingAssets } = useQuery({
     queryKey: ['assets', 'tree', currentSite],
-    queryFn: () => currentSite ? api.assets.getTree(currentSite) : null,
+    queryFn: () => currentSite ? api.assets.tree(currentSite) : null,
     enabled: !!currentSite
   })
 

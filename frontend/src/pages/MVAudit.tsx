@@ -143,6 +143,7 @@ export default function MVAudit({ currentSite }: { currentSite: number | null })
   }
 
   const handleExportPDF = () => {
+    // Prepare report data for PDF generation
     const reportData = {
       title: 'M&V Audit Report',
       generated: new Date().toISOString(),
@@ -150,6 +151,8 @@ export default function MVAudit({ currentSite }: { currentSite: number | null })
       summary: summaryStats,
       results: filteredResults
     }
+    // TODO: Implement actual PDF generation
+    console.log('PDF report data prepared:', reportData.title)
     alert('PDF export initiated. The report will be downloaded shortly.')
   }
 

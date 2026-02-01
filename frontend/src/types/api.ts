@@ -69,6 +69,8 @@ export interface Asset {
 export interface AssetTreeNode extends Asset {
   children: AssetTreeNode[]
   meter?: Meter
+  meter_id?: string
+  rated_voltage?: number
 }
 
 // =============================================================================
@@ -202,20 +204,25 @@ export interface DataSource {
   id: number
   site_id: number
   gateway_id?: number
+  gateway?: Gateway
   name: string
   source_type: string
   host?: string
   port?: number
   slave_id?: number
   polling_interval_seconds?: number
-  is_active: boolean
+  is_active: boolean | number
   last_poll_at?: string
   last_error?: string
   mqtt_broker_url?: string
   mqtt_topic?: string
+  mqtt_username?: string | null
+  mqtt_password?: string | null
   mqtt_port?: number
-  mqtt_use_tls?: boolean
+  mqtt_use_tls?: boolean | number
   webhook_url?: string
+  webhook_api_key?: string | null
+  webhook_auth_type?: string
 }
 
 export interface Gateway {
@@ -228,6 +235,8 @@ export interface Gateway {
   firmware_version?: string
   description?: string
   heartbeat_interval_seconds?: number
+  manufacturer?: string
+  model?: string
 }
 
 export interface DeviceTemplate {

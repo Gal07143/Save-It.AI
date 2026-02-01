@@ -81,7 +81,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
 
   const { data: assetTree } = useQuery({
     queryKey: ['assetTree', siteId],
-    queryFn: () => siteId ? api.assets.getTree(siteId) : Promise.resolve([]),
+    queryFn: () => siteId ? api.assets.tree(siteId) : Promise.resolve([]),
     enabled: !!siteId
   })
 

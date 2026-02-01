@@ -706,7 +706,7 @@ export default function Admin() {
         onConfirm={handleResetDemoData}
         title="Reset Demo Data"
         message="Are you sure you want to reset all demo data? This will permanently delete all sites, meters, gateways, devices, readings, bills, and tenants. System templates and user accounts will be preserved. This action cannot be undone."
-        confirmText={isResetting ? 'Resetting...' : 'Reset Data'}
+        confirmLabel={isResetting ? 'Resetting...' : 'Reset Data'}
         variant="danger"
       />
     </div>

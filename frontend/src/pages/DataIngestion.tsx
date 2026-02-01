@@ -4,7 +4,6 @@ import {
   Clock, History, RotateCcw, Calendar, Play, Settings, Eye, Trash2, RefreshCw
 } from 'lucide-react'
 import FileUpload from '../components/FileUpload'
-import { getAuthToken } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 
 interface ColumnMapping {
@@ -98,10 +97,9 @@ export default function DataIngestion() {
     formData.append('file', file)
     
     try {
-      const token = getAuthToken()
       const response = await fetch('/api/v1/data-ingestion/parse', {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        credentials: 'include',
         body: formData
       })
       
@@ -165,14 +163,13 @@ export default function DataIngestion() {
     setError(null)
     
     try {
-      const token = getAuthToken()
       const formData = new FormData()
       formData.append('file', selectedFile!)
       formData.append('mappings', JSON.stringify(columnMappings))
-      
+
       const response = await fetch('/api/v1/data-ingestion/import', {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        credentials: 'include',
         body: formData
       })
       

@@ -37,7 +37,7 @@ const getContextualSuggestions = (path: string, data: ContextData | null): Sugge
   const suggestions: Suggestion[] = []
   
   if (path === '/' || path === '/dashboard') {
-    if (data?.notifications?.length > 0) {
+    if (data?.notifications && data.notifications.length > 0) {
       suggestions.push({
         id: 'alerts',
         type: 'warning',
