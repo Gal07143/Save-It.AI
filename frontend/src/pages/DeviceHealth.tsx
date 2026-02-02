@@ -1,15 +1,37 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { 
+import {
   Activity, RefreshCw, Cpu, AlertTriangle, FileText, BarChart3,
   CheckCircle, XCircle, Clock, Wifi, WifiOff, TrendingUp
 } from 'lucide-react'
-import { api, DataSource } from '../services/api'
+import { api, DataSource, DeviceHealthDashboard as HealthDashboardData, DeviceHealthSummary } from '../services/api'
 import TabPanel, { Tab } from '../components/TabPanel'
 import DeviceHealthDashboard from '../components/DeviceHealthDashboard'
 import RetryManager from '../components/RetryManager'
 import FirmwareTracker from '../components/FirmwareTracker'
 import DeviceAlertsManager from '../components/DeviceAlertsManager'
+
+interface ConnectionEvent {
+  time: string
+  device: string
+  event: 'online' | 'offline' | 'error' | 'warning'
+  message?: string
+}
+
+function formatTimeAgo(dateString?: string): string {
+  if (!dateString) return 'Unknown'
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins} min ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+}
 
 interface DeviceHealthProps {
   currentSite: number | null
@@ -40,16 +62,79 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
     { id: 'performance', label: 'Performance', icon: BarChart3 }
   ]
 
+  // Derive connection events from device health data
+  const connectionEvents = useMemo((): ConnectionEvent[] => {
+    if (!healthData?.devices) return []
+
+    const events: ConnectionEvent[] = []
+
+    healthData.devices.forEach((device: DeviceHealthSummary) => {
+      // Add current status event
+      events.push({
+        time: device.last_communication || new Date().toISOString(),
+        device: device.name,
+        event: device.status === 'online' ? 'online' : device.status === 'error' ? 'error' : 'offline',
+        message: device.status === 'online' ? 'Device online' : device.last_error || `Device ${device.status}`
+      })
+
+      // Add error event if there's a recent error
+      if (device.last_error && device.error_count_24h > 0) {
+        events.push({
+          time: device.last_communication || new Date().toISOString(),
+          device: device.name,
+          event: 'error',
+          message: device.last_error
+        })
+      }
+    })
+
+    // Sort by time descending
+    return events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+  }, [healthData])
+
+  const [eventFilter, setEventFilter] = useState<string>('')
+  const [deviceFilter, setDeviceFilter] = useState<string>('')
+
+  const filteredEvents = useMemo(() => {
+    return connectionEvents.filter(event => {
+      if (deviceFilter && event.device !== deviceFilter) return false
+      if (eventFilter && event.event !== eventFilter) return false
+      return true
+    })
+  }, [connectionEvents, deviceFilter, eventFilter])
+
+  const getEventIcon = (event: string) => {
+    switch (event) {
+      case 'online': return CheckCircle
+      case 'offline': return XCircle
+      case 'error': return AlertTriangle
+      case 'warning': return Clock
+      default: return Clock
+    }
+  }
+
+  const getEventColor = (event: string) => {
+    switch (event) {
+      case 'online': return '#10b981'
+      case 'offline': return '#ef4444'
+      case 'error': return '#f59e0b'
+      case 'warning': return '#f59e0b'
+      default: return '#64748b'
+    }
+  }
+
   const renderConnectionLogs = () => (
     <div>
       <h3 style={{ color: 'white', marginBottom: '1rem' }}>Connection Logs</h3>
       <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
-        Historical connection events and status changes for all devices.
+        Recent connection events and status changes for all devices.
       </p>
-      
+
       <div className="card" style={{ padding: '1.5rem' }}>
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
           <select
+            value={deviceFilter}
+            onChange={(e) => setDeviceFilter(e.target.value)}
             style={{
               padding: '0.5rem 1rem',
               background: 'rgba(15, 23, 42, 0.5)',
@@ -59,11 +144,13 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
             }}
           >
             <option value="">All Devices</option>
-            {dataSources?.map((ds: DataSource) => (
-              <option key={ds.id} value={ds.id}>{ds.name}</option>
+            {healthData?.devices.map((device: DeviceHealthSummary) => (
+              <option key={device.data_source_id} value={device.name}>{device.name}</option>
             ))}
           </select>
           <select
+            value={eventFilter}
+            onChange={(e) => setEventFilter(e.target.value)}
             style={{
               padding: '0.5rem 1rem',
               background: 'rgba(15, 23, 42, 0.5)',
@@ -73,51 +160,88 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
             }}
           >
             <option value="">All Events</option>
-            <option value="connected">Connected</option>
-            <option value="disconnected">Disconnected</option>
-            <option value="timeout">Timeout</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
             <option value="error">Error</option>
           </select>
         </div>
-        
+
         <div style={{ display: 'grid', gap: '0.5rem' }}>
-          {[
-            { time: '2 min ago', device: 'Main Meter', event: 'connected', icon: CheckCircle, color: '#10b981' },
-            { time: '15 min ago', device: 'PV Inverter 1', event: 'timeout', icon: Clock, color: '#f59e0b' },
-            { time: '1 hour ago', device: 'Battery BMS', event: 'disconnected', icon: XCircle, color: '#ef4444' },
-            { time: '2 hours ago', device: 'Sub Panel A', event: 'connected', icon: CheckCircle, color: '#10b981' },
-            { time: '3 hours ago', device: 'Main Meter', event: 'connected', icon: CheckCircle, color: '#10b981' },
-          ].map((log, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                padding: '0.75rem',
-                background: 'rgba(15, 23, 42, 0.5)',
-                borderRadius: '6px'
-              }}
-            >
-              <log.icon size={16} color={log.color} />
-              <span style={{ color: 'white', flex: 1 }}>{log.device}</span>
-              <span style={{ 
-                padding: '0.25rem 0.5rem', 
-                background: `${log.color}20`, 
-                color: log.color,
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                textTransform: 'capitalize'
-              }}>
-                {log.event}
-              </span>
-              <span style={{ color: '#64748b', fontSize: '0.875rem' }}>{log.time}</span>
+          {filteredEvents.length === 0 ? (
+            <div style={{
+              padding: '2rem',
+              textAlign: 'center',
+              color: '#64748b'
+            }}>
+              No connection events found
             </div>
-          ))}
+          ) : (
+            filteredEvents.slice(0, 20).map((log, i) => {
+              const Icon = getEventIcon(log.event)
+              const color = getEventColor(log.event)
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    padding: '0.75rem',
+                    background: 'rgba(15, 23, 42, 0.5)',
+                    borderRadius: '6px'
+                  }}
+                >
+                  <Icon size={16} color={color} />
+                  <div style={{ flex: 1 }}>
+                    <span style={{ color: 'white' }}>{log.device}</span>
+                    {log.message && (
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                        {log.message}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    padding: '0.25rem 0.5rem',
+                    background: `${color}20`,
+                    color: color,
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    textTransform: 'capitalize'
+                  }}>
+                    {log.event}
+                  </span>
+                  <span style={{ color: '#64748b', fontSize: '0.875rem', minWidth: '80px', textAlign: 'right' }}>
+                    {formatTimeAgo(log.time)}
+                  </span>
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
     </div>
   )
+
+  // Calculate performance metrics from health data
+  const performanceMetrics = useMemo(() => {
+    if (!healthData?.devices || healthData.devices.length === 0) {
+      return { uptime: 0, avgResponse: 0, dataGaps: 0, dataQuality: 0 }
+    }
+
+    const devicesWithResponseTime = healthData.devices.filter((d: DeviceHealthSummary) => d.avg_response_time_ms != null)
+    const avgResponse = devicesWithResponseTime.length > 0
+      ? devicesWithResponseTime.reduce((sum: number, d: DeviceHealthSummary) => sum + (d.avg_response_time_ms || 0), 0) / devicesWithResponseTime.length
+      : 0
+
+    const totalErrors = healthData.devices.reduce((sum: number, d: DeviceHealthSummary) => sum + d.error_count_24h, 0)
+
+    return {
+      uptime: healthData.overall_success_rate || 0,
+      avgResponse: Math.round(avgResponse),
+      dataGaps: totalErrors,
+      dataQuality: healthData.overall_success_rate || 0
+    }
+  }, [healthData])
 
   const renderPerformance = () => (
     <div>
@@ -125,59 +249,95 @@ export default function DeviceHealth({ currentSite }: DeviceHealthProps) {
       <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
         Response times, data gaps, and communication quality metrics.
       </p>
-      
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="card" style={{ padding: '1.25rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', fontWeight: 600, color: '#10b981' }}>98.5%</div>
-          <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Uptime</div>
+          <div style={{
+            fontSize: '2rem',
+            fontWeight: 600,
+            color: performanceMetrics.uptime >= 99 ? '#10b981' : performanceMetrics.uptime >= 95 ? '#f59e0b' : '#ef4444'
+          }}>
+            {performanceMetrics.uptime.toFixed(1)}%
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Uptime (24h)</div>
         </div>
         <div className="card" style={{ padding: '1.25rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', fontWeight: 600, color: '#3b82f6' }}>45ms</div>
+          <div style={{
+            fontSize: '2rem',
+            fontWeight: 600,
+            color: performanceMetrics.avgResponse < 50 ? '#10b981' : performanceMetrics.avgResponse < 100 ? '#3b82f6' : '#f59e0b'
+          }}>
+            {performanceMetrics.avgResponse}ms
+          </div>
           <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Avg Response</div>
         </div>
         <div className="card" style={{ padding: '1.25rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', fontWeight: 600, color: '#f59e0b' }}>12</div>
-          <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Data Gaps (24h)</div>
+          <div style={{
+            fontSize: '2rem',
+            fontWeight: 600,
+            color: performanceMetrics.dataGaps === 0 ? '#10b981' : performanceMetrics.dataGaps <= 10 ? '#f59e0b' : '#ef4444'
+          }}>
+            {performanceMetrics.dataGaps}
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Errors (24h)</div>
         </div>
         <div className="card" style={{ padding: '1.25rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', fontWeight: 600, color: '#8b5cf6' }}>99.2%</div>
+          <div style={{
+            fontSize: '2rem',
+            fontWeight: 600,
+            color: performanceMetrics.dataQuality >= 99 ? '#8b5cf6' : performanceMetrics.dataQuality >= 95 ? '#3b82f6' : '#f59e0b'
+          }}>
+            {performanceMetrics.dataQuality.toFixed(1)}%
+          </div>
           <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Data Quality</div>
         </div>
       </div>
-      
+
       <div className="card" style={{ padding: '1.5rem' }}>
         <h4 style={{ color: 'white', marginBottom: '1rem' }}>Device Response Times</h4>
         <div style={{ display: 'grid', gap: '0.75rem' }}>
-          {dataSources?.slice(0, 5).map((device: DataSource) => {
-            const responseTime = 20 + Math.random() * 100
-            const quality = 90 + Math.random() * 10
-            return (
-              <div
-                key={device.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  padding: '0.75rem',
-                  background: 'rgba(15, 23, 42, 0.5)',
-                  borderRadius: '6px'
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: 'white', fontWeight: 500 }}>{device.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{device.host}:{device.port}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ color: responseTime < 50 ? '#10b981' : responseTime < 100 ? '#f59e0b' : '#ef4444' }}>
-                    {responseTime.toFixed(0)}ms
+          {!healthData?.devices || healthData.devices.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              No devices found
+            </div>
+          ) : (
+            healthData.devices.map((device: DeviceHealthSummary) => {
+              const responseTime = device.avg_response_time_ms || 0
+              const successRate = device.success_rate_24h || 0
+              return (
+                <div
+                  key={device.data_source_id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    padding: '0.75rem',
+                    background: 'rgba(15, 23, 42, 0.5)',
+                    borderRadius: '6px'
+                  }}
+                >
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: device.status === 'online' ? '#10b981' : device.status === 'error' ? '#f59e0b' : '#ef4444'
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: 'white', fontWeight: 500 }}>{device.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{device.protocol.toUpperCase()}</div>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    {quality.toFixed(1)}% quality
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: responseTime < 50 ? '#10b981' : responseTime < 100 ? '#f59e0b' : '#ef4444' }}>
+                      {responseTime > 0 ? `${responseTime.toFixed(0)}ms` : '-'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      {successRate.toFixed(1)}% success
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
       </div>
     </div>

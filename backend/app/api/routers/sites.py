@@ -1,14 +1,25 @@
 """Site API endpoints."""
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from backend.app.core.database import get_db
-from backend.app.models import Site, User, UserRole
+from backend.app.models import Site, User, UserRole, Meter, Asset, Alarm
 from backend.app.models.base import soft_delete_filter, include_deleted_filter
 from backend.app.schemas import SiteCreate, SiteUpdate, SiteResponse
 from backend.app.middleware.multi_tenant import TenantContext, MultiTenantValidation
 from backend.app.api.routers.auth import get_current_user
+
+
+class SiteStatsResponse(BaseModel):
+    """Site statistics response."""
+    site_id: int
+    meters_count: int
+    assets_count: int
+    total_load_kw: float
+    active_alarms: int
 
 router = APIRouter(prefix="/api/v1/sites", tags=["sites"])
 
@@ -38,14 +49,56 @@ def get_site(site_id: int, db: Session = Depends(get_db)):
     query = db.query(Site).filter(Site.id == site_id)
     query = soft_delete_filter(query, Site)
     site = query.first()
-    
+
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
-    
+
     if not MultiTenantValidation.validate_site_access(db, site_id):
         raise HTTPException(status_code=403, detail="Access denied to this site")
-    
+
     return site
+
+
+@router.get("/{site_id}/stats", response_model=SiteStatsResponse)
+def get_site_stats(site_id: int, db: Session = Depends(get_db)):
+    """Get statistics for a specific site."""
+    # Verify site exists
+    site = db.query(Site).filter(Site.id == site_id).first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    if not MultiTenantValidation.validate_site_access(db, site_id):
+        raise HTTPException(status_code=403, detail="Access denied to this site")
+
+    # Count meters
+    meters_count = db.query(func.count(Meter.id)).filter(
+        Meter.site_id == site_id,
+        Meter.is_active == True
+    ).scalar() or 0
+
+    # Count assets and sum load
+    assets_query = db.query(
+        func.count(Asset.id),
+        func.coalesce(func.sum(Asset.rated_capacity_kw), 0)
+    ).filter(Asset.site_id == site_id)
+
+    assets_result = assets_query.first()
+    assets_count = assets_result[0] or 0
+    total_load_kw = float(assets_result[1] or 0)
+
+    # Count active alarms
+    active_alarms = db.query(func.count(Alarm.id)).filter(
+        Alarm.site_id == site_id,
+        Alarm.acknowledged_at.is_(None)
+    ).scalar() or 0
+
+    return SiteStatsResponse(
+        site_id=site_id,
+        meters_count=meters_count,
+        assets_count=assets_count,
+        total_load_kw=total_load_kw,
+        active_alarms=active_alarms
+    )
 
 
 @router.post("", response_model=SiteResponse)

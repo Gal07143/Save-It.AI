@@ -8,13 +8,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+
 from backend.app.core.database import get_db
 from backend.app.services.dashboard_service import (
     DashboardService,
     WidgetConfig,
     WidgetType,
     get_dashboard_service,
+    DASHBOARD_TEMPLATES,
 )
+from backend.app.services.pdf_service import pdf_service
 
 router = APIRouter(prefix="/dashboards", tags=["dashboards"])
 
@@ -377,4 +382,213 @@ def get_widget_data(
         data=data.data,
         last_updated=data.last_updated,
         error=data.error
+    )
+
+
+# Export endpoint
+@router.get("/{dashboard_id}/export/pdf")
+def export_dashboard_pdf(
+    dashboard_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Export dashboard as PDF report.
+
+    Generates a PDF document containing dashboard information and widget data.
+    """
+    service = get_dashboard_service(db)
+    dashboard = service.get_dashboard_with_widgets(dashboard_id)
+
+    if not dashboard:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    # Build PDF sections from dashboard data
+    sections = [
+        {
+            "title": "Dashboard Overview",
+            "content": f"Name: {dashboard['name']}<br/>"
+                      f"Description: {dashboard.get('description', 'N/A')}<br/>"
+                      f"Theme: {dashboard.get('theme', 'light')}<br/>"
+                      f"Created: {dashboard.get('created_at', 'N/A')}",
+        }
+    ]
+
+    # Add widgets summary section
+    widgets = dashboard.get("widgets", [])
+    if widgets:
+        widget_table = [["Widget", "Type", "Position", "Size"]]
+        for w in widgets:
+            widget_table.append([
+                w.get("title", "Untitled"),
+                w.get("widget_type", "unknown"),
+                f"({w.get('position_x', 0)}, {w.get('position_y', 0)})",
+                f"{w.get('width', 4)}x{w.get('height', 3)}",
+            ])
+
+        sections.append({
+            "title": f"Widgets ({len(widgets)})",
+            "table": widget_table,
+        })
+
+        # Add widget data sections
+        for widget in widgets:
+            widget_id = widget.get("id")
+            if widget_id:
+                try:
+                    widget_data = service.get_widget_data(widget_id)
+                    if widget_data.data:
+                        data_items = []
+                        for key, value in widget_data.data.items():
+                            if isinstance(value, (int, float)):
+                                data_items.append(f"{key}: {value:,.2f}" if isinstance(value, float) else f"{key}: {value:,}")
+                            elif isinstance(value, str):
+                                data_items.append(f"{key}: {value}")
+
+                        if data_items:
+                            sections.append({
+                                "title": widget.get("title", f"Widget {widget_id}"),
+                                "content": "<br/>".join(data_items),
+                            })
+                except Exception:
+                    pass  # Skip widgets that fail to load data
+
+    # Generate PDF
+    pdf_doc = pdf_service.generate_report(
+        title=f"Dashboard Report - {dashboard['name']}",
+        sections=sections,
+        metadata={
+            "dashboard_id": dashboard_id,
+            "export_date": datetime.utcnow().isoformat(),
+            "widget_count": len(widgets),
+        }
+    )
+
+    # Return as streaming response
+    return StreamingResponse(
+        BytesIO(pdf_doc.content),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{pdf_doc.filename}"'
+        }
+    )
+
+
+# Template endpoints
+class TemplateResponse(BaseModel):
+    """Template response model."""
+    id: str
+    name: str
+    description: str
+    preview_image: str
+    widget_count: int
+
+
+class TemplateDetailResponse(BaseModel):
+    """Detailed template response."""
+    id: str
+    name: str
+    description: str
+    preview_image: str
+    widgets: List[dict]
+
+
+@router.get("/templates", response_model=List[TemplateResponse])
+def list_templates():
+    """List all available dashboard templates."""
+    return [
+        TemplateResponse(
+            id=template_id,
+            name=template["name"],
+            description=template["description"],
+            preview_image=template["preview_image"],
+            widget_count=len(template["widgets"])
+        )
+        for template_id, template in DASHBOARD_TEMPLATES.items()
+    ]
+
+
+@router.get("/templates/{template_id}", response_model=TemplateDetailResponse)
+def get_template(template_id: str):
+    """Get a specific template with all widget configurations."""
+    if template_id not in DASHBOARD_TEMPLATES:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    template = DASHBOARD_TEMPLATES[template_id]
+    return TemplateDetailResponse(
+        id=template_id,
+        name=template["name"],
+        description=template["description"],
+        preview_image=template["preview_image"],
+        widgets=[
+            {
+                "type": w["type"],
+                "title": w["title"],
+                "position_x": w["position"][0],
+                "position_y": w["position"][1],
+                "width": w["size"][0],
+                "height": w["size"][1],
+            }
+            for w in template["widgets"]
+        ]
+    )
+
+
+@router.post("/templates/{template_id}/instantiate", response_model=DashboardResponse)
+def create_from_template(
+    template_id: str,
+    name: Optional[str] = None,
+    site_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    organization_id: int = 1,
+    user_id: int = 1
+):
+    """Create a new dashboard from a template."""
+    if template_id not in DASHBOARD_TEMPLATES:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    template = DASHBOARD_TEMPLATES[template_id]
+    service = get_dashboard_service(db)
+
+    # Create dashboard
+    dashboard_name = name or f"{template['name']} Dashboard"
+    dashboard = service.create_dashboard(
+        organization_id=organization_id,
+        owner_id=user_id,
+        name=dashboard_name,
+        description=f"Created from {template['name']} template",
+        theme="dark",
+        refresh_interval=30
+    )
+
+    # Add widgets from template
+    for widget_def in template["widgets"]:
+        try:
+            widget_type = WidgetType(widget_def["type"])
+        except ValueError:
+            continue  # Skip unknown widget types
+
+        # Build data source if site_id provided
+        data_source = {"site_id": site_id} if site_id else None
+
+        config = WidgetConfig(
+            widget_type=widget_type,
+            title=widget_def["title"],
+            position=widget_def["position"],
+            size=widget_def["size"],
+            data_source=data_source
+        )
+
+        service.add_widget(dashboard.id, config)
+
+    db.commit()
+
+    return DashboardResponse(
+        id=dashboard.id,
+        name=dashboard.name,
+        description=dashboard.description,
+        is_default=dashboard.is_default == 1,
+        is_shared=dashboard.is_shared == 1,
+        theme=dashboard.theme,
+        refresh_interval=dashboard.refresh_interval,
+        created_at=dashboard.created_at
     )

@@ -1,82 +1,147 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'wouter'
 import { api } from '../services/api'
+import { dashboardDataService, DateRange, EnergyData, EnergyMixData, MonthlyData } from '../services/dashboardData'
+import { useDashboardWebSocket } from '../hooks/useWebSocket'
+import DateRangePicker from '../components/DateRangePicker'
 import QueryError from '../components/QueryError'
 import {
   Building2, Gauge, Receipt, AlertTriangle, TrendingUp, Zap,
   Leaf, RefreshCw, Clock, ArrowUpRight, ArrowDownRight,
-  Target, Battery, Sun, Activity
+  Target, Battery, Sun, Activity, Wifi, WifiOff
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 
-const generateEnergyData = () => Array.from({ length: 24 }, (_, i) => ({
-  hour: `${i}:00`,
-  consumption: Math.round(100 + Math.random() * 150 + (i > 8 && i < 18 ? 100 : 0)),
-  solar: i > 6 && i < 19 ? Math.round(Math.sin((i - 6) / 12 * Math.PI) * 80) : 0,
-}))
+// Default date range: last 7 days
+function getDefaultDateRange(): DateRange {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - 7)
+  return { start, end }
+}
 
-const monthlyData = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, i) => ({
-  month,
-  consumption: Math.round(10000 + Math.random() * 5000 - (i > 4 && i < 9 ? 2000 : 0)),
-  cost: Math.round(1500 + Math.random() * 800 - (i > 4 && i < 9 ? 300 : 0)),
-  lastYear: Math.round(12000 + Math.random() * 4000),
-}))
+interface DashboardProps {
+  currentSite?: number | null
+}
 
-const energyMix = [
-  { name: 'Grid', value: 65, color: '#6366f1' },
-  { name: 'Solar', value: 25, color: '#10b981' },
-  { name: 'Battery', value: 10, color: '#f59e0b' },
-]
-
-export default function Dashboard() {
-  const [energyData, setEnergyData] = useState(generateEnergyData())
+export default function Dashboard({ currentSite }: DashboardProps) {
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange())
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const { data: sites, isError: sitesError, refetch: refetchSites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
-  const { data: meters, isError: metersError, refetch: refetchMeters } = useQuery({ queryKey: ['meters'], queryFn: () => api.meters.list() })
-  const { data: bills, isError: billsError, refetch: refetchBills } = useQuery({ queryKey: ['bills'], queryFn: () => api.bills.list() })
+  // WebSocket connection for real-time updates
+  const { isConnected, updates, clearUpdates } = useDashboardWebSocket(currentSite || undefined)
+
+  // Fetch site and meter data
+  const { data: sites, isError: sitesError, refetch: refetchSites } = useQuery({
+    queryKey: ['sites'],
+    queryFn: api.sites.list
+  })
+
+  const { data: meters, isError: metersError, refetch: refetchMeters } = useQuery({
+    queryKey: ['meters'],
+    queryFn: () => api.meters.list()
+  })
+
+  const { data: bills, isError: billsError, refetch: refetchBills } = useQuery({
+    queryKey: ['bills'],
+    queryFn: () => api.bills.list()
+  })
+
   const { data: notifications, isError: notificationsError, refetch: refetchNotifications } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.notifications.list(undefined, true)
   })
 
+  // Fetch real energy data based on selected site and date range
+  const { data: energyData, isLoading: energyLoading, refetch: refetchEnergy } = useQuery({
+    queryKey: ['energyConsumption', currentSite, dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: () => dashboardDataService.fetchEnergyConsumption(currentSite || 1, dateRange),
+    staleTime: 60000, // 1 minute
+    refetchOnWindowFocus: false,
+  })
+
+  const { data: energyMix, refetch: refetchEnergyMix } = useQuery({
+    queryKey: ['energyMix', currentSite, dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: () => dashboardDataService.fetchEnergyMix(currentSite || 1, dateRange),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+  })
+
+  const { data: monthlyData, refetch: refetchMonthly } = useQuery({
+    queryKey: ['monthlyTrend', currentSite, new Date().getFullYear()],
+    queryFn: () => dashboardDataService.fetchMonthlyTrend(currentSite || 1, new Date().getFullYear()),
+    staleTime: 300000, // 5 minutes
+    refetchOnWindowFocus: false,
+  })
+
+  const { data: kpis, refetch: refetchKPIs } = useQuery({
+    queryKey: ['siteKPIs', currentSite, dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: () => dashboardDataService.fetchSiteKPIs(currentSite || 1, dateRange),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+  })
+
+  // Handle WebSocket updates - refresh data when new readings arrive
+  useEffect(() => {
+    if (updates.meterReadings.length > 0) {
+      setLastUpdate(new Date())
+      // Clear updates after processing to avoid re-triggering
+      const timer = setTimeout(() => {
+        clearUpdates()
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [updates.meterReadings.length, clearUpdates])
+
   const hasError = sitesError || metersError || billsError || notificationsError
+
   const handleRefetchAll = () => {
     refetchSites()
     refetchMeters()
     refetchBills()
     refetchNotifications()
+    refetchEnergy()
+    refetchEnergyMix()
+    refetchMonthly()
+    refetchKPIs()
   }
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setEnergyData(generateEnergyData())
-      setLastUpdate(new Date())
-    }, 60000)
-    return () => clearInterval(interval)
-  }, [])
 
   const handleRefresh = () => {
     setIsRefreshing(true)
-    setEnergyData(generateEnergyData())
+    handleRefetchAll()
     setLastUpdate(new Date())
     setTimeout(() => setIsRefreshing(false), 1000)
   }
 
-  const totalYtdConsumption = monthlyData.slice(0, new Date().getMonth() + 1).reduce((a, b) => a + b.consumption, 0)
-  const totalYtdCost = monthlyData.slice(0, new Date().getMonth() + 1).reduce((a, b) => a + b.cost, 0)
-  const lastYearSamePeriod = monthlyData.slice(0, new Date().getMonth() + 1).reduce((a, b) => a + b.lastYear, 0)
-  const savingsPercent = ((lastYearSamePeriod - totalYtdConsumption) / lastYearSamePeriod * 100).toFixed(1)
-  const estimatedSavings = Math.round((lastYearSamePeriod - totalYtdConsumption) * 0.12)
+  const handleDateRangeChange = (newRange: DateRange) => {
+    setDateRange(newRange)
+  }
 
+  // Computed values from KPIs
+  const totalYtdConsumption = kpis?.ytdConsumption || 0
+  const totalYtdCost = kpis?.ytdCost || 0
+  const savingsPercent = kpis?.savingsPercent || 0
+  const estimatedSavings = kpis?.ytdSavings || 0
+  const efficiencyScore = kpis?.efficiencyScore || 87
+
+  // Stats from API data
   const stats = [
     { label: 'Sites', value: sites?.length || 0, icon: Building2, color: '#6366f1' },
     { label: 'Active Meters', value: meters?.filter(m => m.is_active).length || 0, icon: Gauge, color: '#10b981' },
     { label: 'Pending Bills', value: bills?.filter(b => !b.is_validated).length || 0, icon: Receipt, color: '#f59e0b' },
     { label: 'Active Alerts', value: notifications?.length || 0, icon: AlertTriangle, color: '#ef4444' },
   ]
+
+  // Use fetched data or fallback
+  const chartEnergyData = energyData || []
+  const chartEnergyMix = energyMix || [
+    { name: 'Grid', value: 65, color: '#6366f1' },
+    { name: 'Solar', value: 25, color: '#10b981' },
+    { name: 'Battery', value: 10, color: '#f59e0b' },
+  ]
+  const chartMonthlyData = monthlyData || []
 
   if (hasError) {
     return (
@@ -89,20 +154,27 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Energy Dashboard</h1>
           <p style={{ color: '#64748b' }}>Monitor and optimize your energy consumption</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', fontSize: '0.875rem' }}>
+            {isConnected ? (
+              <Wifi size={14} color="#10b981" />
+            ) : (
+              <WifiOff size={14} color="#64748b" />
+            )}
             <Clock size={14} />
             Last update: {lastUpdate.toLocaleTimeString()}
           </div>
-          <button 
-            className="btn btn-outline" 
+          <button
+            className="btn btn-outline"
             onClick={handleRefresh}
             style={{ padding: '0.5rem' }}
+            disabled={isRefreshing}
           >
             <RefreshCw size={16} className={isRefreshing ? 'spinning' : ''} />
           </button>
@@ -166,7 +238,7 @@ export default function Dashboard() {
             <Target size={20} style={{ opacity: 0.8 }} />
           </div>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-            87/100
+            {efficiencyScore}/100
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', opacity: 0.9 }}>
             <ArrowUpRight size={14} />
@@ -182,35 +254,41 @@ export default function Dashboard() {
               <Activity size={18} style={{ display: 'inline', marginRight: '0.5rem' }} />
               Real-Time Load Profile
             </h2>
-            <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span style={{ width: '6px', height: '6px', background: '#10b981', borderRadius: '50%', animation: 'pulse 2s infinite' }}></span>
-              Live
+            <span style={{ fontSize: '0.75rem', color: isConnected ? '#10b981' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span style={{ width: '6px', height: '6px', background: isConnected ? '#10b981' : '#64748b', borderRadius: '50%', animation: isConnected ? 'pulse 2s infinite' : 'none' }}></span>
+              {isConnected ? 'Live' : 'Offline'}
             </span>
           </div>
           <div style={{ height: '250px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={energyData}>
-                <defs>
-                  <linearGradient id="colorConsumption" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorSolar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="hour" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <Tooltip 
-                  contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
-                  labelStyle={{ color: '#f8fafc' }}
-                />
-                <Area type="monotone" dataKey="consumption" stroke="#6366f1" fill="url(#colorConsumption)" name="Load (kW)" />
-                <Area type="monotone" dataKey="solar" stroke="#10b981" fill="url(#colorSolar)" name="Solar (kW)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {energyLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
+                <RefreshCw className="spinning" size={24} />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartEnergyData}>
+                  <defs>
+                    <linearGradient id="colorConsumption" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorSolar" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="hour" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                  <Tooltip
+                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
+                    labelStyle={{ color: '#f8fafc' }}
+                  />
+                  <Area type="monotone" dataKey="consumption" stroke="#6366f1" fill="url(#colorConsumption)" name="Load (kW)" />
+                  <Area type="monotone" dataKey="solar" stroke="#10b981" fill="url(#colorSolar)" name="Solar (kW)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -223,11 +301,11 @@ export default function Dashboard() {
           </div>
           <div style={{ height: '250px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
+              <BarChart data={chartMonthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
                   labelStyle={{ color: '#f8fafc' }}
                 />
@@ -248,7 +326,7 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={energyMix}
+                  data={chartEnergyMix}
                   cx="50%"
                   cy="50%"
                   innerRadius={50}
@@ -256,11 +334,11 @@ export default function Dashboard() {
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  {energyMix.map((entry, index) => (
+                  {chartEnergyMix.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
                   formatter={(value: number) => [`${value}%`, '']}
                 />
@@ -268,7 +346,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '0.5rem' }}>
-            {energyMix.map(item => (
+            {chartEnergyMix.map(item => (
               <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color }}></div>
                 <span style={{ color: '#94a3b8' }}>{item.name}</span>
@@ -285,9 +363,9 @@ export default function Dashboard() {
           {notifications && notifications.length > 0 ? (
             <div>
               {notifications.slice(0, 4).map((n) => (
-                <div key={n.id} style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <div key={n.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '0.75rem',
                   padding: '0.5rem 0',
                   borderBottom: '1px solid #334155',
@@ -340,28 +418,28 @@ export default function Dashboard() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
-        
+
         .spinning {
           animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        
+
         .grid-3 {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 1rem;
         }
-        
+
         @media (max-width: 1024px) {
           .grid-3 {
             grid-template-columns: repeat(2, 1fr);
           }
         }
-        
+
         @media (max-width: 640px) {
           .grid-3 {
             grid-template-columns: 1fr;

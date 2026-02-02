@@ -153,12 +153,22 @@ export const api = {
     get: (id: number) => fetchApi<Site>(`/sites/${id}`),
     create: (data: Partial<Site>) => fetchApi<Site>('/sites', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: Partial<Site>) => fetchApi<Site>(`/sites/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<{ message: string }>(`/sites/${id}`, { method: 'DELETE' }),
+    getStats: (id: number) => fetchApi<{
+      site_id: number
+      meters_count: number
+      assets_count: number
+      total_load_kw: number
+      active_alarms: number
+    }>(`/sites/${id}/stats`),
   },
   assets: {
     list: (siteId?: number) => fetchApi<Asset[]>(`/assets${siteId ? `?site_id=${siteId}` : ''}`),
+    get: (id: number) => fetchApi<Asset>(`/assets/${id}`),
     tree: (siteId: number) => fetchApi<AssetTreeNode[]>(`/assets/tree/${siteId}`),
     create: (data: Partial<Asset>) => fetchApi<Asset>('/assets', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: Partial<Asset>) => fetchApi<Asset>(`/assets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<{ message: string }>(`/assets/${id}`, { method: 'DELETE' }),
   },
   meters: {
     list: (siteId?: number) => fetchApi<Meter[]>(`/meters${siteId ? `?site_id=${siteId}` : ''}`),
@@ -228,6 +238,8 @@ export const api = {
     list: (siteId?: number) => fetchApi<Tenant[]>(`/tenants${siteId ? `?site_id=${siteId}` : ''}`),
     get: (id: number) => fetchApi<Tenant>(`/tenants/${id}`),
     create: (data: Partial<Tenant>) => fetchApi<Tenant>('/tenants', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<Tenant>) => fetchApi<Tenant>(`/tenants/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<{ message: string }>(`/tenants/${id}`, { method: 'DELETE' }),
     generateInvoice: (tenantId: number, start: string, end: string) =>
       fetchApi<Invoice>(`/tenants/${tenantId}/generate-invoice?billing_start=${start}&billing_end=${end}`, { method: 'POST' }),
   },
@@ -586,5 +598,192 @@ export const api = {
   },
   pvDesign: {
     calculate: (data: PVDesignRequest) => fetchApi<PVDesignScenario>('/pv/design', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  telemetry: {
+    getLatest: (deviceId: number) => fetchApi<{
+      device_id: number
+      datapoints: Record<string, { value: number | null; timestamp: string | null; quality: string }>
+    }>(`/telemetry/devices/${deviceId}/latest`),
+    getHistory: (deviceId: number, params: {
+      datapoint: string
+      start?: string
+      end?: string
+      aggregation?: string
+      interval?: string
+      limit?: number
+      offset?: number
+    }) => {
+      const searchParams = new URLSearchParams()
+      searchParams.append('datapoint', params.datapoint)
+      if (params.start) searchParams.append('start', params.start)
+      if (params.end) searchParams.append('end', params.end)
+      if (params.limit) searchParams.append('limit', String(params.limit))
+      if (params.offset) searchParams.append('offset', String(params.offset))
+      return fetchApi<Array<{ timestamp: string; value: number; quality: string; raw_value?: number }>>(
+        `/telemetry/devices/${deviceId}/history?${searchParams.toString()}`
+      )
+    },
+    getAggregated: (deviceId: number, params: {
+      datapoints?: string
+      start?: string
+      end?: string
+      aggregation?: string
+      interval?: string
+      limit?: number
+    }) => {
+      const searchParams = new URLSearchParams()
+      if (params.datapoints) searchParams.append('datapoints', params.datapoints)
+      if (params.start) searchParams.append('start', params.start)
+      if (params.end) searchParams.append('end', params.end)
+      if (params.aggregation) searchParams.append('aggregation', params.aggregation)
+      if (params.interval) searchParams.append('interval', params.interval)
+      if (params.limit) searchParams.append('limit', String(params.limit))
+      return fetchApi<unknown>(`/telemetry/devices/${deviceId}?${searchParams.toString()}`)
+    },
+    getStats: (deviceId: number, params: {
+      datapoint: string
+      start: string
+      end: string
+    }) => fetchApi<{
+      device_id: number
+      datapoint: string
+      start: string
+      end: string
+      min: number | null
+      max: number | null
+      avg: number | null
+      sum: number | null
+      count: number
+      first: number | null
+      last: number | null
+      first_timestamp: string | null
+      last_timestamp: string | null
+    }>(`/telemetry/devices/${deviceId}/stats?datapoint=${params.datapoint}&start=${params.start}&end=${params.end}`),
+    ingest: (data: { device_id: number; datapoints: Record<string, unknown>; timestamp?: string; source?: string }) =>
+      fetchApi<{ status: string; datapoints_stored: number }>('/telemetry', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  dashboards: {
+    list: (includeShared?: boolean) =>
+      fetchApi<Array<{
+        id: number
+        name: string
+        description: string | null
+        is_default: boolean
+        is_shared: boolean
+        theme: string
+        refresh_interval: number
+        created_at: string
+      }>>(`/dashboards${includeShared !== undefined ? `?include_shared=${includeShared}` : ''}`),
+    get: (id: number) =>
+      fetchApi<{
+        id: number
+        name: string
+        description: string | null
+        layout: Record<string, unknown> | null
+        theme: string
+        refresh_interval: number
+        is_shared: boolean
+        widgets: Array<{
+          id: number
+          type: string
+          title: string | null
+          position: { x: number; y: number }
+          size: { width: number; height: number }
+          config: Record<string, unknown>
+          data_source: Record<string, unknown>
+        }>
+      }>(`/dashboards/${id}`),
+    create: (data: {
+      name: string
+      description?: string
+      is_default?: boolean
+      theme?: string
+      refresh_interval?: number
+    }) => fetchApi<{
+      id: number
+      name: string
+      description: string | null
+      is_default: boolean
+      is_shared: boolean
+      theme: string
+      refresh_interval: number
+      created_at: string
+    }>('/dashboards', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: {
+      name?: string
+      description?: string
+      is_default?: boolean
+      is_shared?: boolean
+      theme?: string
+      refresh_interval?: number
+      layout?: Record<string, unknown>
+    }) => fetchApi<{
+      id: number
+      name: string
+      description: string | null
+      is_default: boolean
+      is_shared: boolean
+      theme: string
+      refresh_interval: number
+      created_at: string
+    }>(`/dashboards/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<{ message: string }>(`/dashboards/${id}`, { method: 'DELETE' }),
+    clone: (id: number, newName?: string) =>
+      fetchApi<{
+        id: number
+        name: string
+        description: string | null
+        is_default: boolean
+        is_shared: boolean
+        theme: string
+        refresh_interval: number
+        created_at: string
+      }>(`/dashboards/${id}/clone${newName ? `?new_name=${encodeURIComponent(newName)}` : ''}`, { method: 'POST' }),
+    addWidget: (dashboardId: number, widget: {
+      widget_type: string
+      title?: string
+      position_x?: number
+      position_y?: number
+      width?: number
+      height?: number
+      config?: Record<string, unknown>
+      data_source?: Record<string, unknown>
+    }) => fetchApi<{
+      id: number
+      dashboard_id: number
+      widget_type: string
+      title: string | null
+      position: { x: number; y: number }
+      size: { width: number; height: number }
+      config: Record<string, unknown> | null
+      data_source: Record<string, unknown> | null
+    }>(`/dashboards/${dashboardId}/widgets`, { method: 'POST', body: JSON.stringify(widget) }),
+    updateWidget: (widgetId: number, updates: {
+      title?: string
+      position_x?: number
+      position_y?: number
+      width?: number
+      height?: number
+      config?: Record<string, unknown>
+      data_source?: Record<string, unknown>
+    }) => fetchApi<{
+      id: number
+      dashboard_id: number
+      widget_type: string
+      title: string | null
+      position: { x: number; y: number }
+      size: { width: number; height: number }
+      config: Record<string, unknown> | null
+      data_source: Record<string, unknown> | null
+    }>(`/dashboards/widgets/${widgetId}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+    deleteWidget: (widgetId: number) => fetchApi<{ message: string }>(`/dashboards/widgets/${widgetId}`, { method: 'DELETE' }),
+    getWidgetData: (widgetId: number) => fetchApi<{
+      widget_id: number
+      widget_type: string
+      title: string | null
+      data: Record<string, unknown> | null
+      last_updated: string
+      error: string | null
+    }>(`/dashboards/widgets/${widgetId}/data`),
   },
 }

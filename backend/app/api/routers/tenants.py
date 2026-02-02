@@ -8,6 +8,7 @@ from backend.app.core.database import get_db
 from backend.app.models import Tenant, LeaseContract, Invoice
 from backend.app.schemas import (
     TenantCreate,
+    TenantUpdate,
     TenantResponse,
     LeaseContractCreate,
     LeaseContractResponse,
@@ -48,6 +49,46 @@ def get_tenant(tenant_id: int, db: Session = Depends(get_db)):
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     return tenant
+
+
+@router.put("/tenants/{tenant_id}", response_model=TenantResponse)
+def update_tenant(tenant_id: int, tenant_update: TenantUpdate, db: Session = Depends(get_db)):
+    """Update a tenant."""
+    db_tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not db_tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    update_data = tenant_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_tenant, field, value)
+
+    db.commit()
+    db.refresh(db_tenant)
+    return db_tenant
+
+
+@router.delete("/tenants/{tenant_id}")
+def delete_tenant(tenant_id: int, db: Session = Depends(get_db)):
+    """Delete a tenant."""
+    db_tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not db_tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # Check for active contracts
+    active_contracts = db.query(LeaseContract).filter(
+        LeaseContract.tenant_id == tenant_id,
+        LeaseContract.is_active == 1
+    ).count()
+
+    if active_contracts > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete tenant with {active_contracts} active contract(s)"
+        )
+
+    db.delete(db_tenant)
+    db.commit()
+    return {"message": "Tenant deleted successfully"}
 
 
 @router.post("/lease-contracts", response_model=LeaseContractResponse)

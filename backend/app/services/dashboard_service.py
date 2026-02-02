@@ -118,6 +118,92 @@ class WidgetData:
     error: Optional[str] = None
 
 
+# Dashboard Templates
+DASHBOARD_TEMPLATES = {
+    "manufacturing": {
+        "id": "manufacturing",
+        "name": "Manufacturing Plant",
+        "description": "Optimized for industrial facilities with production equipment, HVAC, and process monitoring",
+        "preview_image": "/templates/manufacturing.png",
+        "widgets": [
+            {"type": "kpi_card", "title": "Total Power", "position": (0, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "Power Factor", "position": (2, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "Today's Cost", "position": (4, 0), "size": (2, 2)},
+            {"type": "line_chart", "title": "Production Line Load", "position": (0, 2), "size": (6, 3)},
+            {"type": "bar_chart", "title": "Equipment Consumption", "position": (6, 0), "size": (6, 3)},
+            {"type": "gauge", "title": "Transformer Load", "position": (6, 3), "size": (3, 2)},
+            {"type": "device_status", "title": "Motor Status", "position": (9, 3), "size": (3, 2)},
+            {"type": "alarm_list", "title": "Active Alarms", "position": (0, 5), "size": (4, 3)},
+            {"type": "heatmap", "title": "Shift Consumption", "position": (4, 5), "size": (8, 3)},
+        ]
+    },
+    "commercial": {
+        "id": "commercial",
+        "name": "Commercial Building",
+        "description": "Designed for office buildings with HVAC, lighting, and occupancy tracking",
+        "preview_image": "/templates/commercial.png",
+        "widgets": [
+            {"type": "kpi_card", "title": "Current Load", "position": (0, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "HVAC Power", "position": (2, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "Lighting Power", "position": (4, 0), "size": (2, 2)},
+            {"type": "pie_chart", "title": "Energy Breakdown", "position": (6, 0), "size": (3, 3)},
+            {"type": "line_chart", "title": "24-Hour Load Profile", "position": (0, 2), "size": (6, 3)},
+            {"type": "gauge", "title": "Building Load %", "position": (9, 0), "size": (3, 3)},
+            {"type": "bar_chart", "title": "Floor-by-Floor", "position": (0, 5), "size": (6, 3)},
+            {"type": "device_status", "title": "System Status", "position": (6, 5), "size": (6, 3)},
+        ]
+    },
+    "retail": {
+        "id": "retail",
+        "name": "Retail Store",
+        "description": "Tailored for retail spaces with refrigeration, lighting, and POS monitoring",
+        "preview_image": "/templates/retail.png",
+        "widgets": [
+            {"type": "kpi_card", "title": "Store Power", "position": (0, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "Refrigeration", "position": (2, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "Monthly Cost", "position": (4, 0), "size": (2, 2)},
+            {"type": "line_chart", "title": "Daily Load Pattern", "position": (0, 2), "size": (6, 3)},
+            {"type": "pie_chart", "title": "Load Breakdown", "position": (6, 0), "size": (3, 3)},
+            {"type": "bar_chart", "title": "Hourly Peak Tracking", "position": (6, 3), "size": (6, 3)},
+            {"type": "alarm_list", "title": "Refrigeration Alerts", "position": (0, 5), "size": (4, 3)},
+            {"type": "gauge", "title": "Cold Chain Temp", "position": (4, 5), "size": (2, 3)},
+        ]
+    },
+    "healthcare": {
+        "id": "healthcare",
+        "name": "Healthcare Facility",
+        "description": "Critical systems monitoring for hospitals with backup power and compliance tracking",
+        "preview_image": "/templates/healthcare.png",
+        "widgets": [
+            {"type": "kpi_card", "title": "Critical Load", "position": (0, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "Backup Status", "position": (2, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "UPS Capacity", "position": (4, 0), "size": (2, 2)},
+            {"type": "device_status", "title": "Critical Systems", "position": (6, 0), "size": (6, 3)},
+            {"type": "line_chart", "title": "Power Demand", "position": (0, 2), "size": (6, 3)},
+            {"type": "alarm_list", "title": "Critical Alarms", "position": (0, 5), "size": (4, 3)},
+            {"type": "gauge", "title": "Generator Fuel", "position": (4, 5), "size": (2, 3)},
+            {"type": "bar_chart", "title": "Department Usage", "position": (6, 5), "size": (6, 3)},
+        ]
+    },
+    "education": {
+        "id": "education",
+        "name": "Educational Campus",
+        "description": "Multi-building campus monitoring with scheduling and occupancy awareness",
+        "preview_image": "/templates/education.png",
+        "widgets": [
+            {"type": "kpi_card", "title": "Campus Load", "position": (0, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "HVAC Power", "position": (2, 0), "size": (2, 2)},
+            {"type": "kpi_card", "title": "Solar Generation", "position": (4, 0), "size": (2, 2)},
+            {"type": "map", "title": "Building Map", "position": (6, 0), "size": (6, 4)},
+            {"type": "line_chart", "title": "Weekly Pattern", "position": (0, 2), "size": (6, 3)},
+            {"type": "bar_chart", "title": "Building Comparison", "position": (0, 5), "size": (6, 3)},
+            {"type": "pie_chart", "title": "Energy Sources", "position": (6, 4), "size": (3, 2)},
+            {"type": "device_status", "title": "System Health", "position": (9, 4), "size": (3, 2)},
+        ]
+    },
+}
+
+
 class DashboardService:
     """
     Dashboard management service.

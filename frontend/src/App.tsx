@@ -36,6 +36,7 @@ import PublicStatus from './pages/PublicStatus'
 import Devices from './pages/Devices'
 import DeviceConfig from './pages/DeviceConfig'
 import DeviceHealth from './pages/DeviceHealth'
+import SiteComparison from './pages/SiteComparison'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -406,7 +407,17 @@ function AppRoutes() {
           </ProtectedRoute>
         )}
       </Route>
-      
+
+      <Route path="/site-comparison">
+        {() => (
+          <ProtectedRoute>
+            <Layout currentSite={currentSite} onSiteChange={setCurrentSite}>
+              <SiteComparison />
+            </Layout>
+          </ProtectedRoute>
+        )}
+      </Route>
+
       <Route>404 - Page Not Found</Route>
     </Switch>
   )

@@ -159,6 +159,18 @@ class TenantCreate(BaseModel):
     tax_id: Optional[str] = None
 
 
+class TenantUpdate(BaseModel):
+    """Schema for updating a tenant."""
+    site_id: Optional[int] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    billing_address: Optional[str] = None
+    tax_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
 class TenantResponse(BaseModel):
     """Response schema for tenant."""
     id: int

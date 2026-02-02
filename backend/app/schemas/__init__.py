@@ -55,6 +55,7 @@ from backend.app.schemas.enterprise import (
     MeasurementCreate,
     MeasurementResponse,
     TenantCreate,
+    TenantUpdate,
     TenantResponse,
     LeaseContractCreate,
     LeaseContractResponse,
@@ -275,6 +276,7 @@ __all__ = [
     "MeasurementResponse",
     # Enterprise - Tenant
     "TenantCreate",
+    "TenantUpdate",
     "TenantResponse",
     # Enterprise - LeaseContract
     "LeaseContractCreate",

@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Meter, DataSource } from '../services/api'
-import { 
-  Gauge, CheckCircle, XCircle, Clock, Plus, Wifi, WifiOff, 
+import {
+  Gauge, CheckCircle, XCircle, Clock, Plus, Wifi, WifiOff,
   Settings, RefreshCw, Link2, Radio, AlertTriangle, Trash2,
-  Activity, Calendar, AlertOctagon, BarChart3, Zap, List
+  Activity, Calendar, AlertOctagon, BarChart3, Zap, List, Filter, Search
 } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+} from 'recharts'
 
 interface MeterWithConnectivity {
   id: number
@@ -17,6 +20,7 @@ interface MeterWithConnectivity {
   asset_id?: number | null
   site_id: number
   data_source_id?: number | null
+  site_name?: string
   connectivity?: {
     protocol: 'modbus_tcp' | 'mbus' | 'modbus_rtu' | null
     address: string
@@ -32,11 +36,16 @@ interface MetersProps {
   currentSite?: number | null
 }
 
-export default function Meters({ currentSite: _currentSite }: MetersProps) {
+export default function Meters({ currentSite }: MetersProps) {
   const queryClient = useQueryClient()
+  const [siteFilter, setSiteFilter] = useState<number | 'all'>(currentSite || 'all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedReadingMeter, setSelectedReadingMeter] = useState<number | null>(null)
+
   const { data: meters, isLoading } = useQuery({ queryKey: ['meters'], queryFn: () => api.meters.list() })
   const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
   const { data: devices } = useQuery({ queryKey: ['dataSources'], queryFn: () => api.dataSources.list() })
+  const { data: gateways } = useQuery({ queryKey: ['gateways'], queryFn: () => api.gateways.list() })
   
   const [showAddMeter, setShowAddMeter] = useState(false)
   const [showConnectModal, setShowConnectModal] = useState(false)
@@ -62,19 +71,60 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
     pollInterval: 60
   })
 
-  const metersWithConnectivity: MeterWithConnectivity[] = (meters || []).map((m: Meter, i: number) => ({
-    ...m,
-    data_source_id: null,
-    connectivity: {
-      protocol: i % 3 === 0 ? 'modbus_tcp' : i % 3 === 1 ? 'mbus' : 'modbus_rtu',
-      address: i % 3 === 0 ? `192.168.1.${100 + i}:502` : i % 3 === 1 ? `0x0${i + 1}` : `/dev/ttyUSB0:${i + 1}`,
-      status: i % 4 === 3 ? 'error' : i % 5 === 4 ? 'disconnected' : 'connected',
-      gatewayId: i < 3 ? 1 : 2,
-      gatewayName: i < 3 ? 'Main Building Gateway' : 'Solar Array Gateway',
-      lastPoll: new Date(Date.now() - Math.random() * 300000),
-      errorMessage: i % 4 === 3 ? 'Connection timeout after 30s' : null
-    }
-  }))
+  // Map meters with real connectivity status based on actual data
+  const metersWithConnectivity: MeterWithConnectivity[] = useMemo(() => {
+    return (meters || []).map((m: Meter) => {
+      const device = devices?.find((d: DataSource) => d.id === m.data_source_id)
+      const gateway = gateways?.find((g: any) => g.id === device?.gateway_id)
+      const site = sites?.find((s: any) => s.id === m.site_id)
+
+      // Determine connection status based on last_reading_at
+      let status: 'connected' | 'disconnected' | 'error' | 'polling' = 'disconnected'
+      if (m.last_reading_at) {
+        const lastReading = new Date(m.last_reading_at)
+        const minutesSinceReading = (Date.now() - lastReading.getTime()) / 60000
+        if (minutesSinceReading < 5) status = 'connected'
+        else if (minutesSinceReading < 30) status = 'polling'
+        else if (minutesSinceReading < 1440) status = 'disconnected'
+        else status = 'error'
+      }
+
+      return {
+        ...m,
+        site_name: site?.name || `Site ${m.site_id}`,
+        connectivity: device ? {
+          protocol: device.source_type as 'modbus_tcp' | 'mbus' | 'modbus_rtu' | null,
+          address: device.connection_params?.host
+            ? `${device.connection_params.host}:${device.connection_params.port || 502}`
+            : device.connection_params?.serial_port || '-',
+          status,
+          gatewayId: gateway?.id || null,
+          gatewayName: gateway?.name || null,
+          lastPoll: m.last_reading_at ? new Date(m.last_reading_at) : null,
+          errorMessage: status === 'error' ? 'No data received in 24+ hours' : null
+        } : {
+          protocol: null,
+          address: '-',
+          status: m.is_active ? 'disconnected' : 'disconnected',
+          gatewayId: null,
+          gatewayName: null,
+          lastPoll: m.last_reading_at ? new Date(m.last_reading_at) : null,
+          errorMessage: null
+        }
+      }
+    })
+  }, [meters, devices, gateways, sites])
+
+  // Filter meters based on site and search query
+  const filteredMeters = useMemo(() => {
+    return metersWithConnectivity.filter(m => {
+      const matchesSite = siteFilter === 'all' || m.site_id === siteFilter
+      const matchesSearch = !searchQuery ||
+        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.meter_id.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchesSite && matchesSearch
+    })
+  }, [metersWithConnectivity, siteFilter, searchQuery])
 
   const createMeterMutation = useMutation({
     mutationFn: async (data: typeof newMeter) => {
@@ -173,7 +223,7 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
   }
 
   const tabs: Tab[] = [
-    { id: 'all-meters', label: 'All Meters', icon: List, badge: metersWithConnectivity.length },
+    { id: 'all-meters', label: 'All Meters', icon: List, badge: filteredMeters.length },
     { id: 'readings', label: 'Readings', icon: Activity },
     { id: 'calibration', label: 'Calibration', icon: Calendar },
     { id: 'anomalies', label: 'Anomalies', icon: AlertOctagon },
@@ -183,27 +233,73 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
 
   const renderAllMetersTab = () => (
     <>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: '1', minWidth: '200px', maxWidth: '300px' }}>
+          <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+          <input
+            type="text"
+            placeholder="Search meters..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              paddingLeft: '2.25rem',
+              paddingRight: '0.75rem',
+              paddingTop: '0.5rem',
+              paddingBottom: '0.5rem',
+              borderRadius: '0.5rem',
+              border: '1px solid #334155',
+              background: '#1e293b',
+              color: '#f1f5f9',
+              fontSize: '0.875rem'
+            }}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Filter size={16} color="#64748b" />
+          <select
+            value={siteFilter}
+            onChange={(e) => setSiteFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            style={{
+              padding: '0.5rem 0.75rem',
+              borderRadius: '0.5rem',
+              border: '1px solid #334155',
+              background: '#1e293b',
+              color: '#f1f5f9',
+              fontSize: '0.875rem',
+              minWidth: '150px'
+            }}
+          >
+            <option value="all">All Sites</option>
+            {sites?.map(site => (
+              <option key={site.id} value={site.id}>{site.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="grid grid-4" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Total Meters</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b' }}>{metersWithConnectivity.length}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f1f5f9' }}>{filteredMeters.length}</div>
         </div>
         <div className="card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Connected</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#10b981' }}>
-            {metersWithConnectivity.filter(m => m.connectivity?.status === 'connected').length}
+            {filteredMeters.filter(m => m.connectivity?.status === 'connected').length}
           </div>
         </div>
         <div className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Disconnected</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#64748b' }}>
-            {metersWithConnectivity.filter(m => m.connectivity?.status === 'disconnected').length}
+          <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Polling</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f59e0b' }}>
+            {filteredMeters.filter(m => m.connectivity?.status === 'polling').length}
           </div>
         </div>
         <div className="card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Errors</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444' }}>
-            {metersWithConnectivity.filter(m => m.connectivity?.status === 'error').length}
+            {filteredMeters.filter(m => m.connectivity?.status === 'error').length}
           </div>
         </div>
       </div>
@@ -211,24 +307,24 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
       <div className="card">
         {isLoading ? (
           <p>Loading meters...</p>
-        ) : metersWithConnectivity.length > 0 ? (
+        ) : filteredMeters.length > 0 ? (
           <table>
             <thead>
               <tr>
                 <th>Meter ID</th>
                 <th>Name</th>
+                <th>Site</th>
                 <th>Connected Device</th>
                 <th>Protocol</th>
-                <th>Address</th>
                 <th>Gateway</th>
-                <th>Connection Status</th>
-                <th>Last Poll</th>
+                <th>Status</th>
+                <th>Last Reading</th>
                 <th>Active</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {metersWithConnectivity.map((meter) => (
+              {filteredMeters.map((meter) => (
                 <tr key={meter.id}>
                   <td>
                     <code style={{ background: '#f1f5f9', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
@@ -236,6 +332,9 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                     </code>
                   </td>
                   <td style={{ fontWeight: 500 }}>{meter.name}</td>
+                  <td>
+                    <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>{meter.site_name}</span>
+                  </td>
                   <td>
                     {meter.data_source_id ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem' }}>
@@ -256,11 +355,6 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
                     }}>
                       {getProtocolLabel(meter.connectivity?.protocol || null)}
                     </span>
-                  </td>
-                  <td>
-                    <code style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      {meter.connectivity?.address || '-'}
-                    </code>
                   </td>
                   <td>
                     {meter.connectivity?.gatewayName ? (
@@ -377,18 +471,115 @@ export default function Meters({ currentSite: _currentSite }: MetersProps) {
     </>
   )
 
+  // Generate sample readings data for demonstration
+  const generateReadingsData = () => {
+    const now = new Date()
+    return Array.from({ length: 24 }, (_, i) => {
+      const hour = new Date(now.getTime() - (23 - i) * 3600000)
+      return {
+        time: hour.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        kWh: Math.round(50 + Math.random() * 100),
+        kW: Math.round(20 + Math.random() * 40),
+      }
+    })
+  }
+
+  const readingsData = generateReadingsData()
+
   const renderReadingsTab = () => (
-    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-      <Activity size={48} color="#3b82f6" style={{ margin: '0 auto 1rem' }} />
-      <h3 style={{ marginBottom: '0.5rem' }}>Meter Readings</h3>
-      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
-        View latest and historical readings from all connected meters. Track energy consumption patterns, peak demand periods, and usage trends over time.
-      </p>
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-        <span className="badge badge-info">Real-time Data</span>
-        <span className="badge badge-info">Historical Charts</span>
-        <span className="badge badge-info">Export Options</span>
+    <div>
+      {/* Meter selector */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: '#f1f5f9' }}>
+          Select Meter
+        </label>
+        <select
+          value={selectedReadingMeter || ''}
+          onChange={(e) => setSelectedReadingMeter(e.target.value ? Number(e.target.value) : null)}
+          style={{
+            padding: '0.5rem 0.75rem',
+            borderRadius: '0.5rem',
+            border: '1px solid #334155',
+            background: '#1e293b',
+            color: '#f1f5f9',
+            minWidth: '250px'
+          }}
+        >
+          <option value="">Select a meter to view readings...</option>
+          {filteredMeters.map(m => (
+            <option key={m.id} value={m.id}>{m.name} ({m.meter_id})</option>
+          ))}
+        </select>
       </div>
+
+      {selectedReadingMeter ? (
+        <>
+          {/* Stats cards */}
+          <div className="grid grid-4" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
+            <div className="card" style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Last Reading</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981' }}>
+                {readingsData[readingsData.length - 1].kWh} kWh
+              </div>
+            </div>
+            <div className="card" style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Current Demand</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#3b82f6' }}>
+                {readingsData[readingsData.length - 1].kW} kW
+              </div>
+            </div>
+            <div className="card" style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>24h Total</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f59e0b' }}>
+                {readingsData.reduce((sum, r) => sum + r.kWh, 0).toLocaleString()} kWh
+              </div>
+            </div>
+            <div className="card" style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Peak Demand</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ef4444' }}>
+                {Math.max(...readingsData.map(r => r.kW))} kW
+              </div>
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">24-Hour Consumption</h3>
+            </div>
+            <div style={{ height: '300px', padding: '1rem' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={readingsData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
+                  <YAxis yAxisId="left" stroke="#10b981" fontSize={12} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
+                    labelStyle={{ color: '#f1f5f9' }}
+                  />
+                  <Legend />
+                  <Line yAxisId="left" type="monotone" dataKey="kWh" stroke="#10b981" strokeWidth={2} dot={false} name="Energy (kWh)" />
+                  <Line yAxisId="right" type="monotone" dataKey="kW" stroke="#3b82f6" strokeWidth={2} dot={false} name="Power (kW)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <Activity size={48} color="#3b82f6" style={{ margin: '0 auto 1rem' }} />
+          <h3 style={{ marginBottom: '0.5rem' }}>Meter Readings</h3>
+          <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
+            Select a meter from the dropdown above to view its readings and consumption charts.
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+            <span className="badge badge-info">Real-time Data</span>
+            <span className="badge badge-info">Historical Charts</span>
+            <span className="badge badge-info">Export Options</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 
