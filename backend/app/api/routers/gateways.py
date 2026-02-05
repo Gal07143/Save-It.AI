@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from backend.app.core.database import get_db
 from backend.app.models.integrations import Gateway, GatewayStatus, CommunicationLog, GatewayCredentials
 from backend.app.services.webhook_handler import webhook_handler
+from backend.app.services.mqtt_credentials import mqtt_credential_manager
 from backend.app.schemas.integrations import (
     GatewayCreate,
     GatewayUpdate,
@@ -138,7 +139,18 @@ def register_gateway(gateway_id: int, db: Session = Depends(get_db)):
     
     gateway.status = GatewayStatus.OFFLINE
     db.commit()
-    
+
+    # Sync credentials to Mosquitto broker
+    try:
+        mqtt_credential_manager.add_gateway_credentials(
+            mqtt_creds["username"],
+            mqtt_creds["password"]
+        )
+    except Exception as e:
+        # Log but don't fail - credentials are still in DB for future sync
+        import logging
+        logging.warning(f"Could not sync MQTT credentials to Mosquitto: {e}")
+
     mqtt_host = _get_mqtt_host()
     domain = os.environ.get("REPLIT_DEV_DOMAIN", "localhost")
     

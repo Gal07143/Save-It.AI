@@ -64,12 +64,15 @@ async def lifespan(app: FastAPI):
     from backend.app.services.job_queue import job_queue
     from backend.app.core.database import SessionLocal
     
-    # Database tables are created via Alembic migrations.
-    # Run `alembic upgrade head` before starting the application.
-    # In production, migrations should be run as a separate deployment step.
-    if settings.DEBUG:
-        # Only create tables automatically in development mode
+    # Database tables: SQLAlchemy's create_all() is idempotent - it only creates
+    # tables that don't exist, so it's safe to run in all environments.
+    # This ensures the database schema is always up-to-date on startup.
+    try:
         Base.metadata.create_all(bind=engine)
+        logger.info("Database tables verified/created")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {e}")
+        raise
 
     db = SessionLocal()
     try:
@@ -114,14 +117,17 @@ async def lifespan(app: FastAPI):
     shutdown_service.register_handler("job_queue", job_queue.stop, priority=60)
     logger.info("Graceful shutdown handlers registered")
 
-    # Start MQTT Broker and Subscriber for IoT device communication
-    from backend.app.services.mqtt_broker import mqtt_broker
+    # Start MQTT Subscriber for IoT device communication
+    # Note: Uses external Mosquitto broker (not Python amqtt) for better reliability.
+    # Mosquitto should be running on localhost:1883
     from backend.app.services.mqtt_subscriber import mqtt_subscriber, DataIngestionHandler
+    from backend.app.services.mqtt_credentials import mqtt_credential_manager
     import asyncio
 
     try:
-        await mqtt_broker.start()
-        logger.info(f"MQTT Broker started on port {mqtt_broker.port}")
+        # Initialize credential manager for syncing gateway creds to Mosquitto
+        await mqtt_credential_manager.initialize()
+        logger.info("MQTT credential manager initialized")
 
         # Setup data ingestion handler for MQTT messages
         ingestion_handler = DataIngestionHandler(SessionLocal)
@@ -134,15 +140,18 @@ async def lifespan(app: FastAPI):
         await mqtt_subscriber.subscribe("saveit/#")
         await mqtt_subscriber.subscribe("device/#")
 
-        # Start subscriber in background task
-        asyncio.create_task(mqtt_subscriber.start())
-        logger.info("MQTT Subscriber started")
+        # Get internal credentials for connecting to Mosquitto
+        mqtt_user, mqtt_pass = mqtt_credential_manager.get_internal_credentials()
 
-        # Register shutdown handlers for MQTT services
+        # Start subscriber in background task with credentials
+        asyncio.create_task(mqtt_subscriber.start(username=mqtt_user, password=mqtt_pass))
+        logger.info("MQTT Subscriber connected to Mosquitto broker")
+
+        # Register shutdown handlers
         shutdown_service.register_handler("mqtt_subscriber", mqtt_subscriber.stop, priority=95)
-        shutdown_service.register_handler("mqtt_broker", mqtt_broker.stop, priority=50)
+        shutdown_service.register_handler("mqtt_credentials", mqtt_credential_manager.stop, priority=50)
     except Exception as e:
-        logger.warning(f"Could not start MQTT services: {e}")
+        logger.warning(f"Could not start MQTT services: {e}. Ensure Mosquitto is running.")
 
     yield
     
