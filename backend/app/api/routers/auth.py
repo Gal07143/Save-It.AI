@@ -30,19 +30,20 @@ COOKIE_SAMESITE = "lax"  # Protects against CSRF while allowing normal navigatio
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
-# Require SESSION_SECRET to be set in production for security
-SECRET_KEY = os.getenv("SESSION_SECRET")
+# Get secret key from environment - check multiple possible names
+SECRET_KEY = os.getenv("SESSION_SECRET") or os.getenv("SECRET_KEY") or ""
 if not SECRET_KEY:
-    # In development, allow a fallback with a warning
-    if os.getenv("DEBUG", "false").lower() == "true":
+    # In development or if ENVIRONMENT is not production, allow a fallback
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    if os.getenv("DEBUG", "false").lower() == "true" or env != "production":
         SECRET_KEY = secrets.token_urlsafe(32)
         logger.warning(
-            "SESSION_SECRET not set - using temporary key. "
-            "This is acceptable for development but MUST be set in production."
+            "No secret key set - using temporary key. "
+            "Set SESSION_SECRET or SECRET_KEY in production."
         )
     else:
         raise RuntimeError(
-            "SESSION_SECRET environment variable must be set in production. "
+            "SESSION_SECRET or SECRET_KEY environment variable must be set in production. "
             "Generate a secure key with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
         )
 

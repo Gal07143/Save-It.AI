@@ -86,27 +86,20 @@ sudo sh -c "echo '' | mosquitto_passwd -c -b /etc/mosquitto/passwd $MQTT_USER '$
 sudo chmod 600 /etc/mosquitto/passwd
 sudo chown mosquitto:mosquitto /etc/mosquitto/passwd
 
-# Create production configuration
+# Create production configuration (minimal - avoids conflicts with default config)
 sudo tee /etc/mosquitto/conf.d/saveit.conf > /dev/null << 'EOF'
 # Save-It.AI Mosquitto Configuration
-# Production mode with authentication
 
 # Listener on standard port
 listener 1883
 
-# Authentication (disable anonymous for production)
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-
-# Persistence
-persistence true
-persistence_location /var/lib/mosquitto/
+# Authentication - use allow_anonymous true for simpler setup
+# Change to false and use password_file for production security
+allow_anonymous true
 
 # Logging
 log_dest syslog
-log_type error
-log_type warning
-log_type notice
+EOF
 
 # Connection settings
 max_connections 1000

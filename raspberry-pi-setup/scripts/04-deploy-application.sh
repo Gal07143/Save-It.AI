@@ -42,6 +42,7 @@ pip install aiomqtt pymodbus redis
 
 # Generate secure keys
 SECRET_KEY=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64)
+SESSION_SECRET=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64)
 CSRF_SECRET=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
 
 # Create production .env file
@@ -73,12 +74,14 @@ MQTT_PASSWORD=$MQTT_PASS
 # Security
 #-------------------------------------------------------------------------------
 SECRET_KEY=$SECRET_KEY
+SESSION_SECRET=$SESSION_SECRET
 CSRF_SECRET_KEY=$CSRF_SECRET
 
 #-------------------------------------------------------------------------------
 # CORS - Update with your domains
 #-------------------------------------------------------------------------------
 CORS_ORIGINS=["http://localhost","http://localhost:5002","http://$(hostname).local","http://$(hostname -I | awk '{print $1}')"]
+ALLOWED_ORIGINS=http://localhost,http://localhost:5002,http://$(hostname).local,http://$(hostname -I | awk '{print $1}')
 
 #-------------------------------------------------------------------------------
 # Environment

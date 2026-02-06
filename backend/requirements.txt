@@ -56,3 +56,18 @@ jinja2>=3.1.0
 
 # Date utilities
 python-dateutil>=2.8.0
+
+# Financial calculations
+numpy-financial>=1.0.0
+
+# Excel/spreadsheet support
+openpyxl>=3.1.0
+
+# PDF generation
+reportlab>=4.0.0
+
+# System monitoring
+psutil>=5.9.0
+
+# Async MQTT
+paho-mqtt>=2.0.0

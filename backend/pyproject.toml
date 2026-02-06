@@ -38,6 +38,14 @@ dependencies = [
     "python-dateutil>=2.8.0",
     "pyyaml>=6.0.0",
     "jinja2>=3.1.0",
+    # Financial calculations
+    "numpy-financial>=1.0.0",
+    # Excel/spreadsheet
+    "openpyxl>=3.1.0",
+    # PDF generation
+    "reportlab>=4.0.0",
+    # System monitoring
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]
