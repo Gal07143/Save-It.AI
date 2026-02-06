@@ -10,16 +10,24 @@ class TestTenantIsolation:
         self, client: TestClient, db, test_organization, user_factory, site_factory
     ):
         """Test that users cannot access sites from other organizations."""
-        from backend.app.models import Organization
+        from backend.app.models import Organization, Site
+        from backend.app.models.platform import OrgSite
 
         # Create another organization
-        other_org = Organization(name="Other Org", slug="other-org", is_active=1)
+        other_org = Organization(name="Other Org Multi", slug="other-org-multi", is_active=1)
         db.add(other_org)
         db.commit()
+        db.refresh(other_org)
 
-        # Create a site for the other org
-        other_site = site_factory(name="Other Site")
-        other_site.organization_id = other_org.id
+        # Create a site for the other org (using Site directly, not factory which links to test_organization)
+        other_site = Site(name="Other Site Multi", timezone="UTC")
+        db.add(other_site)
+        db.commit()
+        db.refresh(other_site)
+
+        # Link site to other org via OrgSite
+        org_site = OrgSite(organization_id=other_org.id, site_id=other_site.id, is_primary=1)
+        db.add(org_site)
         db.commit()
 
         # Create user in first org
@@ -36,7 +44,7 @@ class TestTenantIsolation:
 
         # Try to access other org's site
         response = client.get(f"/api/v1/sites/{other_site.id}", headers=headers)
-        # Should either return 404 or 403
+        # Should either return 404 (not found for this tenant) or 403 (forbidden)
         assert response.status_code in [403, 404]
 
     def test_user_can_only_see_own_org_sites(

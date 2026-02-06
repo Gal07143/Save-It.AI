@@ -6,10 +6,11 @@ from fastapi.testclient import TestClient
 class TestDataSources:
     """Test data source (device) CRUD operations."""
 
-    def test_list_data_sources_unauthenticated(self, client: TestClient):
-        """Test that listing data sources requires authentication."""
+    def test_list_data_sources_public_accessible(self, client: TestClient):
+        """Test that data sources list is publicly accessible (no 401)."""
         response = client.get("/api/v1/data-sources")
-        assert response.status_code == 401
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
 
     def test_list_data_sources_empty(self, client: TestClient, auth_headers: dict, test_site):
         """Test listing data sources when none exist."""
@@ -25,7 +26,7 @@ class TestDataSources:
         data = {
             "site_id": test_site.id,
             "name": "Test Modbus Device",
-            "source_type": "modbus",
+            "source_type": "modbus_tcp",
             "host": "192.168.1.100",
             "port": 502,
             "slave_id": 1,
@@ -38,7 +39,7 @@ class TestDataSources:
         assert response.status_code in [200, 201]
         result = response.json()
         assert result["name"] == "Test Modbus Device"
-        assert result["source_type"] == "modbus"
+        assert result["source_type"] == "modbus_tcp"
 
     def test_get_data_source(self, client: TestClient, auth_headers: dict, test_site, data_source_factory):
         """Test getting a specific data source."""

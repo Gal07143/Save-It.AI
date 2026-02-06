@@ -17,7 +17,7 @@ from backend.app.schemas import (
 )
 from backend.app.api.routers.auth import get_current_user, get_password_hash
 
-router = APIRouter(prefix="/api/v1", tags=["admin"])
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
@@ -224,7 +224,7 @@ def lock_period(
     return lock
 
 
-@router.post("/reset-demo-data")
+@router.post("/reset-demo")
 def reset_demo_data_endpoint(
     db: Session = Depends(get_db),
     admin: User = Depends(require_super_admin)

@@ -39,7 +39,7 @@ class TestDeviceOnboardingFlow:
             "site_id": test_site.id,
             "gateway_id": gateway_id,
             "name": "Power Meter 1",
-            "source_type": "modbus",
+            "source_type": "modbus_tcp",
             "host": "192.168.1.100",
             "port": 502,
             "slave_id": 1,
@@ -95,7 +95,7 @@ class TestDeviceTemplateFlow:
         device_data = {
             "site_id": test_site.id,
             "name": "Template Test Device",
-            "source_type": "modbus",
+            "source_type": "modbus_tcp",
         }
         response = client.post(
             "/api/v1/data-sources",

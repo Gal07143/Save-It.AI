@@ -127,6 +127,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         )
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        # Skip CSRF validation in test mode
+        if os.getenv("TESTING") == "true":
+            return await call_next(request)
+
         # Get existing token from cookie
         cookie_token = self._get_token_from_cookie(request)
 

@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from backend.app.models.integrations import Gateway, GatewayStatus, GatewayCredentials
 
 
-@pytest.mark.skip(reason="Requires conftest db fixture which has known index creation issues")
 class TestGatewayRegistrationE2E:
     """
     Complete gateway registration workflow tests.
@@ -102,7 +101,7 @@ class TestGatewayRegistrationE2E:
             "site_id": test_site.id,
             "gateway_id": gateway_id,
             "name": "Power Meter A1",
-            "source_type": "modbus",
+            "source_type": "modbus_tcp",
             "host": "192.168.10.100",
             "port": 502,
             "slave_id": 1,
@@ -240,7 +239,7 @@ class TestGatewayRegistrationE2E:
                 "site_id": test_site.id,
                 "gateway_id": gateway.id,
                 "name": f"Meter {i+1}",
-                "source_type": "modbus",
+                "source_type": "modbus_tcp",
                 "slave_id": i + 1,
             }
             response = client.post(
@@ -289,7 +288,6 @@ class TestGatewayRegistrationE2E:
             assert isinstance(summary, list)
 
 
-@pytest.mark.skip(reason="Requires conftest db fixture which has known index creation issues")
 class TestGatewayMQTTIntegration:
     """Test gateway MQTT topic patterns and message handling."""
 

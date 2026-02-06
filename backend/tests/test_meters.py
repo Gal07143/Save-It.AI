@@ -5,20 +5,29 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from backend.app.models import Meter, Site, Organization
+from backend.app.models.platform import OrgSite
 
 
 @pytest.fixture
 def test_site(db: Session, test_organization: Organization) -> Site:
-    """Create a test site for meters."""
+    """Create a test site for meters linked to test organization."""
     site = Site(
-        organization_id=test_organization.id,
         name="Meter Test Site",
-        timezone="UTC",
-        is_active=1
+        timezone="UTC"
     )
     db.add(site)
     db.commit()
     db.refresh(site)
+
+    # Link to organization for multi-tenant validation
+    org_site = OrgSite(
+        organization_id=test_organization.id,
+        site_id=site.id,
+        is_primary=1
+    )
+    db.add(org_site)
+    db.commit()
+
     return site
 
 

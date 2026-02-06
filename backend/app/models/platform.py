@@ -95,7 +95,7 @@ class User(Base):
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)
-    role = Column(Enum(UserRole), default=UserRole.VIEWER)
+    role = Column(Enum(UserRole, values_callable=lambda x: [e.value for e in x]), default=UserRole.VIEWER)
     is_active = Column(Integer, default=1)
     mfa_enabled = Column(Integer, default=0)
     mfa_secret = Column(String(255), nullable=True)

@@ -115,15 +115,15 @@ def bulk_import_devices(request: BulkDeviceImportRequest, db: Session = Depends(
             
             if device.protocol in ('modbus_tcp', 'modbus_rtu') and not device.host:
                 raise ValueError(f"Host is required for {device.protocol} protocol")
-            
+
             gateway_id = None
             if device.gateway_name and device.gateway_name in gateways:
                 gateway_id = gateways[device.gateway_name]
-            
+
             db_source = DataSource(
                 name=device.name,
                 site_id=request.site_id,
-                protocol=device.protocol,
+                source_type=device.protocol,
                 host=device.host,
                 port=device.port,
                 slave_id=device.slave_id,
@@ -302,7 +302,7 @@ def get_device_health_dashboard(
         devices.append(DeviceHealthSummary(
             data_source_id=ds_id,
             name=str(ds.name),
-            protocol=str(ds.protocol) if ds.protocol else "unknown",
+            protocol=str(ds.source_type) if ds.source_type else "unknown",
             status=status,
             last_communication=last_communication,  # type: ignore
             success_rate_24h=round(success_rate, 2),
@@ -1219,7 +1219,7 @@ def get_commissioning_status(source_id: int, db: Session = Depends(get_db)) -> D
     
     recent_log = db.query(CommunicationLog).filter(
         CommunicationLog.data_source_id == source_id,
-        CommunicationLog.success == True
+        CommunicationLog.status == "success"
     ).order_by(CommunicationLog.timestamp.desc()).first()
     
     checklist = [
@@ -1233,8 +1233,8 @@ def get_commissioning_status(source_id: int, db: Session = Depends(get_db)) -> D
         {
             "step": "connection",
             "name": "Connection Details",
-            "description": "Host/IP and protocol configured",
-            "completed": bool(source.host and source.protocol),
+            "description": "Host/IP and source type configured",
+            "completed": bool(source.host and source.source_type),
             "required": True
         },
         {

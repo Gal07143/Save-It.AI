@@ -13,7 +13,6 @@ from backend.app.models.devices import (
 )
 
 
-@pytest.mark.skip(reason="Requires conftest db fixture - see test_device_flow.py for integration tests")
 class TestCommandService:
     """Test command service core functionality."""
 
@@ -37,9 +36,8 @@ class TestCommandService:
                 name="set_power_limit",
                 display_name="Set Power Limit",
                 description="Set max power output percentage",
-                parameters='{"limit": {"type": "number", "min": 0, "max": 100}}',
+                parameters_schema='{"limit": {"type": "number", "min": 0, "max": 100}}',
                 timeout_seconds=30,
-                is_active=1,
                 display_order=1
             ),
             Command(
@@ -48,7 +46,6 @@ class TestCommandService:
                 display_name="Reset Device",
                 description="Perform soft reset",
                 timeout_seconds=60,
-                is_active=1,
                 display_order=2
             ),
         ]
@@ -60,12 +57,14 @@ class TestCommandService:
         return commands
 
     @pytest.fixture
-    def test_device(self, db: Session, test_model):
+    def test_device(self, db: Session, test_model, test_site):
         """Create a test device."""
         device = Device(
+            site_id=test_site.id,
             model_id=test_model.id,
             name="Inverter 1",
             serial_number="INV-001",
+            device_type=DeviceType.PERIPHERAL,
             is_active=1,
             is_online=1
         )
@@ -263,6 +262,7 @@ class TestCommandService:
         db.commit()
 
         count = service.timeout_stale_commands(timeout_seconds=60)
+        db.commit()
 
         assert count == 1
         db.refresh(execution)
@@ -408,12 +408,11 @@ class TestCommandAckHandler:
         assert result is False
 
 
-@pytest.mark.skip(reason="Requires conftest db fixture - see test_device_flow.py for integration tests")
 class TestCommandFlowE2E:
     """End-to-end command flow tests with API."""
 
     @pytest.fixture
-    def setup_device_with_commands(self, db):
+    def setup_device_with_commands(self, db, test_site):
         """Setup device model with commands."""
         model = DeviceModel(
             name="Test Switch"
@@ -426,17 +425,18 @@ class TestCommandFlowE2E:
             model_id=model.id,
             name="toggle",
             display_name="Toggle State",
-            parameters='{"state": {"type": "string", "enum": ["on", "off"]}}',
-            is_active=1
+            parameters_schema='{"state": {"type": "string", "enum": ["on", "off"]}}'
         )
         db.add(command)
         db.commit()
         db.refresh(command)
 
         device = Device(
+            site_id=test_site.id,
             model_id=model.id,
             name="Switch 1",
             serial_number="SW-001",
+            device_type=DeviceType.PERIPHERAL,
             is_active=1,
             is_online=1
         )

@@ -286,26 +286,26 @@ class TestMQTTTelemetryE2E:
     """End-to-end tests for MQTT telemetry flow."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires separate database setup - see test_device_flow.py for integration tests")
-    async def test_full_message_flow(self, db: Session):
+    async def test_full_message_flow(self, db: Session, test_site):
         """Test complete message flow from MQTT to database."""
         from backend.app.services.data_ingestion import DataIngestionService
-        from backend.app.models.devices import Device, DeviceModel
+        from backend.app.models.devices import Device, DeviceModel, DeviceType
 
         # Setup: Create device model and device
         model = DeviceModel(
             name="Test Meter Model",
-            manufacturer="TestCorp",
-            category="meter"
+            description="Test meter model for MQTT E2E"
         )
         db.add(model)
         db.commit()
         db.refresh(model)
 
         device = Device(
+            site_id=test_site.id,
             model_id=model.id,
             name="Test Meter",
             serial_number="TM-001",
+            device_type=DeviceType.PERIPHERAL,
             is_active=1,
             is_online=0
         )

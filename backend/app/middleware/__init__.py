@@ -17,6 +17,7 @@ from backend.app.middleware.cache import CacheMiddleware, cache, cached
 from backend.app.middleware.validation import RequestValidationMiddleware
 from backend.app.middleware.security_headers import SecurityHeadersMiddleware
 from backend.app.middleware.csrf import CSRFMiddleware, get_csrf_token
+from backend.app.middleware.user_context import UserContextMiddleware
 
 __all__ = [
     "RateLimitMiddleware",
@@ -36,4 +37,5 @@ __all__ = [
     "SecurityHeadersMiddleware",
     "CSRFMiddleware",
     "get_csrf_token",
+    "UserContextMiddleware",
 ]

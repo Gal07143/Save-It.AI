@@ -251,7 +251,7 @@ class MaintenanceSchedule(Base):
     """MaintenanceSchedule model for tracking device maintenance."""
     __tablename__ = "maintenance_schedules"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     data_source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)

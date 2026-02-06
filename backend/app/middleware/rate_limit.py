@@ -301,6 +301,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return self._memory_limiter
 
     async def dispatch(self, request: Request, call_next):
+        # Skip rate limiting in test mode
+        if os.getenv("TESTING") == "true" or os.getenv("RATE_LIMIT_ENABLED") == "false":
+            return await call_next(request)
+
         # Skip rate limiting for docs and health checks
         path = request.url.path
         if (

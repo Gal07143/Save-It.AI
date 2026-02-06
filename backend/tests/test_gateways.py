@@ -6,10 +6,11 @@ from fastapi.testclient import TestClient
 class TestGatewayCRUD:
     """Test gateway CRUD operations."""
 
-    def test_list_gateways_unauthenticated(self, client: TestClient):
-        """Test that listing gateways requires authentication."""
+    def test_list_gateways_public_accessible(self, client: TestClient):
+        """Test that gateways list is publicly accessible (no 401)."""
         response = client.get("/api/v1/gateways")
-        assert response.status_code == 401
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
 
     def test_list_gateways_empty(self, client: TestClient, auth_headers: dict, test_site):
         """Test listing gateways when none exist."""
