@@ -45,40 +45,53 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "SAVE-IT.AI"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    DEBUG: bool = False
+    ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
 
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    # API Settings
+    API_V1_PREFIX: str = "/api/v1"
+    PROJECT_NAME: str = "Save-It.AI"
+
+    DATABASE_URL: str = ""
 
     # Security settings
     SESSION_SECRET: str = get_session_secret()
-    ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "http://localhost:5000")
+    SECRET_KEY: str = ""
+    CSRF_SECRET_KEY: str = ""
+    ALLOWED_ORIGINS: str = "http://localhost:5000"
+    CORS_ORIGINS: str = ""
 
     # Redis for rate limiting and caching (optional)
-    REDIS_URL: str = os.getenv("REDIS_URL", "")
+    REDIS_URL: str = ""
 
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
 
     # MQTT Broker Settings
-    MQTT_BROKER_HOST: str = os.getenv("MQTT_BROKER_HOST", "0.0.0.0")
-    MQTT_BROKER_PORT: int = int(os.getenv("MQTT_BROKER_PORT", "1883"))
-    MQTT_BROKER_TLS_PORT: int = int(os.getenv("MQTT_BROKER_TLS_PORT", "8883"))
-    MQTT_PUBLIC_HOST: str = os.getenv("MQTT_PUBLIC_HOST", "localhost")
-    MQTT_ENABLE_TLS: bool = os.getenv("MQTT_ENABLE_TLS", "false").lower() == "true"
+    MQTT_BROKER_HOST: str = "localhost"
+    MQTT_BROKER_PORT: int = 1883
+    MQTT_BROKER_TLS_PORT: int = 8883
+    MQTT_PUBLIC_HOST: str = "localhost"
+    MQTT_ENABLE_TLS: bool = False
+    MQTT_USERNAME: str = ""
+    MQTT_PASSWORD: str = ""
 
-    EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "smtp")
-    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
-    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER: str = os.getenv("SMTP_USER", "")
-    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
-    SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
+    EMAIL_PROVIDER: str = "smtp"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    SENDGRID_API_KEY: str = ""
 
-    WEBHOOK_BASE_URL: str = os.getenv("WEBHOOK_BASE_URL", "")
-    API_BASE_URL: str = os.getenv("API_BASE_URL", "")
+    WEBHOOK_BASE_URL: str = ""
+    API_BASE_URL: str = ""
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
     @property
     def allowed_origins_list(self) -> List[str]:
