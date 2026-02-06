@@ -8,12 +8,12 @@ import csv
 import io
 import socket
 
-from backend.app.core.database import get_db
-from backend.app.models import DataSource, Gateway, DeviceTemplate, ModbusRegister, CommunicationLog
-from backend.app.models.integrations import MaintenanceSchedule, DeviceAlert
-from backend.app.schemas import DataSourceCreate, DataSourceResponse
-from backend.app.schemas.enterprise import DataSourceUpdate
-from backend.app.schemas.integrations import (
+from app.core.database import get_db
+from app.models import DataSource, Gateway, DeviceTemplate, ModbusRegister, CommunicationLog
+from app.models.integrations import MaintenanceSchedule, DeviceAlert
+from app.schemas import DataSourceCreate, DataSourceResponse
+from app.schemas.enterprise import DataSourceUpdate
+from app.schemas.integrations import (
     BulkDeviceImportRequest, BulkDeviceImportResponse, BulkImportResultRow,
     DeviceHealthDashboard, DeviceHealthSummary
 )
@@ -328,8 +328,8 @@ def get_device_health_dashboard(
 
 # ===================== Data Validation Rules =====================
 
-from backend.app.models.integrations import DataValidationRule, ValidationViolation, DeviceGroup, DeviceGroupMember
-from backend.app.schemas.integrations import (
+from app.models.integrations import DataValidationRule, ValidationViolation, DeviceGroup, DeviceGroupMember
+from app.schemas.integrations import (
     DataValidationRuleCreate, DataValidationRuleUpdate, DataValidationRuleResponse,
     ValidationViolationResponse, DeviceGroupCreate, DeviceGroupUpdate,
     DeviceGroupResponse, DeviceGroupMemberCreate, DeviceGroupMemberResponse
@@ -634,7 +634,7 @@ def remove_device_from_group(
 
 # ============ RETRY LOGIC ENDPOINTS ============
 
-from backend.app.schemas.integrations import (
+from app.schemas.integrations import (
     RetryConfigUpdate, RetryStatusResponse, ConnectionAttemptResult, RetryQueueItem
 )
 
@@ -876,7 +876,7 @@ def force_retry_now(
 
 # ============ FIRMWARE TRACKING ENDPOINTS ============
 
-from backend.app.schemas.integrations import FirmwareUpdate, FirmwareInfo, FirmwareSummary
+from app.schemas.integrations import FirmwareUpdate, FirmwareInfo, FirmwareSummary
 
 
 @router.get("/firmware", response_model=List[FirmwareInfo])
@@ -1115,7 +1115,7 @@ def clone_data_source(
     db.commit()
     db.refresh(new_source)
     
-    from backend.app.models.integrations import ModbusRegister
+    from app.models.integrations import ModbusRegister
     
     original_registers = db.query(ModbusRegister).filter(
         ModbusRegister.data_source_id == source_id
@@ -1528,9 +1528,9 @@ def delete_device_alert(alert_id: int, db: Session = Depends(get_db)) -> Dict[st
 @router.delete("/{source_id}")
 def delete_data_source(source_id: int, db: Session = Depends(get_db)):
     """Delete a data source by ID, cleaning up all related records."""
-    from backend.app.models.integrations import DataValidationRule, ValidationViolation, DeviceGroupMember
-    from backend.app.models.core import Asset
-    from backend.app.models.enterprise import Measurement
+    from app.models.integrations import DataValidationRule, ValidationViolation, DeviceGroupMember
+    from app.models.core import Asset
+    from app.models.enterprise import Measurement
     
     source = db.query(DataSource).filter(DataSource.id == source_id).first()
     if not source:

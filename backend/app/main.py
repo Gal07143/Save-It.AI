@@ -9,7 +9,7 @@ import os
 import sys
 import logging
 
-from backend.app.core.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +20,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from backend.app.core.database import Base, engine, SessionLocal
-from backend.app.api.routers import all_routers
-from backend.app.routers.infrastructure import router as infrastructure_router
-from backend.app.middleware import (
+from app.core.database import Base, engine, SessionLocal
+from app.api.routers import all_routers
+from app.routers.infrastructure import router as infrastructure_router
+from app.middleware import (
     RateLimitMiddleware,
     AuditLogMiddleware,
     RequestLogMiddleware,
@@ -34,14 +34,14 @@ from backend.app.middleware import (
     CSRFMiddleware,
     UserContextMiddleware,
 )
-from backend.app.middleware.multi_tenant import MultiTenantMiddleware
-from backend.app.core.config import validate_startup_config
+from app.middleware.multi_tenant import MultiTenantMiddleware
+from app.core.config import validate_startup_config
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events - create all database tables and seed data."""
-    from backend.app.models import (
+    from app.models import (
         Site, Asset, Meter, MeterReading, Bill, BillLineItem, Tariff, TariffRate, Notification,
         DataSource, Measurement, Tenant, LeaseContract, Invoice, BatterySpecs,
         BESSVendor, BESSModel, BESSDataset, BESSDataReading, BESSSimulationResult,
@@ -54,16 +54,16 @@ async def lifespan(app: FastAPI):
         AgentSession, AgentMessage, Recommendation, ForecastJob, ForecastSeries,
         ControlRule, SafetyGate, ControlCommand
     )
-    from backend.app.models.integrations import DeviceTemplate, TemplateRegister, Gateway, ModbusRegister, CommunicationLog
-    from backend.app.models.devices import (
+    from app.models.integrations import DeviceTemplate, TemplateRegister, Gateway, ModbusRegister, CommunicationLog
+    from app.models.devices import (
         DeviceModel, DeviceProduct, Device, Datapoint, Command, AlarmRule,
         DevicePolicy, DeviceCertificate, DeviceDatapoint, CommandExecution,
         DeviceTelemetry, ProductRegisterMapping, RemoteModbusConfig, DeviceEvent
     )
-    from backend.app.services.seed_templates import seed_device_templates
-    from backend.app.services.seed_device_data import seed_all_device_data
-    from backend.app.services.job_queue import job_queue
-    from backend.app.core.database import SessionLocal
+    from app.services.seed_templates import seed_device_templates
+    from app.services.seed_device_data import seed_all_device_data
+    from app.services.job_queue import job_queue
+    from app.core.database import SessionLocal
     
     # Database tables: SQLAlchemy's create_all() is idempotent - it only creates
     # tables that don't exist, so it's safe to run in all environments.
@@ -91,12 +91,12 @@ async def lifespan(app: FastAPI):
         await job_queue.start()
         logger.info("Background job queue started")
 
-        from backend.app.services.polling_service import polling_service
-        from backend.app.services.scheduler_service import scheduler_service, register_default_tasks
-        from backend.app.services.event_bus import event_bus, register_default_handlers
-        from backend.app.services.health_service import health_service
-        from backend.app.services.service_discovery import service_registry, register_local_services
-        from backend.app.services.graceful_shutdown import shutdown_service
+        from app.services.polling_service import polling_service
+        from app.services.scheduler_service import scheduler_service, register_default_tasks
+        from app.services.event_bus import event_bus, register_default_handlers
+        from app.services.health_service import health_service
+        from app.services.service_discovery import service_registry, register_local_services
+        from app.services.graceful_shutdown import shutdown_service
 
         await polling_service.start()
         logger.info("Polling service started")
@@ -125,8 +125,8 @@ async def lifespan(app: FastAPI):
         # Start MQTT Subscriber for IoT device communication
         # Note: Uses external Mosquitto broker (not Python amqtt) for better reliability.
         # Mosquitto should be running on localhost:1883
-        from backend.app.services.mqtt_subscriber import mqtt_subscriber, DataIngestionHandler
-        from backend.app.services.mqtt_credentials import mqtt_credential_manager
+        from app.services.mqtt_subscriber import mqtt_subscriber, DataIngestionHandler
+        from app.services.mqtt_credentials import mqtt_credential_manager
         import asyncio
 
         try:
@@ -161,7 +161,7 @@ async def lifespan(app: FastAPI):
     yield
 
     if os.getenv("TESTING") != "true":
-        from backend.app.services.graceful_shutdown import shutdown_service
+        from app.services.graceful_shutdown import shutdown_service
         await shutdown_service.shutdown()
         logger.info("Background services stopped")
 
@@ -255,7 +255,7 @@ def health_check():
 def api_health_check():
     """Detailed API health check with component status."""
     from sqlalchemy import text
-    from backend.app.services.mqtt_broker import mqtt_broker
+    from app.services.mqtt_broker import mqtt_broker
 
     components = {
         "api": {"status": "healthy"},
@@ -316,7 +316,7 @@ def readiness_probe():
 def prometheus_metrics():
     """Prometheus metrics endpoint."""
     from fastapi.responses import PlainTextResponse
-    from backend.app.services.metrics_service import metrics_registry, update_database_pool_metrics
+    from app.services.metrics_service import metrics_registry, update_database_pool_metrics
 
     # Update dynamic metrics
     update_database_pool_metrics()

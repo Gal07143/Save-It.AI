@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.device_group_service import (
+from app.core.database import get_db
+from app.services.device_group_service import (
     DeviceGroupService,
     get_device_group_service,
 )
@@ -155,7 +155,7 @@ def get_group(
     db: Session = Depends(get_db)
 ):
     """Get a device group by ID."""
-    from backend.app.services.device_group_service import DeviceGroup
+    from app.services.device_group_service import DeviceGroup
 
     group = db.query(DeviceGroup).filter(DeviceGroup.id == group_id).first()
     if not group:

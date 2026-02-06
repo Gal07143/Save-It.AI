@@ -6,9 +6,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.devices import DevicePolicy, Device
-from backend.app.schemas.devices import (
+from app.core.database import get_db
+from app.models.devices import DevicePolicy, Device
+from app.schemas.devices import (
     DevicePolicyCreate, DevicePolicyUpdate, DevicePolicyResponse,
 )
 

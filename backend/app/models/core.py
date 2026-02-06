@@ -4,8 +4,8 @@ from datetime import datetime, date, time
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Enum, Text, Date, Time
 from sqlalchemy.orm import relationship
 
-from backend.app.core.database import Base
-from backend.app.models.base import AssetType, NotificationType, SoftDeleteMixin, BooleanInt
+from app.core.database import Base
+from app.models.base import AssetType, NotificationType, SoftDeleteMixin, BooleanInt
 
 
 class Site(SoftDeleteMixin, Base):

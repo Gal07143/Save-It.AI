@@ -7,7 +7,7 @@ from sqlalchemy import Column, DateTime, Integer, event
 from sqlalchemy.orm import declared_attr, Query
 from sqlalchemy.types import TypeDecorator
 
-from backend.app.core.database import Base
+from app.core.database import Base
 
 
 class BooleanInt(TypeDecorator):

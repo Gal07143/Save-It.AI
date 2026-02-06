@@ -189,7 +189,7 @@ async def poll_modbus_device(data_source_id: int, metadata: Dict):
     logger.debug(f"Polling Modbus device: {data_source_id}")
     
     try:
-        from backend.app.services.modbus_manager import modbus_manager
+        from app.services.modbus_manager import modbus_manager
         
         connection_id = metadata.get("connection_id")
         register_map = metadata.get("register_map", [])

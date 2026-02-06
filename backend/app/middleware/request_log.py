@@ -4,7 +4,7 @@ import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from backend.app.utils.ip import get_client_ip
+from app.utils.ip import get_client_ip
 
 logger = logging.getLogger("saveit.requests")
 logger.setLevel(logging.INFO)

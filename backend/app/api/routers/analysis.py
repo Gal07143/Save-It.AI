@@ -7,17 +7,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 import numpy_financial as npf
 
-from backend.app.core.database import get_db
-from backend.app.models import Site, Meter, Bill, Asset, Tariff
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import Site, Meter, Bill, Asset, Tariff
+from app.schemas import (
     GapAnalysisResult,
     BESSSimulationInput,
     BESSSimulationResult,
     PVSizingRequest,
     PVSizingResponse,
 )
-from backend.app.services.digital_twin.gap_analysis import GapAnalysisService
-from backend.app.services.optimization.solar_roi import SolarROICalculator, SolarROIInput, SolarROIResult
+from app.services.digital_twin.gap_analysis import GapAnalysisService
+from app.services.optimization.solar_roi import SolarROICalculator, SolarROIInput, SolarROIResult
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 

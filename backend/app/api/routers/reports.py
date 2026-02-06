@@ -12,8 +12,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-from backend.app.core.database import get_db
-from backend.app.models import Site, Meter, Bill, Asset
+from app.core.database import get_db
+from app.models import Site, Meter, Bill, Asset
 
 router = APIRouter(prefix="/api/v1", tags=["reports"])
 

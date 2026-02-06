@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
-from backend.app.models.asset import AssetType
+from app.models.asset import AssetType
 
 
 class AssetBase(BaseModel):

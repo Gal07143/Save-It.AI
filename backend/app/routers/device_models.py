@@ -6,15 +6,15 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.devices import DeviceModel, Datapoint, Command, AlarmRule, Device
-from backend.app.schemas.devices import (
+from app.core.database import get_db
+from app.models.devices import DeviceModel, Datapoint, Command, AlarmRule, Device
+from app.schemas.devices import (
     DeviceModelCreate, DeviceModelUpdate, DeviceModelResponse,
     DatapointCreate, DatapointUpdate, DatapointResponse,
     CommandCreate, CommandUpdate, CommandResponse,
     AlarmRuleCreate, AlarmRuleUpdate, AlarmRuleResponse,
 )
-from backend.app.services.model_propagation import get_propagation_service
+from app.services.model_propagation import get_propagation_service
 
 router = APIRouter(prefix="/api/v1/device-models", tags=["Device Models"])
 

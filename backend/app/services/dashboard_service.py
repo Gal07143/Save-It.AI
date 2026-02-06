@@ -16,7 +16,7 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 
-from backend.app.core.database import Base
+from app.core.database import Base
 
 logger = logging.getLogger(__name__)
 
@@ -484,7 +484,7 @@ class DashboardService:
         if not device_id or not datapoint:
             return {"value": 0, "min": 0, "max": 100}
 
-        from backend.app.models.devices import DeviceTelemetry
+        from app.models.devices import DeviceTelemetry
 
         latest = self.db.query(DeviceTelemetry).filter(
             DeviceTelemetry.device_id == device_id,
@@ -508,7 +508,7 @@ class DashboardService:
         if not device_id:
             return []
 
-        from backend.app.models.devices import DeviceTelemetry
+        from app.models.devices import DeviceTelemetry
         from datetime import timedelta
 
         cutoff = datetime.utcnow() - timedelta(hours=hours)
@@ -533,7 +533,7 @@ class DashboardService:
 
     def _fetch_alarm_data(self, data_source: Dict) -> List[Dict]:
         """Fetch alarm list data."""
-        from backend.app.models.telemetry import DeviceAlarm, AlarmStatus
+        from app.models.telemetry import DeviceAlarm, AlarmStatus
 
         limit = data_source.get("limit", 10)
         severities = data_source.get("severities", None)
@@ -562,7 +562,7 @@ class DashboardService:
 
     def _fetch_device_status_data(self, data_source: Dict) -> Dict:
         """Fetch device status summary."""
-        from backend.app.models.devices import Device
+        from app.models.devices import Device
 
         site_id = data_source.get("site_id")
 
@@ -590,7 +590,7 @@ class DashboardService:
         if not kpi_id:
             return {"value": 0, "label": "N/A"}
 
-        from backend.app.models.telemetry import KPIValue
+        from app.models.telemetry import KPIValue
 
         latest = self.db.query(KPIValue).filter(
             KPIValue.kpi_id == kpi_id

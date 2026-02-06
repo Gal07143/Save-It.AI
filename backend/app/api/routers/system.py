@@ -4,10 +4,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.platform import APIKey, Organization, User, AuditLog, UserRole
-from backend.app.middleware.api_key_auth import generate_api_key, hash_api_key
-from backend.app.api.routers.auth import get_current_user
+from app.core.database import get_db
+from app.models.platform import APIKey, Organization, User, AuditLog, UserRole
+from app.middleware.api_key_auth import generate_api_key, hash_api_key
+from app.api.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/system", tags=["System"])
 
@@ -293,7 +293,7 @@ def trigger_backup(admin: User = Depends(require_admin)):
 @router.get("/jobs")
 def list_jobs(status: Optional[str] = Query(None)):
     """List background jobs and their status."""
-    from backend.app.services.job_queue import job_queue
+    from app.services.job_queue import job_queue
     
     jobs = []
     for job_id, job in job_queue._jobs.items():
@@ -310,7 +310,7 @@ def list_jobs(status: Optional[str] = Query(None)):
 @router.get("/jobs/{job_id}")
 def get_job_status(job_id: str):
     """Get status of a specific background job."""
-    from backend.app.services.job_queue import job_queue
+    from app.services.job_queue import job_queue
     
     status = job_queue.get_status(job_id)
     if not status:
@@ -322,7 +322,7 @@ def get_job_status(job_id: str):
 @router.post("/jobs/{job_id}/cancel")
 def cancel_job(job_id: str):
     """Cancel a pending background job."""
-    from backend.app.services.job_queue import job_queue
+    from app.services.job_queue import job_queue
     
     if job_queue.cancel(job_id):
         return {"success": True, "message": "Job cancelled"}
@@ -333,7 +333,7 @@ def cancel_job(job_id: str):
 @router.get("/cache/stats")
 def get_cache_stats():
     """Get cache statistics."""
-    from backend.app.middleware.cache import cache
+    from app.middleware.cache import cache
     
     return cache.stats()
 
@@ -341,7 +341,7 @@ def get_cache_stats():
 @router.post("/cache/clear")
 def clear_cache(pattern: Optional[str] = Query(None), admin: User = Depends(require_admin)):
     """Clear cache entries, optionally filtered by pattern."""
-    from backend.app.middleware.cache import cache
+    from app.middleware.cache import cache
     
     if pattern:
         count = cache.clear_pattern(pattern)
@@ -354,7 +354,7 @@ def clear_cache(pattern: Optional[str] = Query(None), admin: User = Depends(requ
 @router.get("/timescale/status")
 def get_timescale_status(db: Session = Depends(get_db)):
     """Check TimescaleDB status and hypertable information."""
-    from backend.app.services.timescale import check_timescaledb_available, HYPERTABLE_CONFIGS, get_hypertable_stats
+    from app.services.timescale import check_timescaledb_available, HYPERTABLE_CONFIGS, get_hypertable_stats
     
     available = check_timescaledb_available(db)
     
@@ -373,7 +373,7 @@ def get_timescale_status(db: Session = Depends(get_db)):
 @router.post("/timescale/initialize")
 def initialize_timescale(db: Session = Depends(get_db)):
     """Initialize TimescaleDB hypertables for time-series data."""
-    from backend.app.services.timescale import initialize_timescaledb
+    from app.services.timescale import initialize_timescaledb
     
     result = initialize_timescaledb(db)
     return result
@@ -382,14 +382,14 @@ def initialize_timescale(db: Session = Depends(get_db)):
 @router.get("/version")
 def get_api_version():
     """Get API version information."""
-    from backend.app.core.versioning import version_info
+    from app.core.versioning import version_info
     return version_info()
 
 
 @router.get("/database/pool")
 def get_database_pool_status():
     """Get database connection pool status."""
-    from backend.app.core.database import get_pool_status
+    from app.core.database import get_pool_status
     return get_pool_status()
 
 

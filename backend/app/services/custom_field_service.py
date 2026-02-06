@@ -16,7 +16,7 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Index
 
-from backend.app.core.database import Base
+from app.core.database import Base
 
 logger = logging.getLogger(__name__)
 

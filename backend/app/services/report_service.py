@@ -16,7 +16,7 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 
-from backend.app.core.database import Base
+from app.core.database import Base
 
 logger = logging.getLogger(__name__)
 
@@ -379,7 +379,7 @@ class ReportService:
         filters: Dict
     ) -> List[Dict]:
         """Gather telemetry summary data."""
-        from backend.app.models.devices import DeviceTelemetry
+        from app.models.devices import DeviceTelemetry
         from sqlalchemy import func
 
         query = self.db.query(
@@ -424,7 +424,7 @@ class ReportService:
         filters: Dict
     ) -> List[Dict]:
         """Gather alarm summary data."""
-        from backend.app.models.telemetry import DeviceAlarm
+        from app.models.telemetry import DeviceAlarm
         from sqlalchemy import func
 
         query = self.db.query(
@@ -452,7 +452,7 @@ class ReportService:
         filters: Dict
     ) -> List[Dict]:
         """Gather device status data."""
-        from backend.app.models.devices import Device
+        from app.models.devices import Device
 
         devices = self.db.query(Device).filter(Device.is_active == 1).all()
 
@@ -482,7 +482,7 @@ class ReportService:
     ) -> List[Dict]:
         """Gather uptime report data."""
         # Simplified uptime calculation
-        from backend.app.models.devices import DeviceEvent, Device
+        from app.models.devices import DeviceEvent, Device
 
         devices = self.db.query(Device).filter(Device.is_active == 1).all()
 
@@ -518,7 +518,7 @@ class ReportService:
         filters: Dict
     ) -> List[Dict]:
         """Gather KPI report data."""
-        from backend.app.models.telemetry import KPIDefinition, KPIValue
+        from app.models.telemetry import KPIDefinition, KPIValue
 
         kpis = self.db.query(KPIDefinition).filter(
             KPIDefinition.is_active == 1

@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import (
+from app.models.devices import (
     DeviceModel, Device, Datapoint, Command, AlarmRule,
     DeviceDatapoint
 )

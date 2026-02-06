@@ -1,6 +1,6 @@
 """Seed device templates with common meter profiles."""
 from sqlalchemy.orm import Session
-from backend.app.models.integrations import DeviceTemplate, TemplateRegister, RegisterType, DataType, ByteOrder
+from app.models.integrations import DeviceTemplate, TemplateRegister, RegisterType, DataType, ByteOrder
 
 
 def seed_device_templates(db: Session):

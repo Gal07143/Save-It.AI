@@ -53,8 +53,8 @@ class UserContextMiddleware(BaseHTTPMiddleware):
 
     def _get_user_from_token(self, token: str):
         """Decode token and fetch user from database."""
-        from backend.app.api.routers.auth import decode_access_token
-        from backend.app.models import User
+        from app.api.routers.auth import decode_access_token
+        from app.models import User
 
         payload = decode_access_token(token)
         if not payload:

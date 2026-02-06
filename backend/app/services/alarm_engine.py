@@ -16,10 +16,10 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
-from backend.app.models.devices import (
+from app.models.devices import (
     Device, Datapoint, AlarmRule, AlarmCondition, AlarmSeverity
 )
-from backend.app.models.telemetry import (
+from app.models.telemetry import (
     DeviceAlarm, AlarmStatus, NoDataTracker
 )
 

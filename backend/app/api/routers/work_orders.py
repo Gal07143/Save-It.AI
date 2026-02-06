@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.maintenance_service import (
+from app.core.database import get_db
+from app.services.maintenance_service import (
     MaintenanceService,
     MaintenanceType,
     MaintenancePriority,
@@ -159,7 +159,7 @@ def list_schedules(
     organization_id: int = 1
 ):
     """List maintenance schedules."""
-    from backend.app.services.maintenance_service import MaintenanceSchedule
+    from app.services.maintenance_service import MaintenanceSchedule
 
     schedules = db.query(MaintenanceSchedule).filter(
         MaintenanceSchedule.organization_id == organization_id,
@@ -275,7 +275,7 @@ def list_work_orders(
     organization_id: int = 1
 ):
     """List work orders."""
-    from backend.app.services.maintenance_service import WorkOrder
+    from app.services.maintenance_service import WorkOrder
 
     query = db.query(WorkOrder).filter(WorkOrder.organization_id == organization_id)
 

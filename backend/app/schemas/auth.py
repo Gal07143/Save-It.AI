@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
-from backend.app.schemas.platform import UserRole, UserResponse
+from app.schemas.platform import UserRole, UserResponse
 
 
 class LoginRequest(BaseModel):

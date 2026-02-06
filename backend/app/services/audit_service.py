@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
-from backend.app.models.platform import AuditLog, AuditAction
+from app.models.platform import AuditLog, AuditAction
 
 logger = logging.getLogger(__name__)
 

@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 import bcrypt
 from jose import JWTError, jwt
 
-from backend.app.core.database import get_db
-from backend.app.models import User, Organization, UserRole
-from backend.app.utils.password import hash_password, verify_password as verify_pw
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import User, Organization, UserRole
+from app.utils.password import hash_password, verify_password as verify_pw
+from app.schemas import (
     LoginRequest,
     RegisterRequest,
     TokenResponse,

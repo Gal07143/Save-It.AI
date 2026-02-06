@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.health_monitor import (
+from app.core.database import get_db
+from app.services.health_monitor import (
     HealthMonitor,
     HealthStatus,
     get_health_monitor,

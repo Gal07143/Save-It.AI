@@ -7,9 +7,9 @@ with the list of active connected Meters to identify missing/unmetered nodes.
 from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 
-from backend.app.models import Asset, Meter, Site
-from backend.app.models.base import AssetType
-from backend.app.schemas import GapAnalysisResult, UnmeteredAsset
+from app.models import Asset, Meter, Site
+from app.models.base import AssetType
+from app.schemas import GapAnalysisResult, UnmeteredAsset
 
 
 class GapAnalysisService:

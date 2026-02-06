@@ -4,10 +4,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.integrations import ModbusRegister, RegisterType, DataType, ByteOrder
-from backend.app.models import DataSource
-from backend.app.schemas.integrations import (
+from app.core.database import get_db
+from app.models.integrations import ModbusRegister, RegisterType, DataType, ByteOrder
+from app.models import DataSource
+from app.schemas.integrations import (
     ModbusRegisterCreate,
     ModbusRegisterUpdate,
     ModbusRegisterResponse,

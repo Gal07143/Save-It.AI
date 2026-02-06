@@ -14,8 +14,8 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import Device
-from backend.app.models.integrations import DeviceGroup, DeviceGroupMember
+from app.models.devices import Device
+from app.models.integrations import DeviceGroup, DeviceGroupMember
 
 logger = logging.getLogger(__name__)
 
@@ -341,7 +341,7 @@ class DeviceGroupService:
         offline = len(devices) - online
 
         # Count devices with active alarms
-        from backend.app.models.telemetry import DeviceAlarm, AlarmStatus
+        from app.models.telemetry import DeviceAlarm, AlarmStatus
 
         alarm_device_ids = set(
             a.device_id for a in
@@ -441,7 +441,7 @@ class DeviceGroupService:
         failed = 0
         errors = []
 
-        from backend.app.services.config_sync_service import get_config_sync_service
+        from app.services.config_sync_service import get_config_sync_service
 
         sync_service = get_config_sync_service(self.db)
 

@@ -5,14 +5,14 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from backend.app.core.database import get_db
-from backend.app.models import Site, User, UserRole, Meter, Asset
-from backend.app.models.telemetry import DeviceAlarm, AlarmStatus
-from backend.app.models.devices import Device
-from backend.app.models.base import soft_delete_filter, include_deleted_filter
-from backend.app.schemas import SiteCreate, SiteUpdate, SiteResponse
-from backend.app.middleware.multi_tenant import TenantContext, MultiTenantValidation
-from backend.app.api.routers.auth import get_current_user
+from app.core.database import get_db
+from app.models import Site, User, UserRole, Meter, Asset
+from app.models.telemetry import DeviceAlarm, AlarmStatus
+from app.models.devices import Device
+from app.models.base import soft_delete_filter, include_deleted_filter
+from app.schemas import SiteCreate, SiteUpdate, SiteResponse
+from app.middleware.multi_tenant import TenantContext, MultiTenantValidation
+from app.api.routers.auth import get_current_user
 
 
 class SiteStatsResponse(BaseModel):

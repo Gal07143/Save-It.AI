@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.integrations import DeviceTemplate, TemplateRegister, ModbusRegister
-from backend.app.models import DataSource
-from backend.app.schemas.integrations import (
+from app.core.database import get_db
+from app.models.integrations import DeviceTemplate, TemplateRegister, ModbusRegister
+from app.models import DataSource
+from app.schemas.integrations import (
     DeviceTemplateCreate,
     DeviceTemplateUpdate,
     DeviceTemplateResponse,
@@ -16,7 +16,7 @@ from backend.app.schemas.integrations import (
     TemplateRegisterResponse,
     ApplyTemplateRequest,
 )
-from backend.app.services.seed_templates import seed_device_templates
+from app.services.seed_templates import seed_device_templates
 
 router = APIRouter(prefix="/api/v1/device-templates", tags=["device-templates"])
 

@@ -3,11 +3,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import ControlRule, ControlCommand
-from backend.app.models.devices import Command, AlarmRule, RemoteModbusConfig, DeviceModel
-from backend.app.schemas import ControlRuleCreate, ControlRuleResponse, ControlCommandResponse
-from backend.app.schemas.devices import (
+from app.core.database import get_db
+from app.models import ControlRule, ControlCommand
+from app.models.devices import Command, AlarmRule, RemoteModbusConfig, DeviceModel
+from app.schemas import ControlRuleCreate, ControlRuleResponse, ControlCommandResponse
+from app.schemas.devices import (
     CommandCreate, CommandUpdate, CommandResponse,
     AlarmRuleCreate, AlarmRuleUpdate, AlarmRuleResponse,
     RemoteModbusConfigCreate, RemoteModbusConfigUpdate, RemoteModbusConfigResponse,
@@ -279,7 +279,7 @@ def update_remote_modbus_config(config_id: int, updates: RemoteModbusConfigUpdat
         setattr(config, key, value)
 
     # Mark as pending sync when config changes
-    from backend.app.models.devices import ConfigSyncStatus
+    from app.models.devices import ConfigSyncStatus
     config.sync_status = ConfigSyncStatus.PENDING
 
     db.commit()

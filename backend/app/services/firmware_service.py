@@ -20,8 +20,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
-from backend.app.core.database import Base
-from backend.app.models.devices import Device, DeviceProduct
+from app.core.database import Base
+from app.models.devices import Device, DeviceProduct
 
 logger = logging.getLogger(__name__)
 

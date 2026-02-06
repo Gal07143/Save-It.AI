@@ -4,9 +4,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import AgentSession, AgentMessage, Recommendation
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import AgentSession, AgentMessage, Recommendation
+from app.schemas import (
     AgentChatRequest,
     AgentChatResponse,
     RecommendationResponse,

@@ -16,8 +16,8 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import Device, DeviceType
-from backend.app.models.integrations import DeviceTemplate
+from app.models.devices import Device, DeviceType
+from app.models.integrations import DeviceTemplate
 
 logger = logging.getLogger(__name__)
 

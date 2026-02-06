@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 
-from backend.app.models.devices import Device, DeviceEvent, AlarmSeverity
+from app.models.devices import Device, DeviceEvent, AlarmSeverity
 
 logger = logging.getLogger(__name__)
 

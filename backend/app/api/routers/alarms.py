@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.alarm_engine import AlarmEngine
-from backend.app.models.telemetry import DeviceAlarm, AlarmStatus
+from app.core.database import get_db
+from app.services.alarm_engine import AlarmEngine
+from app.models.telemetry import DeviceAlarm, AlarmStatus
 
 router = APIRouter(prefix="/alarms", tags=["Alarms"])
 
@@ -343,7 +343,7 @@ def get_site_alarms(
     """
     Get alarms for all devices at a site.
     """
-    from backend.app.models.devices import Device
+    from app.models.devices import Device
 
     query = db.query(DeviceAlarm).join(Device).filter(Device.site_id == site_id)
 

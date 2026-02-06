@@ -18,8 +18,8 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 
-from backend.app.core.database import Base
-from backend.app.models.devices import Device, DeviceTelemetry
+from app.core.database import Base
+from app.models.devices import Device, DeviceTelemetry
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,7 @@ class ExportService:
         organization_id: Optional[int] = None
     ) -> Generator[Dict[str, Any], None, None]:
         """Fetch alarm data."""
-        from backend.app.models.telemetry import DeviceAlarm
+        from app.models.telemetry import DeviceAlarm
 
         query = self.db.query(DeviceAlarm)
 
@@ -340,7 +340,7 @@ class ExportService:
         organization_id: Optional[int] = None
     ) -> Generator[Dict[str, Any], None, None]:
         """Fetch audit log data."""
-        from backend.app.models.platform import AuditLog
+        from app.models.platform import AuditLog
 
         query = self.db.query(AuditLog)
 

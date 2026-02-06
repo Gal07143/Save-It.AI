@@ -39,27 +39,27 @@ Platform Features (Week 8):
 """
 
 # Core Services
-from backend.app.services.telemetry_service import (
+from app.services.telemetry_service import (
     TelemetryService,
     TelemetryRecord,
     TelemetryValue,
     get_telemetry_service,
 )
 
-from backend.app.services.alarm_engine import (
+from app.services.alarm_engine import (
     AlarmEngine,
     AlarmEvent,
     AlarmConditionEvaluator,
     get_alarm_engine,
 )
 
-from backend.app.services.aggregation_service import (
+from app.services.aggregation_service import (
     AggregationService,
     AggregationResult,
     get_aggregation_service,
 )
 
-from backend.app.services.kpi_engine import (
+from app.services.kpi_engine import (
     KPIEngine,
     KPIResult,
     TimeRange,
@@ -67,27 +67,27 @@ from backend.app.services.kpi_engine import (
 )
 
 # Device Management Services
-from backend.app.services.config_sync_service import (
+from app.services.config_sync_service import (
     ConfigSyncService,
     SyncResult,
     get_config_sync_service,
 )
 
-from backend.app.services.certificate_service import (
+from app.services.certificate_service import (
     CertificateService,
     CertificateBundle,
     ValidationResult,
     get_certificate_service,
 )
 
-from backend.app.services.event_service import (
+from app.services.event_service import (
     EventService,
     EventFilter,
     EventTimeline,
     get_event_service,
 )
 
-from backend.app.services.firmware_service import (
+from app.services.firmware_service import (
     FirmwareService,
     Firmware,
     FirmwareUpdate,
@@ -95,14 +95,14 @@ from backend.app.services.firmware_service import (
     get_firmware_service,
 )
 
-from backend.app.services.realtime_service import (
+from app.services.realtime_service import (
     RealtimeService,
     ConnectionInfo,
     get_realtime_service,
     websocket_handler,
 )
 
-from backend.app.services.discovery_service import (
+from app.services.discovery_service import (
     DiscoveryService,
     DiscoveredDevice,
     DeviceProbe,
@@ -110,21 +110,21 @@ from backend.app.services.discovery_service import (
 )
 
 # Enterprise Services
-from backend.app.services.tenant_service import (
+from app.services.tenant_service import (
     TenantService,
     TenantQuotas,
     TenantUsage,
     get_tenant_service,
 )
 
-from backend.app.services.audit_service import (
+from app.services.audit_service import (
     AuditService,
     AuditFilter,
     AuditMiddleware,
     get_audit_service,
 )
 
-from backend.app.services.workflow_engine import (
+from app.services.workflow_engine import (
     WorkflowEngine,
     WorkflowRule,
     WorkflowExecution,
@@ -133,7 +133,7 @@ from backend.app.services.workflow_engine import (
 )
 
 # Week 6 Services
-from backend.app.services.export_service import (
+from app.services.export_service import (
     ExportService,
     ExportConfig,
     ExportResult,
@@ -141,7 +141,7 @@ from backend.app.services.export_service import (
     get_export_service,
 )
 
-from backend.app.services.device_group_service import (
+from app.services.device_group_service import (
     DeviceGroupService,
     DeviceGroup,
     GroupStats,
@@ -149,7 +149,7 @@ from backend.app.services.device_group_service import (
     get_device_group_service,
 )
 
-from backend.app.services.dashboard_service import (
+from app.services.dashboard_service import (
     DashboardService,
     Dashboard,
     DashboardWidget,
@@ -159,7 +159,7 @@ from backend.app.services.dashboard_service import (
 )
 
 # Week 7 Services
-from backend.app.services.report_service import (
+from app.services.report_service import (
     ReportService,
     ReportTemplate,
     ReportSchedule,
@@ -167,7 +167,7 @@ from backend.app.services.report_service import (
     get_report_service,
 )
 
-from backend.app.services.geofence_service import (
+from app.services.geofence_service import (
     GeofenceService,
     Geofence,
     GeofenceEvent,
@@ -176,7 +176,7 @@ from backend.app.services.geofence_service import (
     get_geofence_service,
 )
 
-from backend.app.services.maintenance_service import (
+from app.services.maintenance_service import (
     MaintenanceService,
     MaintenanceSchedule,
     WorkOrder,
@@ -185,7 +185,7 @@ from backend.app.services.maintenance_service import (
     get_maintenance_service,
 )
 
-from backend.app.services.lifecycle_service import (
+from app.services.lifecycle_service import (
     LifecycleService,
     LifecycleState,
     LifecycleTransition,
@@ -196,7 +196,7 @@ from backend.app.services.lifecycle_service import (
 )
 
 # Week 8 Services
-from backend.app.services.validation_service import (
+from app.services.validation_service import (
     ValidationService,
     ValidationRule,
     ValidationResult as DataValidationResult,
@@ -205,7 +205,7 @@ from backend.app.services.validation_service import (
     get_validation_service,
 )
 
-from backend.app.services.health_monitor import (
+from app.services.health_monitor import (
     HealthMonitor,
     HealthStatus,
     ComponentHealth,
@@ -214,7 +214,7 @@ from backend.app.services.health_monitor import (
     get_health_monitor,
 )
 
-from backend.app.services.notification_service import (
+from app.services.notification_service import (
     NotificationService,
     NotificationChannel,
     NotificationPriority,
@@ -225,7 +225,7 @@ from backend.app.services.notification_service import (
     get_notification_service,
 )
 
-from backend.app.services.custom_field_service import (
+from app.services.custom_field_service import (
     CustomFieldService,
     CustomFieldDefinition,
     CustomFieldValue,
@@ -235,7 +235,7 @@ from backend.app.services.custom_field_service import (
 )
 
 # Data Ingestion (existing)
-from backend.app.services.data_ingestion import (
+from app.services.data_ingestion import (
     DataIngestionService,
     get_ingestion_service,
 )

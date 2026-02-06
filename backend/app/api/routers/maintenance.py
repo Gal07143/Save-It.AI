@@ -4,9 +4,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import MaintenanceAlert, AssetCondition, Asset
-from backend.app.schemas import MaintenanceAlertResponse, AssetConditionResponse
+from app.core.database import get_db
+from app.models import MaintenanceAlert, AssetCondition, Asset
+from app.schemas import MaintenanceAlertResponse, AssetConditionResponse
 
 router = APIRouter(prefix="/api/v1/maintenance", tags=["maintenance"])
 

@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 import pandas as pd
 import io
 
-from backend.app.core.database import get_db
-from backend.app.models import Meter, MeterReading
+from app.core.database import get_db
+from app.models import Meter, MeterReading
 
 router = APIRouter(prefix="/api/v1/ingestion", tags=["ingestion"])
 

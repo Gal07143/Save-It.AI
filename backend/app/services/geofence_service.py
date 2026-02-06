@@ -17,7 +17,7 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Float
 
-from backend.app.core.database import Base
+from app.core.database import Base
 
 logger = logging.getLogger(__name__)
 
@@ -424,7 +424,7 @@ class GeofenceService:
             return []
 
         # Get latest location for all devices
-        from backend.app.models.devices import Device
+        from app.models.devices import Device
 
         devices = self.db.query(Device).filter(Device.is_active == 1).all()
         inside_devices = []

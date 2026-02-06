@@ -320,7 +320,7 @@ class BackupService:
     
     async def _export_data(self, tables: Optional[List[str]] = None) -> dict:
         """Export data for backup using pg_dump or SQLAlchemy."""
-        from backend.app.core.database import SessionLocal, engine
+        from app.core.database import SessionLocal, engine
         from sqlalchemy import inspect, text
         import hashlib
         
@@ -409,7 +409,7 @@ class BackupService:
             dict with restore status and details
         """
         import json
-        from backend.app.core.database import SessionLocal, engine
+        from app.core.database import SessionLocal, engine
         from sqlalchemy import text
         
         job = next((b for b in self.backup_history if b.id == backup_id), None)

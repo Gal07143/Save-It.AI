@@ -220,7 +220,7 @@ class HealthService:
     async def _check_database(self) -> bool:
         """Check database connectivity."""
         try:
-            from backend.app.core.database import SessionLocal
+            from app.core.database import SessionLocal
             from sqlalchemy import text
             
             db = SessionLocal()
@@ -233,7 +233,7 @@ class HealthService:
     async def _check_polling_service(self) -> bool:
         """Check polling service status."""
         try:
-            from backend.app.services.polling_service import polling_service
+            from app.services.polling_service import polling_service
             return polling_service.running
         except Exception:
             return False
@@ -241,7 +241,7 @@ class HealthService:
     async def _check_scheduler_service(self) -> bool:
         """Check scheduler service status."""
         try:
-            from backend.app.services.scheduler_service import scheduler_service
+            from app.services.scheduler_service import scheduler_service
             return scheduler_service.running
         except Exception:
             return False

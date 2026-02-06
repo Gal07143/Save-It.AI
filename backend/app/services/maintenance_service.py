@@ -16,7 +16,7 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Float
 
-from backend.app.core.database import Base
+from app.core.database import Base
 
 logger = logging.getLogger(__name__)
 
@@ -414,7 +414,7 @@ class MaintenanceService:
         Returns:
             MaintenancePrediction or None
         """
-        from backend.app.models.devices import Device, DeviceTelemetry
+        from app.models.devices import Device, DeviceTelemetry
 
         device = self.db.query(Device).filter(Device.id == device_id).first()
         if not device:

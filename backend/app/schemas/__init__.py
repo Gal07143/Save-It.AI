@@ -1,6 +1,6 @@
 """Pydantic schemas for request/response validation."""
 
-from backend.app.schemas.base import (
+from app.schemas.base import (
     BaseModel,
     Field,
     ConfigDict,
@@ -13,7 +13,7 @@ from backend.app.schemas.base import (
     Any,
 )
 
-from backend.app.schemas.core import (
+from app.schemas.core import (
     AssetType,
     NotificationType,
     SiteCreate,
@@ -47,7 +47,7 @@ from backend.app.schemas.core import (
     SolarROIResult,
 )
 
-from backend.app.schemas.enterprise import (
+from app.schemas.enterprise import (
     DataSourceType,
     InvoiceStatus,
     DataSourceCreate,
@@ -62,7 +62,7 @@ from backend.app.schemas.enterprise import (
     InvoiceResponse,
 )
 
-from backend.app.schemas.bess import (
+from app.schemas.bess import (
     BESSVendorResponse,
     BESSModelResponse,
     BESSDatasetCreate,
@@ -74,7 +74,7 @@ from backend.app.schemas.bess import (
     BESSSimulationResult,
 )
 
-from backend.app.schemas.pv import (
+from app.schemas.pv import (
     PVModuleResponse,
     PVSurfaceCreate,
     PVSurfaceResponse,
@@ -88,7 +88,7 @@ from backend.app.schemas.pv import (
     PVSizingResponse,
 )
 
-from backend.app.schemas.platform import (
+from app.schemas.platform import (
     UserRole,
     AuditAction,
     FileStatus,
@@ -104,7 +104,7 @@ from backend.app.schemas.platform import (
     PeriodLockResponse,
 )
 
-from backend.app.schemas.auth import (
+from app.schemas.auth import (
     LoginRequest,
     RegisterRequest,
     TokenResponse,
@@ -115,7 +115,7 @@ from backend.app.schemas.auth import (
     ChangePasswordRequest,
 )
 
-from backend.app.schemas.data_quality import (
+from app.schemas.data_quality import (
     QualityIssueType,
     QualityIssueResponse,
     QualityIssueUpdate,
@@ -123,7 +123,7 @@ from backend.app.schemas.data_quality import (
     DataQualityDashboard,
 )
 
-from backend.app.schemas.virtual_meters import (
+from app.schemas.virtual_meters import (
     VirtualMeterType,
     VirtualMeterComponentCreate,
     VirtualMeterCreate,
@@ -131,7 +131,7 @@ from backend.app.schemas.virtual_meters import (
     VirtualMeterResponse,
 )
 
-from backend.app.schemas.maintenance import (
+from app.schemas.maintenance import (
     MaintenanceRuleType,
     MaintenanceCondition,
     MaintenanceAlertResponse,
@@ -140,7 +140,7 @@ from backend.app.schemas.maintenance import (
     MaintenanceScheduleResponse,
 )
 
-from backend.app.schemas.ai_forecasting import (
+from app.schemas.ai_forecasting import (
     AgentType,
     AgentChatRequest,
     AgentChatResponse,
@@ -153,7 +153,7 @@ from backend.app.schemas.ai_forecasting import (
     ForecastSeriesResponse,
 )
 
-from backend.app.schemas.control import (
+from app.schemas.control import (
     ControlRuleType,
     SafetyGateStatus,
     ControlRuleCreate,
@@ -164,7 +164,7 @@ from backend.app.schemas.control import (
     SafetyGateResponse,
 )
 
-from backend.app.schemas.reports import (
+from app.schemas.reports import (
     OCRBillResult,
     PanelDiagramResult,
     CarbonEmissionCreate,
@@ -175,7 +175,7 @@ from backend.app.schemas.reports import (
     ESGMetricsResponse,
 )
 
-from backend.app.schemas.integrations import (
+from app.schemas.integrations import (
     GatewayStatusEnum,
     RegisterTypeEnum,
     DataTypeEnum,
@@ -202,7 +202,7 @@ from backend.app.schemas.integrations import (
     ApplyTemplateRequest,
 )
 
-from backend.app.schemas.response import (
+from app.schemas.response import (
     APIResponse,
     PaginatedResponse,
     ErrorResponse,

@@ -257,7 +257,7 @@ class DataIngestionHandler:
         
         db = self.db_session_factory()
         try:
-            from backend.app.services.data_ingestion import get_ingestion_service
+            from app.services.data_ingestion import get_ingestion_service
             
             ingestion_service = get_ingestion_service(db)
             

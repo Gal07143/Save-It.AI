@@ -9,11 +9,11 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import (
+from app.models.devices import (
     Device, DeviceModel, DeviceProduct, Datapoint, DeviceDatapoint,
     DevicePolicy, DeviceType, AuthType, ConfigSyncStatus
 )
-from backend.app.models.integrations import Gateway, GatewayCredentials
+from app.models.integrations import Gateway, GatewayCredentials
 
 logger = logging.getLogger(__name__)
 

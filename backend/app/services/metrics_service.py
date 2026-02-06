@@ -338,7 +338,7 @@ bill_validations = metrics_registry.counter(
 def update_database_pool_metrics():
     """Update database connection pool metrics."""
     try:
-        from backend.app.core.database import get_pool_status
+        from app.core.database import get_pool_status
         pool_status = get_pool_status()
         database_connections.set(pool_status.get("checked_out", 0), {"state": "active"})
         database_connections.set(pool_status.get("checked_in", 0), {"state": "idle"})
@@ -350,7 +350,7 @@ def update_database_pool_metrics():
 def update_site_metrics(db_session):
     """Update site-related metrics from database."""
     try:
-        from backend.app.models import Site
+        from app.models import Site
         from sqlalchemy import func
         count = db_session.query(func.count(Site.id)).filter(Site.is_active == 1).scalar()
         active_sites.set(count or 0)

@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import numpy_financial as npf
 
-from backend.app.core.database import get_db
-from backend.app.models import PVModuleCatalog, PVAssessment, PVSurface, PVDesignScenario
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import PVModuleCatalog, PVAssessment, PVSurface, PVDesignScenario
+from app.schemas import (
     PVModuleResponse,
     PVAssessmentCreate,
     PVAssessmentResponse,

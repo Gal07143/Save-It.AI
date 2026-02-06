@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 import pandas as pd
 import io
 
-from backend.app.core.database import get_db
-from backend.app.models import BESSVendor, BESSModel, BESSDataset, BESSDataReading
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import BESSVendor, BESSModel, BESSDataset, BESSDataReading
+from app.schemas import (
     BESSVendorResponse,
     BESSModelResponse,
     BESSDatasetCreate,

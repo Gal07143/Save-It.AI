@@ -8,7 +8,7 @@ from fastapi import Request, HTTPException, Depends
 from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.app.core.database import get_db
+from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class MultiTenantMiddleware(BaseHTTPMiddleware):
         
         user = getattr(request.state, 'user', None)
         if user:
-            from backend.app.models.platform import UserRole
+            from app.models.platform import UserRole
             is_super = user.role == UserRole.SUPER_ADMIN if hasattr(user, 'role') else False
             TenantContext.set(
                 organization_id=getattr(user, 'organization_id', None),
@@ -138,7 +138,7 @@ def get_organization_sites(db: Session, organization_id: int) -> list:
     Returns:
         List of site IDs
     """
-    from backend.app.models.platform import OrgSite
+    from app.models.platform import OrgSite
     
     org_sites = db.query(OrgSite).filter(OrgSite.organization_id == organization_id).all()
     return [os.site_id for os in org_sites]
@@ -155,7 +155,7 @@ def site_belongs_to_organization(db: Session, site_id: int, organization_id: int
     Returns:
         True if site belongs to organization
     """
-    from backend.app.models.platform import OrgSite
+    from app.models.platform import OrgSite
     
     exists = db.query(OrgSite).filter(
         OrgSite.site_id == site_id,
@@ -184,7 +184,7 @@ class MultiTenantValidation:
     @staticmethod
     def validate_meter_access(db: Session, meter_id: int) -> bool:
         """Validate current user can access the given meter."""
-        from backend.app.models import Meter
+        from app.models import Meter
         
         meter = db.query(Meter).filter(Meter.id == meter_id).first()
         if not meter:
@@ -198,7 +198,7 @@ class MultiTenantValidation:
         org_id = TenantContext.get_organization_id()
         
         if TenantContext.is_super_admin():
-            from backend.app.models import Site
+            from app.models import Site
             sites = db.query(Site).all()
             return [s.id for s in sites]
         

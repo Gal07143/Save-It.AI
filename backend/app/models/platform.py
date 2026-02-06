@@ -5,8 +5,8 @@ from enum import Enum as PyEnum
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Enum, Text, Date
 from sqlalchemy.orm import relationship
 
-from backend.app.core.database import Base
-from backend.app.models.base import NotificationType
+from app.core.database import Base
+from app.models.base import NotificationType
 
 
 class UserRole(PyEnum):

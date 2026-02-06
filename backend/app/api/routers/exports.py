@@ -9,8 +9,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.export_service import (
+from app.core.database import get_db
+from app.services.export_service import (
     ExportService,
     ExportConfig,
     ExportFormat,
@@ -153,7 +153,7 @@ def delete_export(
     db: Session = Depends(get_db)
 ):
     """Delete an export job and its file."""
-    from backend.app.services.export_service import ExportJob
+    from app.services.export_service import ExportJob
     import os
 
     job = db.query(ExportJob).filter(ExportJob.id == job_id).first()

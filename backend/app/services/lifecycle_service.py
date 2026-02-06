@@ -17,8 +17,8 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 
-from backend.app.core.database import Base
-from backend.app.models.devices import Device, DeviceType
+from app.core.database import Base
+from app.models.devices import Device, DeviceType
 
 logger = logging.getLogger(__name__)
 

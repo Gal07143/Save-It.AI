@@ -11,10 +11,10 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 
-from backend.app.models.devices import (
+from app.models.devices import (
     Device, Datapoint, DeviceDatapoint, DeviceTelemetry
 )
-from backend.app.models.telemetry import (
+from app.models.telemetry import (
     TelemetryAggregation, AggregationPeriod, NoDataTracker
 )
 

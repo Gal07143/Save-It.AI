@@ -3,9 +3,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import VirtualMeter, VirtualMeterComponent
-from backend.app.schemas import VirtualMeterCreate, VirtualMeterResponse
+from app.core.database import get_db
+from app.models import VirtualMeter, VirtualMeterComponent
+from app.schemas import VirtualMeterCreate, VirtualMeterResponse
 
 router = APIRouter(prefix="/api/v1/virtual-meters", tags=["virtual-meters"])
 

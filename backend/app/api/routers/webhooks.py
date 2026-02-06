@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from backend.app.services.webhook_handler import webhook_handler, get_webhook_handler, WebhookHandler
+from app.services.webhook_handler import webhook_handler, get_webhook_handler, WebhookHandler
 
 logger = logging.getLogger(__name__)
 

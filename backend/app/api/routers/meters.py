@@ -4,15 +4,15 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import Meter, MeterReading, User, UserRole, Site
-from backend.app.models.base import soft_delete_filter, include_deleted_filter
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import Meter, MeterReading, User, UserRole, Site
+from app.models.base import soft_delete_filter, include_deleted_filter
+from app.schemas import (
     MeterCreate, MeterUpdate, MeterResponse,
     MeterReadingCreate, MeterReadingResponse
 )
-from backend.app.middleware.multi_tenant import TenantContext, MultiTenantValidation
-from backend.app.api.routers.auth import get_current_user
+from app.middleware.multi_tenant import TenantContext, MultiTenantValidation
+from app.api.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/meters", tags=["meters"])
 

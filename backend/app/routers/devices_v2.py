@@ -8,21 +8,21 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session, joinedload
 
-from backend.app.core.database import get_db
-from backend.app.models.devices import (
+from app.core.database import get_db
+from app.models.devices import (
     Device, DeviceModel, DeviceProduct, DeviceDatapoint, DeviceTelemetry,
     DeviceEvent, DeviceType, AuthType, ConfigSyncStatus, Datapoint
 )
-from backend.app.models.integrations import Gateway
-from backend.app.schemas.devices import (
+from app.models.integrations import Gateway
+from app.schemas.devices import (
     DeviceCreate, DeviceUpdate, DeviceResponse, DeviceCredentials,
     DeviceOnboardingRequest, DeviceOnboardingResponse,
     CommandExecutionRequest, CommandExecutionResponse,
     DeviceTelemetryBatch, DeviceEventData,
 )
-from backend.app.services.device_onboarding import get_onboarding_service, get_edge_key_resolver
-from backend.app.services.command_service import get_command_service
-from backend.app.services.data_ingestion import get_ingestion_service
+from app.services.device_onboarding import get_onboarding_service, get_edge_key_resolver
+from app.services.command_service import get_command_service
+from app.services.data_ingestion import get_ingestion_service
 
 router = APIRouter(prefix="/api/v1/devices-v2", tags=["Devices"])
 
@@ -119,14 +119,14 @@ def onboard_device(
         if device.model_id:
             model = db.query(DeviceModel).filter(DeviceModel.id == device.model_id).first()
             if model:
-                from backend.app.schemas.devices import DeviceModelResponse
+                from app.schemas.devices import DeviceModelResponse
                 model_response = DeviceModelResponse.model_validate(model)
         
         product_response = None
         if device.product_id:
             product = db.query(DeviceProduct).filter(DeviceProduct.id == device.product_id).first()
             if product:
-                from backend.app.schemas.devices import DeviceProductResponse
+                from app.schemas.devices import DeviceProductResponse
                 product_response = DeviceProductResponse.model_validate(product)
         
         return DeviceOnboardingResponse(

@@ -16,10 +16,10 @@ from enum import Enum
 
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import (
+from app.models.devices import (
     Device, DeviceModel, Datapoint, AlarmRule, RemoteModbusConfig, ConfigSyncStatus
 )
-from backend.app.models.integrations import Gateway, ModbusRegister
+from app.models.integrations import Gateway, ModbusRegister
 
 logger = logging.getLogger(__name__)
 

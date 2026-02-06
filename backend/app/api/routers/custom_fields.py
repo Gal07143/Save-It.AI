@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.custom_field_service import (
+from app.core.database import get_db
+from app.services.custom_field_service import (
     CustomFieldService,
     FieldType,
     EntityType,

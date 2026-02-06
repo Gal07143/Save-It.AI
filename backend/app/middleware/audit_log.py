@@ -7,7 +7,7 @@ from typing import Optional
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from backend.app.utils.ip import get_client_ip
+from app.utils.ip import get_client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         return response
     
     def _store_audit_log(self, entry: dict) -> None:
-        from backend.app.models import AuditLog
+        from app.models import AuditLog
         
         if self.db_session_factory is None:
             return

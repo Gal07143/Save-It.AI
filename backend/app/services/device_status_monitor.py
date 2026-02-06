@@ -5,7 +5,7 @@ Provides background offline detection for devices based on telemetry timestamps.
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import Device
+from app.models.devices import Device
 
 
 def check_device_offline_status(db: Session, offline_threshold_seconds: int = 300):

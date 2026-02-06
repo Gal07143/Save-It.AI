@@ -4,9 +4,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import Organization, User, AuditLog, PeriodLock, PeriodStatus, UserRole
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import Organization, User, AuditLog, PeriodLock, PeriodStatus, UserRole
+from app.schemas import (
     OrganizationCreate,
     OrganizationResponse,
     UserCreate,
@@ -15,7 +15,7 @@ from backend.app.schemas import (
     PeriodLockCreate,
     PeriodLockResponse,
 )
-from backend.app.api.routers.auth import get_current_user, get_password_hash
+from app.api.routers.auth import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -237,7 +237,7 @@ def reset_demo_data_endpoint(
 
     WARNING: This action cannot be undone. Requires super admin access.
     """
-    from backend.app.services.reset_demo_data import reset_demo_data
+    from app.services.reset_demo_data import reset_demo_data
 
     result = reset_demo_data(db)
 

@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.telemetry_service import TelemetryService, TelemetryRecord
+from app.core.database import get_db
+from app.services.telemetry_service import TelemetryService, TelemetryRecord
 
 router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
 

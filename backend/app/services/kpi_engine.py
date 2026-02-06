@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from backend.app.models.devices import Device, Datapoint, DeviceTelemetry
-from backend.app.models.telemetry import (
+from app.models.devices import Device, Datapoint, DeviceTelemetry
+from app.models.telemetry import (
     KPIDefinition, KPIValue, KPIType, TelemetryAggregation, AggregationPeriod
 )
 

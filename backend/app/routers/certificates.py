@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.devices import DeviceCertificate, Device
-from backend.app.schemas.devices import (
+from app.core.database import get_db
+from app.models.devices import DeviceCertificate, Device
+from app.schemas.devices import (
     DeviceCertificateCreate, DeviceCertificateResponse, DeviceCertificateDownload,
 )
 

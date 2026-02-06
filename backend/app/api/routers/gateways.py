@@ -10,11 +10,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 
-from backend.app.core.database import get_db
-from backend.app.models.integrations import Gateway, GatewayStatus, CommunicationLog, GatewayCredentials
-from backend.app.services.webhook_handler import webhook_handler
-from backend.app.services.mqtt_credentials import mqtt_credential_manager
-from backend.app.schemas.integrations import (
+from app.core.database import get_db
+from app.models.integrations import Gateway, GatewayStatus, CommunicationLog, GatewayCredentials
+from app.services.webhook_handler import webhook_handler
+from app.services.mqtt_credentials import mqtt_credential_manager
+from app.schemas.integrations import (
     GatewayCreate,
     GatewayUpdate,
     GatewayResponse,

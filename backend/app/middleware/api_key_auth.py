@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 
-from backend.app.utils.hashing import hash_string
+from app.utils.hashing import hash_string
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -111,7 +111,7 @@ async def get_api_key_auth(
             headers={"WWW-Authenticate": "API-Key"},
         )
     
-    from backend.app.core.database import SessionLocal
+    from app.core.database import SessionLocal
     validator = APIKeyValidator(db_session_factory=SessionLocal)
     result = await validator.validate_key(api_key)
     

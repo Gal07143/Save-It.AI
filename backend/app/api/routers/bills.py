@@ -3,10 +3,10 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import Bill, BillLineItem
-from backend.app.schemas import BillCreate, BillUpdate, BillResponse, BillValidationResult
-from backend.app.services.financial.bill_validation import BillValidationService
+from app.core.database import get_db
+from app.models import Bill, BillLineItem
+from app.schemas import BillCreate, BillUpdate, BillResponse, BillValidationResult
+from app.services.financial.bill_validation import BillValidationService
 
 router = APIRouter(prefix="/api/v1/bills", tags=["bills"])
 

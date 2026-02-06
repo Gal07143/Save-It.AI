@@ -4,9 +4,9 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import Tenant, LeaseContract, Invoice
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import Tenant, LeaseContract, Invoice
+from app.schemas import (
     TenantCreate,
     TenantUpdate,
     TenantResponse,
@@ -144,7 +144,7 @@ def generate_tenant_invoice(
     tax_amount = subtotal * tax_rate
     total_amount = subtotal + tax_amount
     
-    from backend.app.models import InvoiceStatus
+    from app.models import InvoiceStatus
     
     invoice = Invoice(
         tenant_id=tenant_id,

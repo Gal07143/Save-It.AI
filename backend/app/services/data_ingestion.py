@@ -9,11 +9,11 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import (
+from app.models.devices import (
     Device, DeviceModel, Datapoint, DeviceDatapoint, DeviceTelemetry,
     DeviceEvent, AlarmRule, AlarmSeverity, AlarmCondition
 )
-from backend.app.services.device_onboarding import EdgeKeyResolver
+from app.services.device_onboarding import EdgeKeyResolver
 
 logger = logging.getLogger(__name__)
 

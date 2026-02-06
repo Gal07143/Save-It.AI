@@ -1,7 +1,7 @@
 """Pydantic schemas for Gap Analysis results."""
 from typing import List, Optional
 from pydantic import BaseModel
-from backend.app.models.asset import AssetType
+from app.models.asset import AssetType
 
 
 class UnmeteredAsset(BaseModel):

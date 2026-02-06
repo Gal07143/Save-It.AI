@@ -15,9 +15,9 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, Query
 from sqlalchemy import and_, func
 
-from backend.app.models.platform import Organization, User, OrgSite
-from backend.app.models.core import Site
-from backend.app.models.devices import Device
+from app.models.platform import Organization, User, OrgSite
+from app.models.core import Site
+from app.models.devices import Device
 
 logger = logging.getLogger(__name__)
 
@@ -294,7 +294,7 @@ class TenantService:
             ).count()
 
         # Count gateways
-        from backend.app.models.integrations import Gateway
+        from app.models.integrations import Gateway
         gateway_count = 0
         if site_ids:
             gateway_count = self.db.query(Gateway).filter(

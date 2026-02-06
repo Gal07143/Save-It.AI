@@ -11,15 +11,15 @@ from sqlalchemy.orm import Session
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 
-from backend.app.core.database import get_db
-from backend.app.services.dashboard_service import (
+from app.core.database import get_db
+from app.services.dashboard_service import (
     DashboardService,
     WidgetConfig,
     WidgetType,
     get_dashboard_service,
     DASHBOARD_TEMPLATES,
 )
-from backend.app.services.pdf_service import pdf_service
+from app.services.pdf_service import pdf_service
 
 router = APIRouter(prefix="/dashboards", tags=["dashboards"])
 

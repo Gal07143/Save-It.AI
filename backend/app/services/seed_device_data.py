@@ -5,7 +5,7 @@ Creates initial device models, products, and policies.
 import logging
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import (
+from app.models.devices import (
     DeviceModel, DeviceProduct, DevicePolicy, Datapoint, Command,
     DeviceType, DatapointType, DatapointAggregation, CommandInputType
 )

@@ -9,8 +9,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.report_service import (
+from app.core.database import get_db
+from app.services.report_service import (
     ReportService,
     ReportType,
     ReportFormat,
@@ -147,7 +147,7 @@ def list_templates(
     organization_id: int = 1
 ):
     """List report templates."""
-    from backend.app.services.report_service import ReportTemplate
+    from app.services.report_service import ReportTemplate
 
     templates = db.query(ReportTemplate).filter(
         ReportTemplate.organization_id == organization_id,
@@ -174,7 +174,7 @@ def delete_template(
     db: Session = Depends(get_db)
 ):
     """Delete a report template."""
-    from backend.app.services.report_service import ReportTemplate
+    from app.services.report_service import ReportTemplate
 
     template = db.query(ReportTemplate).filter(ReportTemplate.id == template_id).first()
     if not template:
@@ -237,7 +237,7 @@ def list_schedules(
     organization_id: int = 1
 ):
     """List report schedules."""
-    from backend.app.services.report_service import ReportSchedule
+    from app.services.report_service import ReportSchedule
 
     schedules = db.query(ReportSchedule).filter(
         ReportSchedule.organization_id == organization_id,
@@ -266,7 +266,7 @@ def toggle_schedule(
     db: Session = Depends(get_db)
 ):
     """Toggle schedule active status."""
-    from backend.app.services.report_service import ReportSchedule
+    from app.services.report_service import ReportSchedule
 
     schedule = db.query(ReportSchedule).filter(ReportSchedule.id == schedule_id).first()
     if not schedule:
@@ -284,7 +284,7 @@ def delete_schedule(
     db: Session = Depends(get_db)
 ):
     """Delete a report schedule."""
-    from backend.app.services.report_service import ReportSchedule
+    from app.services.report_service import ReportSchedule
 
     schedule = db.query(ReportSchedule).filter(ReportSchedule.id == schedule_id).first()
     if not schedule:
@@ -343,7 +343,7 @@ def list_generated_reports(
     organization_id: int = 1
 ):
     """List generated reports."""
-    from backend.app.services.report_service import GeneratedReport
+    from app.services.report_service import GeneratedReport
 
     reports = db.query(GeneratedReport).filter(
         GeneratedReport.organization_id == organization_id
@@ -373,7 +373,7 @@ def download_report(
     db: Session = Depends(get_db)
 ):
     """Download a generated report."""
-    from backend.app.services.report_service import GeneratedReport
+    from app.services.report_service import GeneratedReport
     import os
 
     report = db.query(GeneratedReport).filter(GeneratedReport.id == report_id).first()

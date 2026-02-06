@@ -4,9 +4,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models import Meter, QualityIssue, QualityIssueType
-from backend.app.schemas import (
+from app.core.database import get_db
+from app.models import Meter, QualityIssue, QualityIssueType
+from app.schemas import (
     QualityIssueResponse,
     DataQualityDashboard,
 )

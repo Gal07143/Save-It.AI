@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.lifecycle_service import (
+from app.core.database import get_db
+from app.services.lifecycle_service import (
     LifecycleService,
     LifecycleState,
     get_lifecycle_service,
@@ -264,7 +264,7 @@ def get_lifecycle_info(
     db: Session = Depends(get_db)
 ):
     """Get device lifecycle information."""
-    from backend.app.services.lifecycle_service import DeviceLifecycleInfo
+    from app.services.lifecycle_service import DeviceLifecycleInfo
 
     info = db.query(DeviceLifecycleInfo).filter(
         DeviceLifecycleInfo.device_id == device_id

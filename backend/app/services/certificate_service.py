@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import Device, DeviceCertificate
+from app.models.devices import Device, DeviceCertificate
 
 logger = logging.getLogger(__name__)
 

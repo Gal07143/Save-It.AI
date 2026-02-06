@@ -13,8 +13,8 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from collections import defaultdict
 
-from backend.app.core.database import SessionLocal
-from backend.app.models.integrations import GatewayCredentials as GatewayCredentialsModel
+from app.core.database import SessionLocal
+from app.models.integrations import GatewayCredentials as GatewayCredentialsModel
 
 logger = logging.getLogger(__name__)
 

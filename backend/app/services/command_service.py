@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from backend.app.models.devices import (
+from app.models.devices import (
     Device, Command, CommandExecution, DeviceType
 )
 

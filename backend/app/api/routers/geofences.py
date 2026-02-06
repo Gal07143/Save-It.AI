@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.services.geofence_service import (
+from app.core.database import get_db
+from app.services.geofence_service import (
     GeofenceService,
     GeofenceType,
     GeofenceEventType,
@@ -201,7 +201,7 @@ def get_geofence(
     db: Session = Depends(get_db)
 ):
     """Get a geofence by ID."""
-    from backend.app.services.geofence_service import Geofence
+    from app.services.geofence_service import Geofence
 
     geofence = db.query(Geofence).filter(Geofence.id == geofence_id).first()
     if not geofence:
@@ -229,7 +229,7 @@ def delete_geofence(
     db: Session = Depends(get_db)
 ):
     """Delete a geofence."""
-    from backend.app.services.geofence_service import Geofence
+    from app.services.geofence_service import Geofence
 
     geofence = db.query(Geofence).filter(Geofence.id == geofence_id).first()
     if not geofence:
