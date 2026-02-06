@@ -1,108 +1,159 @@
-# Quick Start Guide - Raspberry Pi 5 Deployment
+# Save-It.AI Quick Start Guide
+
+Get Save-It.AI running on your Raspberry Pi 5 in under an hour.
 
 ## Prerequisites
 
 - Raspberry Pi 5 (8GB recommended)
-- MicroSD card (64GB+ Class 10)
-- Ethernet connection
-- Raspberry Pi OS Lite (64-bit) installed
+- MicroSD Card 64GB+ (Class 10/A2) or NVMe SSD
+- Ethernet cable
+- USB-C Power Supply (5V 5A official)
+- A Mac/PC for initial setup
 
 ---
 
-## Step 1: Prepare Your Pi (5 minutes)
+## Step 1: Flash the OS (5 minutes)
 
-Using Raspberry Pi Imager:
-1. Select "Raspberry Pi OS Lite (64-bit)"
-2. Click the gear icon for advanced options:
-   - Set hostname: `saveit-demo`
-   - Enable SSH with password
-   - Set username: `admin`
-   - Set password: (your choice)
-   - Configure WiFi (optional backup)
-3. Write to SD card and boot Pi
+1. Download [Raspberry Pi Imager](https://www.raspberrypi.com/software/) on your Mac
+2. Insert your SD card
+3. In Imager, select:
+   - **OS**: Raspberry Pi OS Lite (64-bit) - Bookworm
+   - **Storage**: Your SD card
+4. Click the **gear icon** (⚙️) and configure:
+   - ✅ Set hostname: `saveit-demo`
+   - ✅ Enable SSH (password authentication)
+   - ✅ Set username: `admin`
+   - ✅ Set password: (choose a strong password!)
+   - ✅ Set your timezone
+5. Click **Write** and wait for it to finish
 
 ---
 
-## Step 2: Connect to Pi
+## Step 2: Boot & Connect (5 minutes)
+
+1. Insert SD card into Raspberry Pi
+2. Connect Ethernet cable
+3. Connect power
+4. Wait 2-3 minutes for first boot
 
 ```bash
-# From your Mac/PC
+# From your Mac, connect via SSH:
 ssh admin@saveit-demo.local
 
-# If .local doesn't work, find IP with:
-# ping saveit-demo.local
-# or check your router's DHCP clients
+# Enter the password you set in step 1
 ```
+
+If `.local` doesn't work, check your router's DHCP clients for the IP.
 
 ---
 
-## Step 3: Run Installer (30-45 minutes)
+## Step 3: Install Save-It.AI (30-45 minutes)
 
 ```bash
-# One-line installation
-curl -fsSL https://raw.githubusercontent.com/Gal07143/Save-It.AI/main/raspberry-pi-setup/install.sh -o install.sh && chmod +x install.sh && ./install.sh
+# Run the one-command installer:
+curl -fsSL https://raw.githubusercontent.com/Gal07143/Save-It.AI/main/raspberry-pi-setup/install.sh | bash
 ```
 
-Or manually:
-```bash
-git clone https://github.com/Gal07143/Save-It.AI.git
-cd Save-It.AI/raspberry-pi-setup
-chmod +x install.sh scripts/*.sh
-./install.sh
-```
+☕ Go grab a coffee - this takes about 30-45 minutes.
 
 ---
 
-## Step 4: Verify Installation
+## Step 4: Enable Remote Access (5 minutes)
 
 ```bash
-# Check all services
-~/Save-It.AI/status.sh
+# On your Raspberry Pi, enable Tailscale:
+sudo tailscale up
 
-# Or individually
-sudo systemctl status saveit-backend
-sudo systemctl status saveit-frontend
+# Follow the URL shown to authenticate
+# Note down the 100.x.x.x IP address
 ```
+
+Then on your Mac:
+1. Install Tailscale from https://tailscale.com/download
+2. Login with the same account
+3. Now you can connect from anywhere!
 
 ---
 
 ## Step 5: Access Your Installation
 
-| Service | URL |
-|---------|-----|
-| Web App | http://saveit-demo.local |
-| API | http://saveit-demo.local/api/v1 |
-| Health | http://saveit-demo.local/api/v1/health |
-| Monitoring | http://saveit-demo.local:19999 |
+Open in your browser:
+
+| Service     | URL                                    |
+|-------------|----------------------------------------|
+| Web App     | http://saveit-demo.local               |
+| API         | http://saveit-demo.local/api/v1        |
+| Health      | http://saveit-demo.local/api/v1/health/live |
+| Monitoring  | http://saveit-demo.local:19999         |
+
+Via Tailscale (from anywhere):
+- http://100.x.x.x (your Tailscale IP)
 
 ---
 
-## Remote Development Setup
+## That's It! 🎉
 
-### Option A: VS Code Remote (Recommended)
+Your Save-It.AI installation is ready for production.
 
-1. Install VS Code on your Mac
-2. Install "Remote - SSH" extension
-3. Press `Cmd+Shift+P` → "Remote-SSH: Connect to Host"
-4. Enter: `admin@saveit-demo.local`
-5. Open folder: `/home/admin/Save-It.AI`
+---
 
-### Option B: Tailscale (Access from Anywhere)
+## Quick Reference
+
+### Useful Commands
 
 ```bash
-# On Pi
-sudo tailscale up
-# Note the 100.x.x.x IP shown
+# Check status of all services
+~/Save-It.AI/status.sh
 
-# From anywhere
-ssh admin@100.x.x.x
+# View backend logs
+sudo journalctl -u saveit-backend -f
+
+# Restart services
+sudo systemctl restart saveit-backend nginx
+
+# Update to latest version
+~/Save-It.AI/dev-reload.sh
+
+# Start development mode (hot reload)
+~/Save-It.AI/dev-mode.sh
+
+# Run manual backup
+~/backup.sh
+```
+
+### View Credentials
+
+```bash
+cat ~/.saveit/db-credentials      # Database
+cat ~/.saveit/mqtt-credentials    # MQTT
+cat ~/.saveit/webhook-secret      # GitHub webhook
+```
+
+### Mac SSH Shortcuts
+
+Add to your `~/.zshrc`:
+
+```bash
+export SAVEIT_IP="100.x.x.x"  # Your Tailscale IP
+alias pi="ssh admin@\$SAVEIT_IP"
+alias pi-logs="ssh admin@\$SAVEIT_IP 'journalctl -u saveit-backend -f'"
+alias pi-status="ssh admin@\$SAVEIT_IP '~/Save-It.AI/status.sh'"
+alias pi-restart="ssh admin@\$SAVEIT_IP 'sudo systemctl restart saveit-backend nginx'"
 ```
 
 ---
 
 ## Development Workflow
 
-### Make Changes Locally & Deploy
+### VS Code Remote (Recommended)
+
+1. Install VS Code on your Mac
+2. Install "Remote - SSH" extension
+3. Press `Cmd+Shift+P` → "Remote-SSH: Connect to Host"
+4. Enter: `admin@saveit-demo.local` (or Tailscale IP)
+5. Open folder: `/home/admin/Save-It.AI`
+
+### Deploy Changes
 
 ```bash
 # On your Mac
@@ -110,44 +161,21 @@ cd Save-It.AI
 # Make changes...
 git add . && git commit -m "Your changes" && git push
 
-# On Pi (or set up webhook for auto-deploy)
+# On Pi (or via SSH)
 ~/Save-It.AI/dev-reload.sh
 ```
 
-### Live Development (Hot Reload)
+### Live Development
 
 ```bash
-# On Pi
+# On Pi - start dev servers with hot reload
 ~/Save-It.AI/dev-mode.sh
 
 # Attach to see logs
 tmux attach -t saveit
-```
 
----
-
-## Useful Commands
-
-```bash
-# Service management
-sudo systemctl restart saveit-backend saveit-frontend
-sudo systemctl status saveit-backend saveit-frontend
-
-# View logs
-sudo journalctl -u saveit-backend -f
-sudo journalctl -u saveit-frontend -f
-
-# Database access
-db  # (after reloading shell)
-
-# Manual backup
-~/backup.sh
-
-# System status
-~/Save-It.AI/status.sh
-
-# Deploy latest
-~/Save-It.AI/dev-reload.sh
+# Detach: Ctrl+B, then D
+# Stop: tmux kill-session -t saveit
 ```
 
 ---
@@ -155,40 +183,39 @@ db  # (after reloading shell)
 ## Troubleshooting
 
 ### Services won't start
+
 ```bash
 # Check logs
 sudo journalctl -u saveit-backend -n 50
-sudo journalctl -u saveit-frontend -n 50
 
-# Check ports
-sudo netstat -tlpn | grep -E '8000|5002'
-```
-
-### Database connection issues
-```bash
-# Test database
-sudo -u postgres psql -c "SELECT 1"
+# Verify database is running
+sudo systemctl status postgresql
 
 # Check credentials
 cat ~/.saveit/db-credentials
 ```
 
 ### Can't access web interface
+
 ```bash
-# Check nginx
+# Check nginx configuration
 sudo nginx -t
 sudo systemctl status nginx
 
 # Check firewall
 sudo ufw status
+
+# Check frontend build exists
+ls ~/Save-It.AI/frontend/dist/
 ```
 
-### Low memory
+### Low memory issues
+
 ```bash
 # Check usage
 free -h
 
-# Reduce workers in backend service
+# Reduce backend workers
 sudo nano /etc/systemd/system/saveit-backend.service
 # Change --workers 2 to --workers 1
 sudo systemctl daemon-reload
@@ -200,18 +227,21 @@ sudo systemctl restart saveit-backend
 ## Backup & Restore
 
 ### Manual Backup
+
 ```bash
 ~/backup.sh
 ls -la ~/backups/
 ```
 
 ### Restore Database
+
 ```bash
 # Stop services
 sudo systemctl stop saveit-backend
 
-# Restore
-gunzip -c ~/backups/db_YYYYMMDD_HHMMSS.sql.gz | psql -U saveit saveit_db
+# Restore from backup
+source ~/.saveit/db-credentials
+gunzip -c ~/backups/db_YYYYMMDD_HHMMSS.sql.gz | PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" "$DB_NAME"
 
 # Start services
 sudo systemctl start saveit-backend
@@ -219,16 +249,21 @@ sudo systemctl start saveit-backend
 
 ---
 
-## Security Notes
+## Security Checklist
 
-1. **Change default passwords** in `~/.saveit/db-credentials`
-2. **Set up SSH keys** for passwordless, secure access
-3. **Enable Tailscale** for secure remote access
-4. **Keep system updated**: `sudo apt update && sudo apt upgrade`
+Before going to production:
+
+- [ ] Changed default passwords
+- [ ] Generated new SECRET_KEY in backend/.env
+- [ ] Set up SSH key authentication
+- [ ] Enabled Tailscale for secure remote access
+- [ ] Tested backups and restore
+- [ ] Reviewed firewall rules (`sudo ufw status`)
 
 ---
 
-## Support
+## More Information
 
+- Full documentation: [README.md](README.md)
+- Detailed deployment plan: [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md)
 - Issues: https://github.com/Gal07143/Save-It.AI/issues
-- Documentation: See main README.md
