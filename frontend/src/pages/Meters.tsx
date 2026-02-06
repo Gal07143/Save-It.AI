@@ -89,14 +89,22 @@ export default function Meters({ currentSite }: MetersProps) {
         else status = 'error'
       }
 
+      // Build address string from connection params or device properties
+      let address = '-'
+      if (device?.connection_params?.host) {
+        address = `${device.connection_params.host}:${device.connection_params.port || 502}`
+      } else if (device?.connection_params?.serial_port) {
+        address = String(device.connection_params.serial_port)
+      } else if (device?.host) {
+        address = `${device.host}:${device.port || 502}`
+      }
+
       return {
         ...m,
         site_name: site?.name || `Site ${m.site_id}`,
         connectivity: device ? {
           protocol: device.source_type as 'modbus_tcp' | 'mbus' | 'modbus_rtu' | null,
-          address: device.connection_params?.host
-            ? `${device.connection_params.host}:${device.connection_params.port || 502}`
-            : device.connection_params?.serial_port || '-',
+          address,
           status,
           gatewayId: gateway?.id || null,
           gatewayName: gateway?.name || null,

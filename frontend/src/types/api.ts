@@ -81,8 +81,10 @@ export interface Meter {
   id: number
   site_id: number
   asset_id?: number
+  data_source_id?: number
   meter_id: string
   name: string
+  meter_type?: string
   is_active: boolean
   last_reading_at?: string
 }
@@ -223,6 +225,7 @@ export interface DataSource {
   webhook_url?: string
   webhook_api_key?: string | null
   webhook_auth_type?: string
+  connection_params?: Record<string, unknown>
 }
 
 export interface Gateway {
@@ -329,6 +332,8 @@ export interface Tariff {
   fixed_charge?: number
   peak_rate?: number
   off_peak_rate?: number
+  peak_hours_start?: string
+  peak_hours_end?: string
   is_active: boolean
   effective_from: string
   effective_to?: string
@@ -342,7 +347,9 @@ export interface Tenant {
   id: number
   site_id: number
   name: string
+  contact_name?: string
   contact_email?: string
+  contact_phone?: string
   is_active: boolean
   created_at: string
 }

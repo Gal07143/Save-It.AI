@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api, Site } from '../services/api'
+import { api } from '../services/api'
 import { dashboardDataService, DateRange } from '../services/dashboardData'
 import DateRangePicker from '../components/DateRangePicker'
 import QueryError from '../components/QueryError'
@@ -14,7 +14,7 @@ import {
   Zap, DollarSign, Leaf, Activity, RefreshCw
 } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line
 } from 'recharts'
 

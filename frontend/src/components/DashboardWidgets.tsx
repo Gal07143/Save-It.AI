@@ -3,10 +3,10 @@
  * Provides drag-drop widget management with backend persistence.
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  GripVertical, X, Plus, Maximize2, Minimize2, Edit, Save, RotateCcw,
+  GripVertical, X, Plus, Maximize2, Minimize2, Edit, Save,
   BarChart3, LineChart, PieChart, Activity, Gauge, DollarSign, AlertCircle,
   LayoutGrid, Settings, Loader2
 } from 'lucide-react'
@@ -109,16 +109,16 @@ export function useDashboardWidgets(dashboardId?: number) {
 
   // Convert backend widgets to local format
   const widgets: Widget[] = dashboardId && dashboard?.widgets
-    ? dashboard.widgets.map((w: { id: number; widget_type: string; title: string; position_x: number; position_y: number; width: number; height: number; config?: Record<string, unknown>; data_source?: Record<string, unknown> }) => ({
+    ? dashboard.widgets.map((w) => ({
         id: w.id,
-        type: w.widget_type,
-        title: w.title || w.widget_type,
-        size: widthToSize(w.width),
-        position: w.position_y * 12 + w.position_x,
-        position_x: w.position_x,
-        position_y: w.position_y,
-        width: w.width,
-        height: w.height,
+        type: w.type || 'unknown',
+        title: w.title || w.type || 'Widget',
+        size: widthToSize(w.size?.width || 4),
+        position: (w.position?.y || 0) * 12 + (w.position?.x || 0),
+        position_x: w.position?.x || 0,
+        position_y: w.position?.y || 0,
+        width: w.size?.width || 4,
+        height: w.size?.height || 4,
         config: w.config,
         data_source: w.data_source,
       }))

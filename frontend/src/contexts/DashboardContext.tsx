@@ -4,7 +4,7 @@
  * Replaces localStorage-based widget management.
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
 
@@ -149,8 +149,26 @@ export function DashboardProvider({ children, defaultDashboardId }: DashboardPro
   })
 
   const updateDashboardMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: number; updates: Partial<Dashboard> }) =>
-      api.dashboards.update(id, updates),
+    mutationFn: ({ id, updates }: { id: number; updates: Partial<Dashboard> }) => {
+      // Convert null values to undefined for API compatibility
+      const apiUpdates: {
+        name?: string
+        description?: string
+        is_default?: boolean
+        is_shared?: boolean
+        theme?: string
+        refresh_interval?: number
+        layout?: Record<string, unknown>
+      } = {}
+      if (updates.name !== undefined) apiUpdates.name = updates.name
+      if (updates.description !== undefined && updates.description !== null) apiUpdates.description = updates.description
+      if (updates.is_default !== undefined) apiUpdates.is_default = updates.is_default
+      if (updates.is_shared !== undefined) apiUpdates.is_shared = updates.is_shared
+      if (updates.theme !== undefined) apiUpdates.theme = updates.theme
+      if (updates.refresh_interval !== undefined) apiUpdates.refresh_interval = updates.refresh_interval
+      if (updates.layout !== undefined && updates.layout !== null) apiUpdates.layout = updates.layout
+      return api.dashboards.update(id, apiUpdates)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboards'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard', currentDashboardId] })

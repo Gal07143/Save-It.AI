@@ -4,7 +4,7 @@ import {
   Activity, RefreshCw, Cpu, AlertTriangle, FileText, BarChart3,
   CheckCircle, XCircle, Clock, Wifi, WifiOff, TrendingUp
 } from 'lucide-react'
-import { api, DataSource, DeviceHealthDashboard as HealthDashboardData, DeviceHealthSummary } from '../services/api'
+import { api, DataSource, DeviceHealthSummary } from '../services/api'
 import TabPanel, { Tab } from '../components/TabPanel'
 import DeviceHealthDashboard from '../components/DeviceHealthDashboard'
 import RetryManager from '../components/RetryManager'

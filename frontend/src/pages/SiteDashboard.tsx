@@ -8,7 +8,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'wouter'
 import { api, AssetTreeNode, Meter } from '../services/api'
-import { dashboardDataService, PowerFlowData } from '../services/dashboardData'
+import { dashboardDataService } from '../services/dashboardData'
 import { useDashboardWebSocket } from '../hooks/useWebSocket'
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
 import { useToast } from '../contexts/ToastContext'
