@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from backend.app.core.database import get_db
-from backend.app.models import Site, User, UserRole, Meter, Asset, Alarm
+from backend.app.models import Site, User, UserRole, Meter, Asset
+from backend.app.models.telemetry import DeviceAlarm, AlarmStatus
+from backend.app.models.devices import Device
 from backend.app.models.base import soft_delete_filter, include_deleted_filter
 from backend.app.schemas import SiteCreate, SiteUpdate, SiteResponse
 from backend.app.middleware.multi_tenant import TenantContext, MultiTenantValidation
@@ -86,10 +88,12 @@ def get_site_stats(site_id: int, db: Session = Depends(get_db)):
     assets_count = assets_result[0] or 0
     total_load_kw = float(assets_result[1] or 0)
 
-    # Count active alarms
-    active_alarms = db.query(func.count(Alarm.id)).filter(
-        Alarm.site_id == site_id,
-        Alarm.acknowledged_at.is_(None)
+    # Count active alarms (join through Device to get site_id)
+    active_alarms = db.query(func.count(DeviceAlarm.id)).join(
+        Device, Device.id == DeviceAlarm.device_id
+    ).filter(
+        Device.site_id == site_id,
+        DeviceAlarm.acknowledged_at.is_(None)
     ).scalar() or 0
 
     return SiteStatsResponse(
