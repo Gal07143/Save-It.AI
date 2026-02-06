@@ -135,11 +135,17 @@ main() {
     echo ""
     echo -e "${YELLOW}Estimated time: ~30-45 minutes${NC}"
     echo ""
-    read -p "Continue with installation? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Installation cancelled."
-        exit 0
+
+    # Auto-continue if piped from curl, otherwise ask for confirmation
+    if [ -t 0 ]; then
+        read -p "Continue with installation? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Installation cancelled."
+            exit 0
+        fi
+    else
+        print_info "Running in non-interactive mode, proceeding with installation..."
     fi
 
     # Clone repository if not exists
