@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String, DateTime, Text, Float
+from sqlalchemy import Column, Integer, String, DateTime, Text, Float, text
 
 from app.core.database import Base
 
@@ -262,7 +262,7 @@ class HealthMonitor:
         """Check database connectivity."""
         try:
             # Execute simple query
-            self.db.execute("SELECT 1")
+            self.db.execute(text("SELECT 1"))
             return HealthStatus.HEALTHY, "Database connection OK", {"type": "postgresql"}
         except Exception as e:
             return HealthStatus.UNHEALTHY, f"Database error: {e}", None

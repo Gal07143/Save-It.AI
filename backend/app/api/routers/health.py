@@ -7,6 +7,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.core.database import get_db
 from app.services.health_monitor import (
@@ -22,9 +23,9 @@ class ComponentHealthResponse(BaseModel):
     """Component health response."""
     component: str
     status: str
-    response_time_ms: Optional[float]
-    message: Optional[str]
-    last_check: datetime
+    response_time_ms: Optional[float] = None
+    message: Optional[str] = None
+    last_check: Optional[datetime] = None
 
 
 class SystemHealthResponse(BaseModel):
@@ -41,65 +42,39 @@ class ResourceUsageResponse(BaseModel):
     cpu_percent: float
     memory_percent: float
     memory_used_mb: float
-    memory_available_mb: float
+    memory_total_mb: float
     disk_percent: float
     disk_used_gb: float
-    disk_free_gb: float
-    open_connections: int
-    active_threads: int
+    disk_total_gb: float
+    open_files: int
+    connections: int
     timestamp: datetime
-
-
-class PerformanceMetricsResponse(BaseModel):
-    """Performance metrics response."""
-    avg_response_time_ms: float
-    p95_response_time_ms: float
-    p99_response_time_ms: float
-    requests_per_second: float
-    error_rate: float
-    slow_queries_count: int
-    period_seconds: int
-
-
-class AlertResponse(BaseModel):
-    """Health alert response."""
-    id: int
-    component: str
-    severity: str
-    message: str
-    details: Optional[dict]
-    acknowledged: bool
-    acknowledged_by: Optional[int]
-    acknowledged_at: Optional[datetime]
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 @router.get("", response_model=SystemHealthResponse)
 def get_system_health(
+    deep: bool = False,
     db: Session = Depends(get_db)
 ):
     """Get overall system health status."""
     monitor = get_health_monitor(db)
-    health = monitor.check_system_health()
+    health = monitor.get_health(deep=deep)
 
     return SystemHealthResponse(
-        status=health.status,
+        status=health.status.value,
         components=[
             ComponentHealthResponse(
-                component=c.component,
-                status=c.status,
+                component=c.name,
+                status=c.status.value,
                 response_time_ms=c.response_time_ms,
                 message=c.message,
-                last_check=c.last_check
+                last_check=c.last_checked
             )
             for c in health.components
         ],
         uptime_seconds=health.uptime_seconds,
         version=health.version,
-        checked_at=health.checked_at
+        checked_at=health.timestamp
     )
 
 
@@ -108,13 +83,12 @@ def readiness_check(
     db: Session = Depends(get_db)
 ):
     """Kubernetes readiness probe endpoint."""
-    monitor = get_health_monitor(db)
-    is_ready = monitor.is_ready()
-
-    if not is_ready:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    return {"status": "ready"}
+    try:
+        # Simple DB check
+        db.execute(text("SELECT 1"))
+        return {"status": "ready"}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Service not ready: {e}")
 
 
 @router.get("/live")
@@ -135,134 +109,63 @@ def get_resource_usage(
         cpu_percent=usage.cpu_percent,
         memory_percent=usage.memory_percent,
         memory_used_mb=usage.memory_used_mb,
-        memory_available_mb=usage.memory_available_mb,
+        memory_total_mb=usage.memory_total_mb,
         disk_percent=usage.disk_percent,
         disk_used_gb=usage.disk_used_gb,
-        disk_free_gb=usage.disk_free_gb,
-        open_connections=usage.open_connections,
-        active_threads=usage.active_threads,
-        timestamp=usage.timestamp
+        disk_total_gb=usage.disk_total_gb,
+        open_files=usage.open_files,
+        connections=usage.connections,
+        timestamp=datetime.utcnow()
     )
 
 
-@router.get("/performance", response_model=PerformanceMetricsResponse)
-def get_performance_metrics(
-    period_seconds: int = 300,
+@router.get("/deep")
+def get_deep_health(
     db: Session = Depends(get_db)
 ):
-    """Get performance metrics for a time period."""
+    """Run all health checks and return detailed status."""
     monitor = get_health_monitor(db)
-    metrics = monitor.get_performance_metrics(period_seconds)
+    health = monitor.get_health(deep=True)
 
-    return PerformanceMetricsResponse(
-        avg_response_time_ms=metrics.avg_response_time_ms,
-        p95_response_time_ms=metrics.p95_response_time_ms,
-        p99_response_time_ms=metrics.p99_response_time_ms,
-        requests_per_second=metrics.requests_per_second,
-        error_rate=metrics.error_rate,
-        slow_queries_count=metrics.slow_queries_count,
-        period_seconds=period_seconds
-    )
-
-
-@router.get("/components/{component}")
-def get_component_health(
-    component: str,
-    db: Session = Depends(get_db)
-):
-    """Get health status for a specific component."""
-    monitor = get_health_monitor(db)
-    health = monitor.check_component(component)
-
-    if not health:
-        raise HTTPException(status_code=404, detail=f"Component not found: {component}")
-
-    return ComponentHealthResponse(
-        component=health.component,
-        status=health.status,
-        response_time_ms=health.response_time_ms,
-        message=health.message,
-        last_check=health.last_check
-    )
-
-
-@router.get("/alerts", response_model=List[AlertResponse])
-def list_health_alerts(
-    severity: Optional[str] = None,
-    acknowledged: Optional[bool] = None,
-    limit: int = 50,
-    db: Session = Depends(get_db)
-):
-    """List health alerts."""
-    monitor = get_health_monitor(db)
-    alerts = monitor.get_alerts(severity, acknowledged, limit)
-
-    return [
-        AlertResponse(
-            id=a.id,
-            component=a.component,
-            severity=a.severity,
-            message=a.message,
-            details=a.details,
-            acknowledged=a.acknowledged == 1,
-            acknowledged_by=a.acknowledged_by,
-            acknowledged_at=a.acknowledged_at,
-            created_at=a.created_at
-        )
-        for a in alerts
-    ]
-
-
-@router.post("/alerts/{alert_id}/acknowledge")
-def acknowledge_alert(
-    alert_id: int,
-    db: Session = Depends(get_db),
-    user_id: int = 1
-):
-    """Acknowledge a health alert."""
-    monitor = get_health_monitor(db)
-
-    if not monitor.acknowledge_alert(alert_id, user_id):
-        raise HTTPException(status_code=404, detail="Alert not found")
-
-    db.commit()
-
-    return {"message": "Alert acknowledged"}
+    return {
+        "status": health.status.value,
+        "timestamp": health.timestamp.isoformat(),
+        "uptime_seconds": health.uptime_seconds,
+        "version": health.version,
+        "summary": health.summary,
+        "components": [
+            {
+                "name": c.name,
+                "status": c.status.value,
+                "message": c.message,
+                "response_time_ms": c.response_time_ms,
+                "last_checked": c.last_checked.isoformat() if c.last_checked else None,
+                "details": c.details
+            }
+            for c in health.components
+        ]
+    }
 
 
 @router.get("/database")
 def get_database_health(
     db: Session = Depends(get_db)
 ):
-    """Get detailed database health information."""
-    monitor = get_health_monitor(db)
-    db_health = monitor.check_database_health()
+    """Get database health information."""
+    try:
+        # Test database connection
+        start = datetime.utcnow()
+        db.execute(text("SELECT 1"))
+        response_time = (datetime.utcnow() - start).total_seconds() * 1000
 
-    return {
-        "status": db_health.status,
-        "connection_pool": {
-            "size": db_health.pool_size,
-            "checked_out": db_health.checked_out,
-            "overflow": db_health.overflow
-        },
-        "slow_queries": db_health.slow_queries,
-        "table_sizes": db_health.table_sizes,
-        "response_time_ms": db_health.response_time_ms
-    }
-
-
-@router.get("/queues")
-def get_queue_health(
-    db: Session = Depends(get_db)
-):
-    """Get message queue health information."""
-    monitor = get_health_monitor(db)
-    queue_health = monitor.check_queue_health()
-
-    return {
-        "status": queue_health.status,
-        "pending_messages": queue_health.pending_messages,
-        "processing_rate": queue_health.processing_rate,
-        "dead_letter_count": queue_health.dead_letter_count,
-        "lag_seconds": queue_health.lag_seconds
-    }
+        return {
+            "status": "healthy",
+            "response_time_ms": round(response_time, 2),
+            "message": "Database connection OK"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "response_time_ms": None,
+            "message": str(e)
+        }
