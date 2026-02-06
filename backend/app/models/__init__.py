@@ -1,5 +1,5 @@
 """SQLAlchemy database models."""
-from backend.app.models.base import (
+from app.models.base import (
     AssetType,
     NotificationType,
     SoftDeleteMixin,
@@ -9,7 +9,7 @@ from backend.app.models.base import (
     BooleanInt,
 )
 
-from backend.app.models.core import (
+from app.models.core import (
     Site,
     Asset,
     Meter,
@@ -21,7 +21,7 @@ from backend.app.models.core import (
     Notification,
 )
 
-from backend.app.models.enterprise import (
+from app.models.enterprise import (
     DataSourceType,
     InvoiceStatus,
     DataSource,
@@ -32,7 +32,7 @@ from backend.app.models.enterprise import (
     BatterySpecs,
 )
 
-from backend.app.models.bess import (
+from app.models.bess import (
     BESSVendor,
     BESSModel,
     BESSDataset,
@@ -40,7 +40,7 @@ from backend.app.models.bess import (
     BESSSimulationResult,
 )
 
-from backend.app.models.pv import (
+from app.models.pv import (
     PVModuleCatalog,
     PVAssessment,
     PVSurface,
@@ -49,7 +49,7 @@ from backend.app.models.pv import (
     PlacementZone,
 )
 
-from backend.app.models.platform import (
+from app.models.platform import (
     UserRole,
     AuditAction,
     FileStatus,
@@ -68,21 +68,21 @@ from backend.app.models.platform import (
     APIKey,
 )
 
-from backend.app.models.data_quality import (
+from app.models.data_quality import (
     QualityIssueType,
     DataQualityRule,
     QualityIssue,
     MeterQualitySummary,
 )
 
-from backend.app.models.virtual_meters import (
+from app.models.virtual_meters import (
     VirtualMeterType,
     VirtualMeter,
     VirtualMeterComponent,
     AllocationRule,
 )
 
-from backend.app.models.maintenance import (
+from app.models.maintenance import (
     MaintenanceRuleType,
     MaintenanceCondition,
     MaintenanceRule,
@@ -90,7 +90,7 @@ from backend.app.models.maintenance import (
     MaintenanceAlert,
 )
 
-from backend.app.models.ai_forecasting import (
+from app.models.ai_forecasting import (
     AgentType,
     AgentSession,
     AgentMessage,
@@ -99,7 +99,7 @@ from backend.app.models.ai_forecasting import (
     ForecastSeries,
 )
 
-from backend.app.models.control import (
+from app.models.control import (
     ControlRuleType,
     SafetyGateStatus,
     ControlRule,
@@ -107,7 +107,7 @@ from backend.app.models.control import (
     ControlCommand,
 )
 
-from backend.app.models.integrations import (
+from app.models.integrations import (
     GatewayStatus,
     RegisterType,
     DataType,
@@ -119,7 +119,7 @@ from backend.app.models.integrations import (
     CommunicationLog,
 )
 
-from backend.app.models.devices import (
+from app.models.devices import (
     DeviceType,
     AuthType,
     ConfigSyncStatus,
@@ -145,7 +145,7 @@ from backend.app.models.devices import (
     DeviceEvent,
 )
 
-from backend.app.models.telemetry import (
+from app.models.telemetry import (
     AlarmStatus,
     AggregationPeriod,
     KPIType,
