@@ -357,6 +357,35 @@ async def run_no_data_check(metadata: Dict):
         logger.error(f"No-data check failed: {e}")
 
 
+async def check_gateway_staleness(metadata: Dict):
+    """Mark gateways as OFFLINE if they haven't sent a heartbeat within their configured interval."""
+    from app.core.database import SessionLocal
+    from app.models.integrations import Gateway, GatewayStatus
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        gateways = db.query(Gateway).filter(
+            Gateway.status == GatewayStatus.ONLINE
+        ).all()
+        stale_count = 0
+        for gw in gateways:
+            interval = gw.heartbeat_interval_seconds or 300  # default 5 min
+            # Give 2x grace period before marking offline
+            max_silence = timedelta(seconds=interval * 2)
+            if gw.last_seen_at and (now - gw.last_seen_at) > max_silence:
+                gw.status = GatewayStatus.OFFLINE
+                stale_count += 1
+                logger.info(f"Gateway {gw.id} ({gw.name}) marked OFFLINE — last seen {gw.last_seen_at}")
+        if stale_count > 0:
+            db.commit()
+            logger.info(f"Gateway staleness check: {stale_count} gateways marked offline")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Gateway staleness check failed: {e}")
+    finally:
+        db.close()
+
+
 def register_default_tasks(alarm_engine: Optional["AlarmEngine"] = None):
     """Register default scheduled tasks."""
     scheduler_service.add_task(
@@ -429,6 +458,15 @@ def register_default_tasks(alarm_engine: Optional["AlarmEngine"] = None):
         run_kpi_calculations,
         ScheduleType.INTERVAL,
         interval_minutes=60,
+    )
+
+    # Gateway staleness check (every 2 min)
+    scheduler_service.add_task(
+        "gateway_staleness",
+        "Gateway Staleness Check",
+        check_gateway_staleness,
+        ScheduleType.INTERVAL,
+        interval_minutes=2,
     )
 
     # No-data alarm check

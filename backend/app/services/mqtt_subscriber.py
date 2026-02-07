@@ -237,9 +237,28 @@ class DataIngestionHandler:
             await self.flush_buffer()
     
     async def handle_heartbeat(self, message: MQTTMessage):
-        """Handle gateway heartbeat."""
-        logger.debug(f"Heartbeat from gateway {message.gateway_id}")
-    
+        """Handle gateway heartbeat — mark gateway as online in DB."""
+        if not message.gateway_id:
+            logger.debug("Heartbeat with no gateway_id, ignoring")
+            return
+
+        db = self.db_session_factory()
+        try:
+            from app.models.integrations import Gateway, GatewayStatus
+            gateway = db.query(Gateway).filter(Gateway.id == message.gateway_id).first()
+            if gateway:
+                gateway.status = GatewayStatus.ONLINE
+                gateway.last_seen_at = message.timestamp
+                db.commit()
+                logger.debug(f"Heartbeat from gateway {message.gateway_id} — marked ONLINE")
+            else:
+                logger.warning(f"Heartbeat from unknown gateway {message.gateway_id}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error processing heartbeat for gateway {message.gateway_id}: {e}")
+        finally:
+            db.close()
+
     async def handle_status(self, message: MQTTMessage):
         """Handle device status update."""
         payload = message.get_payload_json()
@@ -255,21 +274,26 @@ class DataIngestionHandler:
         self._last_flush = datetime.utcnow()
         
         logger.info(f"Flushing {len(readings)} readings to database")
-        
+
         db = self.db_session_factory()
         try:
             from app.services.data_ingestion import get_ingestion_service
+            from app.models.integrations import Gateway, GatewayStatus, CommunicationLog
 
             ingestion_service = get_ingestion_service(db, alarm_engine=self._alarm_engine)
-            
+
+            success_count = 0
+            error_count = 0
+            gateway_ids_seen = set()
+
             for reading in readings:
                 try:
                     gateway_id = reading.get("gateway_id")
                     device_id = reading.get("device_id")
                     data = reading.get("data", {})
-                    
+
                     edge_key = data.pop("edge_key", None) or data.pop("edgeKey", None)
-                    
+
                     ingestion_service.ingest_telemetry(
                         device_id=int(device_id) if device_id and device_id.isdigit() else None,
                         gateway_id=gateway_id,
@@ -277,12 +301,37 @@ class DataIngestionHandler:
                         datapoints=data,
                         source="mqtt",
                     )
+                    success_count += 1
+                    if gateway_id:
+                        gateway_ids_seen.add(gateway_id)
                 except Exception as e:
+                    error_count += 1
                     logger.error(f"Failed to ingest reading: {e}")
-            
+
+            # Update gateway last_seen_at for all gateways that sent data
+            for gw_id in gateway_ids_seen:
+                gw = db.query(Gateway).filter(Gateway.id == gw_id).first()
+                if gw:
+                    gw.status = GatewayStatus.ONLINE
+                    gw.last_seen_at = datetime.utcnow()
+
+            # Log communication event per gateway
+            for gw_id in gateway_ids_seen:
+                comm_log = CommunicationLog(
+                    gateway_id=gw_id,
+                    event_type="mqtt_ingest",
+                    status="success" if error_count == 0 else "partial",
+                    request_count=success_count + error_count,
+                    success_count=success_count,
+                    error_count=error_count,
+                    message=f"Flushed {success_count} readings via MQTT",
+                    timestamp=datetime.utcnow(),
+                )
+                db.add(comm_log)
+
             db.commit()
-            logger.info(f"Successfully flushed {len(readings)} readings")
-            
+            logger.info(f"Successfully flushed {success_count} readings ({error_count} errors)")
+
         except Exception as e:
             db.rollback()
             logger.error(f"Failed to flush buffer: {e}")

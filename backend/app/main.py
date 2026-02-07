@@ -154,6 +154,57 @@ async def lifespan(app: FastAPI):
         shutdown_service.register_handler("kpi_engine", cleanup_kpi_engine, priority=54)
         logger.info("Graceful shutdown handlers registered")
 
+        # Wire webhook data handler so incoming webhook data gets ingested
+        from app.services.webhook_handler import webhook_handler
+        from app.services.data_ingestion import get_ingestion_service
+
+        async def _webhook_data_handler(gateway_id: int, payload: dict):
+            """Ingest webhook payload into database via DataIngestionService."""
+            db = SessionLocal()
+            try:
+                svc = get_ingestion_service(db, alarm_engine=alarm_engine)
+                device_id = payload.get("device_id")
+                edge_key = payload.get("edge_key") or payload.get("edgeKey")
+                datapoints = payload.get("data", {})
+                # Support flat payloads where data dict is the payload itself
+                if not datapoints and isinstance(payload, dict):
+                    datapoints = {k: v for k, v in payload.items()
+                                  if k not in ("device_id", "edge_key", "edgeKey", "timestamp", "readings")}
+                # Handle batch readings list
+                readings = payload.get("readings")
+                if readings and isinstance(readings, list):
+                    for reading in readings:
+                        r_device = reading.get("device_id")
+                        r_edge = reading.get("edge_key") or reading.get("edgeKey")
+                        r_data = reading.get("data", {})
+                        if not r_data:
+                            r_data = {k: v for k, v in reading.items()
+                                      if k not in ("device_id", "edge_key", "edgeKey", "timestamp")}
+                        svc.ingest_telemetry(
+                            device_id=int(r_device) if r_device and str(r_device).isdigit() else None,
+                            gateway_id=gateway_id,
+                            edge_key=r_edge,
+                            datapoints=r_data,
+                            source="webhook",
+                        )
+                elif datapoints:
+                    svc.ingest_telemetry(
+                        device_id=int(device_id) if device_id and str(device_id).isdigit() else None,
+                        gateway_id=gateway_id,
+                        edge_key=edge_key,
+                        datapoints=datapoints,
+                        source="webhook",
+                    )
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Webhook ingestion error for gateway {gateway_id}: {e}")
+            finally:
+                db.close()
+
+        webhook_handler.add_handler(_webhook_data_handler)
+        logger.info("Webhook data handler registered")
+
         # Start MQTT Subscriber for IoT device communication
         # Note: Uses external Mosquitto broker (not Python amqtt) for better reliability.
         # Mosquitto should be running on localhost:1883

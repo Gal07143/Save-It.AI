@@ -9,7 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from pydantic import BaseModel, Field
 from datetime import datetime
 
+from app.core.database import get_db
+from app.models.integrations import Gateway, GatewayStatus, CommunicationLog
 from app.services.webhook_handler import webhook_handler, get_webhook_handler, WebhookHandler
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +75,32 @@ async def ingest_data(
         raise HTTPException(status_code=403, detail="API key does not match gateway ID")
     
     result = await handler.process_webhook(gateway_id, payload.model_dump())
-    
+
+    # Update gateway status and log communication
+    db = next(get_db())
+    try:
+        gw = db.query(Gateway).filter(Gateway.id == gateway_id).first()
+        if gw:
+            gw.status = GatewayStatus.ONLINE
+            gw.last_seen_at = datetime.utcnow()
+        comm_log = CommunicationLog(
+            gateway_id=gateway_id,
+            event_type="webhook_ingest",
+            status="success",
+            request_count=1,
+            success_count=1,
+            error_count=0,
+            message=f"Webhook ingest: {result.get('items_processed', 0)} items",
+            timestamp=datetime.utcnow(),
+        )
+        db.add(comm_log)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to log webhook communication: {e}")
+    finally:
+        db.close()
+
     return WebhookResponse(
         status="success",
         message="Data received successfully",

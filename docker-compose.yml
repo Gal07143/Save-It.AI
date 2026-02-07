@@ -18,12 +18,15 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - ALLOWED_ORIGINS=http://localhost:5000,http://localhost:3000,http://frontend
       - DEBUG=${DEBUG:-false}
-      - MQTT_BROKER_HOST=0.0.0.0
-      - MQTT_PUBLIC_HOST=backend
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - MQTT_PUBLIC_HOST=${MQTT_PUBLIC_HOST:-localhost}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/live"]
@@ -104,6 +107,29 @@ services:
       - saveit-network
 
   # ==========================================================================
+  # Mosquitto - MQTT Broker for IoT Gateway Communication
+  # ==========================================================================
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: saveit-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -t '$$SYS/broker/uptime' -C 1 -W 3 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - saveit-network
+
+  # ==========================================================================
   # nginx Reverse Proxy (optional - for production with TLS)
   # ==========================================================================
   nginx:
@@ -138,3 +164,5 @@ volumes:
   postgres-data:
   redis-data:
   backend-data:
+  mosquitto-data:
+  mosquitto-log:
