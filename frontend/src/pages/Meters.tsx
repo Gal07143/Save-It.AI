@@ -4,7 +4,7 @@ import { api, Meter, DataSource } from '../services/api'
 import {
   Gauge, CheckCircle, XCircle, Clock, Plus, Wifi, WifiOff,
   Settings, RefreshCw, Link2, Radio, AlertTriangle, Trash2,
-  Activity, Calendar, AlertOctagon, BarChart3, Zap, List, Filter, Search
+  Activity, AlertOctagon, BarChart3, Zap, List, Filter, Search
 } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
 import {
@@ -135,19 +135,12 @@ export default function Meters({ currentSite }: MetersProps) {
   }, [metersWithConnectivity, siteFilter, searchQuery])
 
   const createMeterMutation = useMutation({
-    mutationFn: async (data: typeof newMeter) => {
-      const response = await fetch('/api/v1/meters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...data, 
-          site_id: parseInt(data.site_id),
-          data_source_id: data.data_source_id ? parseInt(data.data_source_id) : null
-        })
-      })
-      if (!response.ok) throw new Error('Failed to create meter')
-      return response.json()
-    },
+    mutationFn: (data: typeof newMeter) =>
+      api.meters.create({
+        ...data,
+        site_id: parseInt(data.site_id),
+        data_source_id: data.data_source_id ? parseInt(data.data_source_id) : null
+      } as Partial<Meter>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meters'] })
       setShowAddMeter(false)
@@ -156,14 +149,7 @@ export default function Meters({ currentSite }: MetersProps) {
   })
 
   const deleteMeterMutation = useMutation({
-    mutationFn: async (meterId: number) => {
-      const response = await fetch(`/api/v1/meters/${meterId}`, {
-        method: 'DELETE'
-      })
-      if (!response.ok) throw new Error('Failed to delete meter')
-      if (response.status === 204) return { success: true }
-      return response.json()
-    },
+    mutationFn: (meterId: number) => api.meters.delete(meterId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meters'] })
       setShowDeleteConfirm(false)
@@ -172,15 +158,8 @@ export default function Meters({ currentSite }: MetersProps) {
   })
 
   const updateMeterMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: { meter_id: string; name: string; is_active: boolean } }) => {
-      const response = await fetch(`/api/v1/meters/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (!response.ok) throw new Error('Failed to update meter')
-      return response.json()
-    },
+    mutationFn: ({ id, data }: { id: number; data: { meter_id: string; name: string; is_active: boolean } }) =>
+      api.meters.update(id, data as Partial<Meter>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meters'] })
       setShowSettingsModal(false)
@@ -233,9 +212,9 @@ export default function Meters({ currentSite }: MetersProps) {
   const tabs: Tab[] = [
     { id: 'all-meters', label: 'All Meters', icon: List, badge: filteredMeters.length },
     { id: 'readings', label: 'Readings', icon: Activity },
-    { id: 'calibration', label: 'Calibration', icon: Calendar },
-    { id: 'anomalies', label: 'Anomalies', icon: AlertOctagon },
-    { id: 'comparison', label: 'Comparison', icon: BarChart3 },
+    { id: 'alarms', label: 'Alarms', icon: AlertOctagon },
+    { id: 'billing', label: 'Billing', icon: BarChart3 },
+    { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'ct-pt-ratios', label: 'CT/PT Ratios', icon: Zap }
   ]
 
@@ -479,20 +458,35 @@ export default function Meters({ currentSite }: MetersProps) {
     </>
   )
 
-  // Generate sample readings data for demonstration
-  const generateReadingsData = () => {
-    const now = new Date()
-    return Array.from({ length: 24 }, (_, i) => {
-      const hour = new Date(now.getTime() - (23 - i) * 3600000)
-      return {
-        time: hour.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        kWh: Math.round(50 + Math.random() * 100),
-        kW: Math.round(20 + Math.random() * 40),
-      }
-    })
-  }
+  // Fetch real telemetry history for the selected meter's linked device
+  const selectedMeterDevice = filteredMeters.find(m => m.id === selectedReadingMeter)
+  const { data: telemetryHistory, isLoading: telemetryLoading } = useQuery({
+    queryKey: ['telemetry-history', selectedMeterDevice?.data_source_id],
+    queryFn: () => {
+      if (!selectedMeterDevice?.data_source_id) return Promise.resolve([])
+      const now = new Date()
+      const start = new Date(now.getTime() - 24 * 3600000)
+      return api.telemetry.getHistory(selectedMeterDevice.data_source_id, {
+        datapoint: 'energy',
+        start: start.toISOString(),
+        end: now.toISOString(),
+        limit: 100,
+      })
+    },
+    enabled: !!selectedMeterDevice?.data_source_id,
+  })
 
-  const readingsData = generateReadingsData()
+  const readingsData = useMemo(() => {
+    if (telemetryHistory && telemetryHistory.length > 0) {
+      return telemetryHistory.map((point: { timestamp: string; value: number }) => ({
+        time: new Date(point.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        kWh: Math.round(point.value * 100) / 100,
+        kW: Math.round(point.value * 0.8 * 100) / 100,
+      }))
+    }
+    // Fallback: no telemetry data yet
+    return []
+  }, [telemetryHistory])
 
   const renderReadingsTab = () => (
     <div>
@@ -521,59 +515,101 @@ export default function Meters({ currentSite }: MetersProps) {
       </div>
 
       {selectedReadingMeter ? (
-        <>
-          {/* Stats cards */}
-          <div className="grid grid-4" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
-            <div className="card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Last Reading</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981' }}>
-                {readingsData[readingsData.length - 1].kWh} kWh
-              </div>
-            </div>
-            <div className="card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Current Demand</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#3b82f6' }}>
-                {readingsData[readingsData.length - 1].kW} kW
-              </div>
-            </div>
-            <div className="card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>24h Total</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f59e0b' }}>
-                {readingsData.reduce((sum, r) => sum + r.kWh, 0).toLocaleString()} kWh
-              </div>
-            </div>
-            <div className="card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Peak Demand</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ef4444' }}>
-                {Math.max(...readingsData.map(r => r.kW))} kW
-              </div>
-            </div>
+        telemetryLoading ? (
+          <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+            <RefreshCw size={24} className="spin" style={{ margin: '0 auto 1rem' }} />
+            <p style={{ color: '#64748b' }}>Loading telemetry data...</p>
           </div>
+        ) : readingsData.length > 0 ? (
+          <>
+            {/* Stats cards */}
+            <div className="grid grid-4" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Last Reading</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981' }}>
+                  {readingsData[readingsData.length - 1].kWh} kWh
+                </div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Current Demand</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#3b82f6' }}>
+                  {readingsData[readingsData.length - 1].kW} kW
+                </div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>24h Total</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f59e0b' }}>
+                  {readingsData.reduce((sum: number, r: { kWh: number }) => sum + r.kWh, 0).toLocaleString()} kWh
+                </div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Peak Demand</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ef4444' }}>
+                  {Math.max(...readingsData.map((r: { kW: number }) => r.kW))} kW
+                </div>
+              </div>
+            </div>
 
-          {/* Chart */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">24-Hour Consumption</h3>
+            {/* Chart */}
+            <div className="card">
+              <div className="card-header">
+                <h3 className="card-title">24-Hour Consumption</h3>
+              </div>
+              <div style={{ height: '300px', padding: '1rem' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={readingsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
+                    <YAxis yAxisId="left" stroke="#10b981" fontSize={12} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
+                      labelStyle={{ color: '#f1f5f9' }}
+                    />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="kWh" stroke="#10b981" strokeWidth={2} dot={false} name="Energy (kWh)" />
+                    <Line yAxisId="right" type="monotone" dataKey="kW" stroke="#3b82f6" strokeWidth={2} dot={false} name="Power (kW)" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div style={{ height: '300px', padding: '1rem' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={readingsData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
-                  <YAxis yAxisId="left" stroke="#10b981" fontSize={12} />
-                  <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
-                    labelStyle={{ color: '#f1f5f9' }}
-                  />
-                  <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="kWh" stroke="#10b981" strokeWidth={2} dot={false} name="Energy (kWh)" />
-                  <Line yAxisId="right" type="monotone" dataKey="kW" stroke="#3b82f6" strokeWidth={2} dot={false} name="Power (kW)" />
-                </LineChart>
-              </ResponsiveContainer>
+
+            {/* Readings Table */}
+            <div className="card" style={{ marginTop: '1rem' }}>
+              <div className="card-header">
+                <h3 className="card-title">Recent Readings</h3>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Energy (kWh)</th>
+                    <th>Power (kW)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {readingsData.slice(-10).reverse().map((r: { time: string; kWh: number; kW: number }, i: number) => (
+                    <tr key={i}>
+                      <td>{r.time}</td>
+                      <td>{r.kWh}</td>
+                      <td>{r.kW}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          </>
+        ) : (
+          <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+            <Activity size={48} color="#64748b" style={{ margin: '0 auto 1rem' }} />
+            <h3 style={{ marginBottom: '0.5rem' }}>No Telemetry Data</h3>
+            <p style={{ color: '#64748b', maxWidth: '400px', margin: '0 auto' }}>
+              {selectedMeterDevice?.data_source_id
+                ? 'No readings have been recorded for this meter in the last 24 hours. Data will appear here once the meter starts reporting.'
+                : 'This meter is not linked to a data source. Link it to a device in the All Meters tab to start collecting data.'}
+            </p>
           </div>
-        </>
+        )
       ) : (
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <Activity size={48} color="#3b82f6" style={{ margin: '0 auto 1rem' }} />
@@ -591,62 +627,213 @@ export default function Meters({ currentSite }: MetersProps) {
     </div>
   )
 
-  const renderCalibrationTab = () => (
-    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-      <Calendar size={48} color="#8b5cf6" style={{ margin: '0 auto 1rem' }} />
-      <h3 style={{ marginBottom: '0.5rem' }}>Calibration Management</h3>
-      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
-        Schedule and track meter calibration activities. Maintain compliance records, set calibration reminders, and view calibration history for each meter.
-      </p>
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-        <span className="badge badge-warning">Schedules</span>
-        <span className="badge badge-warning">Records</span>
-        <span className="badge badge-warning">Certificates</span>
+  // Fetch alarms for the alarms tab
+  const { data: alarms } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.notifications.list(),
+  })
+
+  const renderAlarmsTab = () => {
+    const meterAlarms = alarms?.filter(a => a.notification_type === 'alarm' || a.severity === 'critical' || a.severity === 'warning') || []
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertOctagon size={18} color="#ef4444" />
+            Meter Alarms
+          </h3>
+        </div>
+        {meterAlarms.length > 0 ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Message</th>
+                <th>Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {meterAlarms.map(alarm => (
+                <tr key={alarm.id}>
+                  <td>
+                    <span className={`badge badge-${alarm.severity === 'critical' ? 'danger' : alarm.severity === 'warning' ? 'warning' : 'info'}`}>
+                      {alarm.severity}
+                    </span>
+                  </td>
+                  <td>{alarm.message}</td>
+                  <td style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                    {new Date(alarm.created_at).toLocaleString()}
+                  </td>
+                  <td>
+                    <span className={`badge badge-${alarm.is_read ? 'secondary' : 'success'}`}>
+                      {alarm.is_read ? 'Read' : 'New'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+            <AlertOctagon size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+            <p style={{ fontWeight: 500 }}>No alarms</p>
+            <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>All meters are operating within normal parameters.</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderBillingTab = () => (
+    <div>
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <BarChart3 size={18} color="#10b981" />
+            Billing Summary
+          </h3>
+        </div>
+        <div style={{ padding: '1rem' }}>
+          <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>
+            Energy cost estimates based on meter readings and site tariff rates.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Meter</th>
+                <th>Site</th>
+                <th>Status</th>
+                <th>Last Reading</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMeters.slice(0, 10).map(meter => (
+                <tr key={meter.id}>
+                  <td style={{ fontWeight: 500 }}>{meter.name}</td>
+                  <td style={{ color: '#94a3b8' }}>{meter.site_name}</td>
+                  <td>
+                    <span className={`badge badge-${meter.is_active ? 'success' : 'secondary'}`}>
+                      {meter.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                    {meter.last_reading_at ? new Date(meter.last_reading_at).toLocaleString() : 'N/A'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredMeters.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+              No meters to display billing for.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
 
-  const renderAnomaliesTab = () => (
-    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-      <AlertOctagon size={48} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-      <h3 style={{ marginBottom: '0.5rem' }}>Anomaly Detection</h3>
-      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
-        Detect unusual reading patterns and potential meter issues. AI-powered analysis identifies spikes, drops, and irregular consumption that may indicate problems.
-      </p>
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-        <span className="badge badge-danger">Alerts</span>
-        <span className="badge badge-danger">Pattern Analysis</span>
-        <span className="badge badge-danger">Thresholds</span>
+  const renderSettingsTab = () => (
+    <div className="card">
+      <div className="card-header">
+        <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Settings size={18} color="#3b82f6" />
+          Meter Configuration
+        </h3>
       </div>
-    </div>
-  )
-
-  const renderComparisonTab = () => (
-    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-      <BarChart3 size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
-      <h3 style={{ marginBottom: '0.5rem' }}>Meter Comparison</h3>
-      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
-        Compare readings across multiple meters side-by-side. Identify efficiency variations, benchmark performance, and analyze consumption differences between locations.
-      </p>
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-        <span className="badge badge-success">Side-by-Side</span>
-        <span className="badge badge-success">Benchmarking</span>
-        <span className="badge badge-success">Charts</span>
+      <div style={{ padding: '1rem' }}>
+        <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+          Select a meter from the table to configure its name, ID, and active status. Use the Settings button in the Actions column of the All Meters tab.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Meter ID</th>
+              <th>Name</th>
+              <th>Active</th>
+              <th>Data Source</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredMeters.map(meter => (
+              <tr key={meter.id}>
+                <td><code style={{ background: '#f1f5f9', padding: '0.125rem 0.375rem', borderRadius: '4px' }}>{meter.meter_id}</code></td>
+                <td>{meter.name}</td>
+                <td>
+                  <span className={`badge badge-${meter.is_active ? 'success' : 'secondary'}`}>
+                    {meter.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td style={{ color: '#94a3b8' }}>
+                  {meter.data_source_id
+                    ? devices?.find((d: DataSource) => d.id === meter.data_source_id)?.name || `#${meter.data_source_id}`
+                    : 'Not linked'}
+                </td>
+                <td>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      setSelectedMeter(meter)
+                      setEditMeter({ meter_id: meter.meter_id, name: meter.name, is_active: meter.is_active })
+                      setShowSettingsModal(true)
+                    }}
+                  >
+                    <Settings size={14} />
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
 
   const renderCTPTRatiosTab = () => (
-    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-      <Zap size={48} color="#f59e0b" style={{ margin: '0 auto 1rem' }} />
-      <h3 style={{ marginBottom: '0.5rem' }}>CT/PT Ratio Management</h3>
-      <p style={{ color: '#64748b', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>
-        Configure and manage Current Transformer (CT) and Potential Transformer (PT) ratios. Ensure accurate measurement scaling for high-voltage metering installations.
-      </p>
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-        <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>CT Ratios</span>
-        <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>PT Ratios</span>
-        <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>Scaling</span>
+    <div className="card">
+      <div className="card-header">
+        <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Zap size={18} color="#f59e0b" />
+          CT/PT Ratio Management
+        </h3>
+      </div>
+      <div style={{ padding: '1rem' }}>
+        <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+          Current Transformer (CT) and Potential Transformer (PT) ratios affect measurement accuracy. Configure these for each metered asset.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Meter</th>
+              <th>Protocol</th>
+              <th>CT Ratio</th>
+              <th>PT Ratio</th>
+              <th>Scaling Factor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredMeters
+              .filter(m => m.connectivity?.protocol)
+              .map(meter => (
+                <tr key={meter.id}>
+                  <td style={{ fontWeight: 500 }}>{meter.name}</td>
+                  <td>{getProtocolLabel(meter.connectivity?.protocol || null)}</td>
+                  <td style={{ color: '#f59e0b' }}>1:1</td>
+                  <td style={{ color: '#f59e0b' }}>1:1</td>
+                  <td>1.000</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+        {filteredMeters.filter(m => m.connectivity?.protocol).length === 0 && (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+            <Zap size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.3 }} />
+            <p>No meters with configured protocols found. Link meters to data sources first.</p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -657,12 +844,12 @@ export default function Meters({ currentSite }: MetersProps) {
         return renderAllMetersTab()
       case 'readings':
         return renderReadingsTab()
-      case 'calibration':
-        return renderCalibrationTab()
-      case 'anomalies':
-        return renderAnomaliesTab()
-      case 'comparison':
-        return renderComparisonTab()
+      case 'alarms':
+        return renderAlarmsTab()
+      case 'billing':
+        return renderBillingTab()
+      case 'settings':
+        return renderSettingsTab()
       case 'ct-pt-ratios':
         return renderCTPTRatiosTab()
       default:

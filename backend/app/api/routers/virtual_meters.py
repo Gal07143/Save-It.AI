@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models import VirtualMeter, VirtualMeterComponent
-from app.schemas import VirtualMeterCreate, VirtualMeterResponse
+from app.schemas import VirtualMeterCreate, VirtualMeterUpdate, VirtualMeterResponse
 
 router = APIRouter(prefix="/api/v1/virtual-meters", tags=["virtual-meters"])
 
@@ -55,3 +55,50 @@ def get_virtual_meter(vm_id: int, db: Session = Depends(get_db)):
     if not vm:
         raise HTTPException(status_code=404, detail="Virtual meter not found")
     return vm
+
+
+@router.put("/{vm_id}", response_model=VirtualMeterResponse)
+def update_virtual_meter(vm_id: int, update: VirtualMeterUpdate, db: Session = Depends(get_db)):
+    """Update a virtual meter."""
+    vm = db.query(VirtualMeter).filter(VirtualMeter.id == vm_id).first()
+    if not vm:
+        raise HTTPException(status_code=404, detail="Virtual meter not found")
+
+    update_data = update.model_dump(exclude_unset=True)
+    components_data = update_data.pop("components", None)
+
+    for key, value in update_data.items():
+        setattr(vm, key, value)
+
+    if components_data is not None:
+        db.query(VirtualMeterComponent).filter(
+            VirtualMeterComponent.virtual_meter_id == vm_id
+        ).delete()
+        for comp in components_data:
+            db_comp = VirtualMeterComponent(
+                virtual_meter_id=vm_id,
+                meter_id=comp.get("meter_id"),
+                weight=comp.get("weight", 1.0),
+                operator=comp.get("operator", "+"),
+                allocation_percent=comp.get("allocation_percent"),
+            )
+            db.add(db_comp)
+
+    db.commit()
+    db.refresh(vm)
+    return vm
+
+
+@router.delete("/{vm_id}")
+def delete_virtual_meter(vm_id: int, db: Session = Depends(get_db)):
+    """Delete a virtual meter and its components."""
+    vm = db.query(VirtualMeter).filter(VirtualMeter.id == vm_id).first()
+    if not vm:
+        raise HTTPException(status_code=404, detail="Virtual meter not found")
+
+    db.query(VirtualMeterComponent).filter(
+        VirtualMeterComponent.virtual_meter_id == vm_id
+    ).delete()
+    db.delete(vm)
+    db.commit()
+    return {"message": "Virtual meter deleted"}

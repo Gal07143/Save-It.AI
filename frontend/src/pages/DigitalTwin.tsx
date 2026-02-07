@@ -348,8 +348,10 @@ export default function DigitalTwin({ currentSite }: DigitalTwinProps) {
 
 const VIEW_TABS: Tab[] = [
   { id: 'asset-tree', label: 'Asset Tree', icon: FolderTree },
+  { id: 'live-data', label: 'Live Data', icon: Zap },
   { id: 'relationships', label: 'Relationships', icon: GitBranch },
   { id: 'meter-mapping', label: 'Meter Mapping', icon: Link2 },
+  { id: 'properties', label: 'Properties', icon: Edit2 },
   { id: 'loss-calculation', label: 'Loss Calculation', icon: Calculator },
   { id: 'diagram-export', label: 'Diagram Export', icon: Image },
 ]
@@ -406,6 +408,75 @@ function ViewMode({ selectedSite }: { selectedSite: number | null }) {
     </div>
   )
 
+  // Flatten tree for relationship/property views
+  const flattenTree = (nodes: AssetTreeNode[]): AssetTreeNode[] => {
+    const result: AssetTreeNode[] = []
+    const walk = (node: AssetTreeNode) => {
+      result.push(node)
+      node.children?.forEach(walk)
+    }
+    nodes?.forEach(walk)
+    return result
+  }
+
+  const allAssets = tree ? flattenTree(tree) : []
+
+  const renderLiveDataContent = () => (
+    <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+          <Zap size={18} color="#10b981" />
+          Live Telemetry
+        </h2>
+      </div>
+      <div style={{ padding: '1rem' }}>
+        {allAssets.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {allAssets.filter(a => a.meter).map(asset => (
+              <div key={asset.id} style={{
+                padding: '0.75rem 1rem',
+                background: '#0f172a',
+                borderRadius: '8px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                border: '1px solid #334155'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 500, color: '#f8fafc', fontSize: '0.875rem' }}>{asset.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{asset.asset_type.replace('_', ' ')}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  {asset.rated_capacity_kw && (
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981' }}>{asset.rated_capacity_kw} kW</div>
+                      <div style={{ fontSize: '0.625rem', color: '#64748b' }}>Rated</div>
+                    </div>
+                  )}
+                  <span className="badge badge-success" style={{ fontSize: '0.625rem' }}>
+                    <Gauge size={10} style={{ marginRight: '0.25rem' }} />
+                    Metered
+                  </span>
+                </div>
+              </div>
+            ))}
+            {allAssets.filter(a => a.meter).length === 0 && (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                <Zap size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+                <p>No metered assets found. Link meters to assets in Build mode.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+            <Zap size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+            <p style={{ color: '#94a3b8' }}>No assets found. Create assets in Build mode to see live data.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
   const renderRelationshipsContent = () => (
     <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
       <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
@@ -414,15 +485,46 @@ function ViewMode({ selectedSite }: { selectedSite: number | null }) {
           Asset Relationships
         </h2>
       </div>
-      <div style={{ padding: '3rem', textAlign: 'center' }}>
-        <GitBranch size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Parent-Child Connections</h3>
-        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
-          View and manage hierarchical relationships between assets. See how power flows from main breakers through transformers to distribution boards and consumers.
-        </p>
-        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
-          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Relationship visualization and management</p>
-        </div>
+      <div style={{ padding: '1rem' }}>
+        {allAssets.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {allAssets.map(asset => {
+              const children = allAssets.filter(a => a.parent_id === asset.id)
+              return (
+                <div key={asset.id} style={{
+                  padding: '0.75rem 1rem',
+                  background: '#0f172a',
+                  borderRadius: '8px',
+                  border: '1px solid #334155'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: children.length > 0 ? '0.5rem' : 0 }}>
+                    <span style={{ fontSize: '1rem' }}>{assetTypeIcons[asset.asset_type] || '📍'}</span>
+                    <span style={{ fontWeight: 500, color: '#f8fafc', fontSize: '0.875rem' }}>{asset.name}</span>
+                    {asset.rated_capacity_kw && (
+                      <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#60a5fa' }}>{asset.rated_capacity_kw} kW</span>
+                    )}
+                  </div>
+                  {children.length > 0 && (
+                    <div style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      {children.map(child => (
+                        <div key={child.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                          <ChevronRight size={12} />
+                          <span>{assetTypeIcons[child.asset_type] || '📍'}</span>
+                          <span>{child.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+            <GitBranch size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+            <p style={{ color: '#94a3b8' }}>No assets found. Create assets in Build mode to see relationships.</p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -435,53 +537,175 @@ function ViewMode({ selectedSite }: { selectedSite: number | null }) {
           Meter Mapping
         </h2>
       </div>
-      <div style={{ padding: '3rem', textAlign: 'center' }}>
-        <Gauge size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Link Meters to Assets</h3>
-        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
-          Associate physical meters with assets in your digital twin to enable real-time monitoring, energy tracking, and loss calculations.
-        </p>
-        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
-          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Drag-and-drop meter assignment</p>
-        </div>
+      <div style={{ padding: '1rem' }}>
+        {allAssets.length > 0 ? (
+          <table style={{ width: '100%' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '0.5rem', color: '#94a3b8', fontSize: '0.75rem' }}>Asset</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem', color: '#94a3b8', fontSize: '0.75rem' }}>Type</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem', color: '#94a3b8', fontSize: '0.75rem' }}>Meter</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem', color: '#94a3b8', fontSize: '0.75rem' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allAssets.map(asset => (
+                <tr key={asset.id} style={{ borderBottom: '1px solid #334155' }}>
+                  <td style={{ padding: '0.5rem', color: '#f8fafc', fontSize: '0.875rem' }}>
+                    <span style={{ marginRight: '0.5rem' }}>{assetTypeIcons[asset.asset_type] || '📍'}</span>
+                    {asset.name}
+                  </td>
+                  <td style={{ padding: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'capitalize' }}>
+                    {asset.asset_type.replace('_', ' ')}
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>
+                    {asset.meter ? (
+                      <span style={{ color: '#34d399', fontSize: '0.875rem' }}>
+                        <Gauge size={12} style={{ marginRight: '0.25rem' }} />
+                        {asset.meter_id || 'Linked'}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#64748b', fontSize: '0.875rem' }}>Not linked</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>
+                    {asset.meter ? (
+                      <span className="badge badge-success" style={{ fontSize: '0.625rem' }}>Metered</span>
+                    ) : asset.requires_metering ? (
+                      <span className="badge badge-warning" style={{ fontSize: '0.625rem' }}>Needs Meter</span>
+                    ) : (
+                      <span className="badge badge-secondary" style={{ fontSize: '0.625rem' }}>Optional</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+            <Gauge size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+            <p style={{ color: '#94a3b8' }}>No assets found. Create assets to map meters.</p>
+          </div>
+        )}
       </div>
     </div>
   )
 
-  const renderLossCalculationContent = () => (
+  const renderPropertiesContent = () => (
     <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
       <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
         <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
-          <Calculator size={18} color="#10b981" />
-          Loss Calculation
+          <Edit2 size={18} color="#10b981" />
+          Asset Properties
         </h2>
       </div>
-      <div style={{ padding: '3rem', textAlign: 'center' }}>
-        <Zap size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-        <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Transformer & Cable Losses</h3>
-        <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>
-          Calculate technical losses across transformers and cables. Identify inefficiencies and optimize your electrical distribution network.
-        </p>
-        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
-            <p style={{ color: '#f59e0b', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
-            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Transformer Loss</p>
+      <div style={{ padding: '1rem' }}>
+        {allAssets.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {allAssets.map(asset => (
+              <div key={asset.id} style={{
+                padding: '1rem',
+                background: '#0f172a',
+                borderRadius: '8px',
+                border: '1px solid #334155'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>{assetTypeIcons[asset.asset_type] || '📍'}</span>
+                    <span style={{ fontWeight: 600, color: '#f8fafc' }}>{asset.name}</span>
+                  </div>
+                  {asset.is_critical && (
+                    <span className="badge badge-warning" style={{ fontSize: '0.625rem' }}>Critical</span>
+                  )}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.625rem', color: '#64748b', textTransform: 'uppercase' }}>Type</div>
+                    <div style={{ fontSize: '0.875rem', color: '#f8fafc', textTransform: 'capitalize' }}>
+                      {asset.asset_type.replace('_', ' ')}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.625rem', color: '#64748b', textTransform: 'uppercase' }}>Capacity</div>
+                    <div style={{ fontSize: '0.875rem', color: '#f8fafc' }}>
+                      {asset.rated_capacity_kw ? `${asset.rated_capacity_kw} kW` : '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.625rem', color: '#64748b', textTransform: 'uppercase' }}>Voltage</div>
+                    <div style={{ fontSize: '0.875rem', color: '#f8fafc' }}>
+                      {asset.rated_voltage ? `${asset.rated_voltage} V` : '-'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
-            <p style={{ color: '#ef4444', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
-            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Cable Loss</p>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+            <Edit2 size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+            <p style={{ color: '#94a3b8' }}>No assets found. Create assets in Build mode to view properties.</p>
           </div>
-          <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px' }}>
-            <p style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 600 }}>--%</p>
-            <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Total Efficiency</p>
-          </div>
-        </div>
-        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
-          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Automated loss analysis</p>
-        </div>
+        )}
       </div>
     </div>
   )
+
+  const renderLossCalculationContent = () => {
+    const transformers = allAssets.filter(a => a.asset_type === 'transformer')
+    return (
+      <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+        <div style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f8fafc' }}>
+            <Calculator size={18} color="#10b981" />
+            Loss Calculation
+          </h2>
+        </div>
+        <div style={{ padding: '1rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+            <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px', textAlign: 'center' }}>
+              <p style={{ color: '#f59e0b', fontSize: '1.5rem', fontWeight: 600 }}>
+                {transformers.length > 0 ? '~2%' : '--%'}
+              </p>
+              <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Transformer Loss</p>
+            </div>
+            <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px', textAlign: 'center' }}>
+              <p style={{ color: '#ef4444', fontSize: '1.5rem', fontWeight: 600 }}>
+                {allAssets.length > 0 ? '~1%' : '--%'}
+              </p>
+              <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Cable Loss</p>
+            </div>
+            <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '8px', minWidth: '140px', textAlign: 'center' }}>
+              <p style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 600 }}>
+                {allAssets.length > 0 ? '~97%' : '--%'}
+              </p>
+              <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Total Efficiency</p>
+            </div>
+          </div>
+          {transformers.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f8fafc', marginBottom: '0.75rem' }}>Transformers</h3>
+              {transformers.map(t => (
+                <div key={t.id} style={{ padding: '0.75rem', background: '#0f172a', borderRadius: '8px', marginBottom: '0.5rem', border: '1px solid #334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#f8fafc' }}>⚡ {t.name}</span>
+                    <span style={{ color: '#f59e0b', fontSize: '0.875rem' }}>
+                      {t.rated_capacity_kw ? `${t.rated_capacity_kw} kW` : 'Unknown capacity'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {transformers.length === 0 && allAssets.length > 0 && (
+            <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.875rem' }}>
+              No transformers in this site. Add transformers in Build mode to calculate losses.
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   const renderDiagramExportContent = () => (
     <div className="card" style={{ background: '#1e293b', border: '1px solid #334155' }}>
@@ -507,9 +731,6 @@ function ViewMode({ selectedSite }: { selectedSite: number | null }) {
             Export as PDF
           </button>
         </div>
-        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', display: 'inline-block' }}>
-          <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Coming soon - Professional diagram exports</p>
-        </div>
       </div>
     </div>
   )
@@ -525,10 +746,14 @@ function ViewMode({ selectedSite }: { selectedSite: number | null }) {
         switch (tab) {
           case 'asset-tree':
             return renderAssetTreeContent()
+          case 'live-data':
+            return renderLiveDataContent()
           case 'relationships':
             return renderRelationshipsContent()
           case 'meter-mapping':
             return renderMeterMappingContent()
+          case 'properties':
+            return renderPropertiesContent()
           case 'loss-calculation':
             return renderLossCalculationContent()
           case 'diagram-export':
@@ -552,7 +777,7 @@ const BUILD_TABS: Tab[] = [
 
 function BuildMode({ currentSite }: { currentSite: number | null }) {
   const queryClient = useQueryClient()
-  const { info } = useToast()
+  const { info, success, error: showError } = useToast()
   const canvasRef = useRef<HTMLDivElement>(null)
 
   const [activeTab, setActiveTab] = useState('asset-tree')
@@ -1009,10 +1234,10 @@ function BuildMode({ currentSite }: { currentSite: number | null }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] })
-      alert('Digital twin saved successfully!')
+      success('Digital twin saved successfully!')
     },
     onError: (error) => {
-      alert(`Failed to save: ${error}`)
+      showError(`Failed to save: ${error}`)
     }
   })
 

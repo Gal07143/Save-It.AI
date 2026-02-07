@@ -411,8 +411,10 @@ export interface VirtualMeter {
   id: number
   site_id: number
   name: string
+  description: string | null
   meter_type: string
   expression: string
+  unit: string
   is_active: boolean
   created_at: string
 }

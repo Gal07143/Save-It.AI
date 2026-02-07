@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'wouter'
-import { 
-  Radio, Wifi, Plus, Trash2, XCircle, 
-  RefreshCw, Clock, Activity, Key, Router, AlertCircle
+import {
+  Radio, Wifi, Plus, Trash2, XCircle,
+  RefreshCw, Clock, Activity, Key, Router, AlertCircle,
+  Filter, ChevronDown, ChevronUp, Info
 } from 'lucide-react'
 import { api, Gateway, GatewayRegistration, DataSource } from '../services/api'
 import { useToast } from '../contexts/ToastContext'
@@ -25,6 +26,9 @@ export default function Gateways({ currentSite }: GatewaysProps) {
   const [gatewayToDelete, setGatewayToDelete] = useState<Gateway | null>(null)
   const [showDeviceWizard, setShowDeviceWizard] = useState(false)
   const [_selectedGatewayForDevice, setSelectedGatewayForDevice] = useState<number | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [expandedDevices, setExpandedDevices] = useState<Set<number>>(new Set())
+  const [showDetailPanel, setShowDetailPanel] = useState(false)
   const { success, error: showError } = useToast()
   const queryClient = useQueryClient()
   const [, _setLocation] = useLocation()
@@ -63,6 +67,10 @@ export default function Gateways({ currentSite }: GatewaysProps) {
       queryClient.invalidateQueries({ queryKey: ['gateways'] })
       setShowDeleteConfirm(false)
       setGatewayToDelete(null)
+      if (selectedGateway?.id === gatewayToDelete?.id) {
+        setSelectedGateway(null)
+        setShowDetailPanel(false)
+      }
     },
     onError: (err: Error) => showError(err.message || 'Failed to delete gateway')
   })
@@ -119,6 +127,23 @@ export default function Gateways({ currentSite }: GatewaysProps) {
     }
   }
 
+  const handleGatewayClick = (gateway: Gateway) => {
+    setSelectedGateway(gateway)
+    setShowDetailPanel(true)
+  }
+
+  const toggleDeviceExpansion = (gatewayId: number) => {
+    setExpandedDevices(prev => {
+      const next = new Set(prev)
+      if (next.has(gatewayId)) {
+        next.delete(gatewayId)
+      } else {
+        next.add(gatewayId)
+      }
+      return next
+    })
+  }
+
   const getDevicesForGateway = (gatewayId: number) => {
     return dataSources?.filter((ds: DataSource) => ds.gateway_id === gatewayId) || []
   }
@@ -131,6 +156,19 @@ export default function Gateways({ currentSite }: GatewaysProps) {
       case 'error': return '#ef4444'
       default: return '#64748b'
     }
+  }
+
+  // Filter gateways by status
+  const filteredGateways = gateways?.filter((gw: Gateway) => {
+    if (statusFilter === 'all') return true
+    return (gw.status || 'offline').toLowerCase() === statusFilter
+  }) || []
+
+  // Count by status for filter badges
+  const statusCounts = {
+    online: gateways?.filter((g: Gateway) => g.status?.toLowerCase() === 'online').length || 0,
+    offline: gateways?.filter((g: Gateway) => !g.status || g.status.toLowerCase() === 'offline').length || 0,
+    error: gateways?.filter((g: Gateway) => g.status?.toLowerCase() === 'error').length || 0,
   }
 
   return (
@@ -155,143 +193,349 @@ export default function Gateways({ currentSite }: GatewaysProps) {
           <div>
             <div style={{ fontWeight: 600, color: '#3b82f6', marginBottom: '0.25rem' }}>What is a Gateway?</div>
             <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-              A gateway is a hardware device (like a Teltonika RUT200 router) that collects data from your energy meters and sensors, 
+              A gateway is a hardware device (like a Teltonika RUT200 router) that collects data from your energy meters and sensors,
               then sends it to SAVE-IT.AI via MQTT or webhooks. After adding a gateway, register it to get connection credentials.
             </div>
           </div>
         </div>
       </div>
 
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>Loading gateways...</div>
-      ) : !gateways?.length ? (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <Radio size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-          <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>No gateways configured</h3>
-          <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>Add your first gateway to start collecting data from your devices.</p>
-          <button className="btn btn-primary" onClick={() => setShowAddGateway(true)}>
-            <Plus size={16} />
-            Add Your First Gateway
+      {/* Status Filter Bar */}
+      {gateways && gateways.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <Filter size={16} color="#64748b" />
+          <button
+            className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setStatusFilter('all')}
+          >
+            All ({gateways.length})
+          </button>
+          <button
+            className={`btn btn-sm ${statusFilter === 'online' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setStatusFilter('online')}
+            style={statusFilter !== 'online' ? { borderColor: '#10b981', color: '#10b981' } : {}}
+          >
+            Online ({statusCounts.online})
+          </button>
+          <button
+            className={`btn btn-sm ${statusFilter === 'offline' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setStatusFilter('offline')}
+          >
+            Offline ({statusCounts.offline})
+          </button>
+          <button
+            className={`btn btn-sm ${statusFilter === 'error' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setStatusFilter('error')}
+            style={statusFilter !== 'error' ? { borderColor: '#ef4444', color: '#ef4444' } : {}}
+          >
+            Error ({statusCounts.error})
           </button>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gap: '1rem' }}>
-          {gateways.map((gateway: Gateway) => {
-            const devices = getDevicesForGateway(gateway.id)
-            return (
-              <div key={gateway.id} className="card" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                    <div style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '10px',
-                      background: `${getStatusColor(gateway.status || 'offline')}22`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <Router size={24} color={getStatusColor(gateway.status || 'offline')} />
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-                        <span style={{ fontWeight: 600, color: 'white', fontSize: '1rem' }}>{gateway.name}</span>
-                        <GatewayStatusBadge status={gateway.status || 'offline'} size="sm" />
-                      </div>
-                      {gateway.ip_address && (
-                        <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>
-                          {gateway.ip_address}
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#94a3b8' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Activity size={12} />
-                          {devices.length} device{devices.length !== 1 ? 's' : ''}
-                        </span>
-                        {gateway.last_seen_at && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <Clock size={12} />
-                            Last seen {new Date(gateway.last_seen_at).toLocaleString()}
-                          </span>
-                        )}
-                        {gateway.firmware_version && (
-                          <span>Firmware: {gateway.firmware_version}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      onClick={() => handleViewCredentials(gateway)}
-                      className="btn btn-secondary btn-sm"
-                      title="View Credentials"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
-                    >
-                      <Key size={14} />
-                      Credentials
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedGatewayForDevice(gateway.id)
-                        setShowDeviceWizard(true)
-                      }}
-                      className="btn btn-primary btn-sm"
-                      title="Add Device to Gateway"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
-                    >
-                      <Plus size={14} />
-                      Add Device
-                    </button>
-                    <button
-                      onClick={() => { setGatewayToDelete(gateway); setShowDeleteConfirm(true) }}
-                      className="btn btn-ghost btn-sm"
-                      title="Delete Gateway"
-                      style={{ color: '#ef4444' }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
+      )}
 
-                {devices.length > 0 && (
-                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(51, 65, 85, 0.5)' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748b', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
-                      Connected Devices
+      <div style={{ display: 'flex', gap: '1rem' }}>
+        {/* Gateway List */}
+        <div style={{ flex: showDetailPanel ? '1' : '1' }}>
+          {isLoading ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>Loading gateways...</div>
+          ) : !filteredGateways.length ? (
+            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+              <Radio size={48} color="#64748b" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+              <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>
+                {statusFilter !== 'all' ? `No ${statusFilter} gateways` : 'No gateways configured'}
+              </h3>
+              <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+                {statusFilter !== 'all'
+                  ? 'Try changing the filter to see other gateways.'
+                  : 'Add your first gateway to start collecting data from your devices.'}
+              </p>
+              {statusFilter === 'all' && (
+                <button className="btn btn-primary" onClick={() => setShowAddGateway(true)}>
+                  <Plus size={16} />
+                  Add Your First Gateway
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {filteredGateways.map((gateway: Gateway) => {
+                const devices = getDevicesForGateway(gateway.id)
+                const isExpanded = expandedDevices.has(gateway.id)
+                const isSelected = selectedGateway?.id === gateway.id && showDetailPanel
+                return (
+                  <div
+                    key={gateway.id}
+                    className="card"
+                    style={{
+                      padding: '1.25rem',
+                      cursor: 'pointer',
+                      border: isSelected ? '1px solid #10b981' : undefined,
+                      transition: 'border-color 0.2s',
+                    }}
+                    onClick={() => handleGatewayClick(gateway)}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '10px',
+                          background: `${getStatusColor(gateway.status || 'offline')}22`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Router size={24} color={getStatusColor(gateway.status || 'offline')} />
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+                            <span style={{ fontWeight: 600, color: 'white', fontSize: '1rem' }}>{gateway.name}</span>
+                            <GatewayStatusBadge status={gateway.status || 'offline'} size="sm" />
+                          </div>
+                          {gateway.ip_address && (
+                            <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                              {gateway.ip_address}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Activity size={12} />
+                              {devices.length} device{devices.length !== 1 ? 's' : ''}
+                            </span>
+                            {gateway.last_seen_at && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <Clock size={12} />
+                                Last seen {new Date(gateway.last_seen_at).toLocaleString()}
+                              </span>
+                            )}
+                            {gateway.firmware_version && (
+                              <span>Firmware: {gateway.firmware_version}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.5rem' }} onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleViewCredentials(gateway)}
+                          className="btn btn-secondary btn-sm"
+                          title="View Credentials"
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                        >
+                          <Key size={14} />
+                          Credentials
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedGatewayForDevice(gateway.id)
+                            setShowDeviceWizard(true)
+                          }}
+                          className="btn btn-primary btn-sm"
+                          title="Add Device to Gateway"
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                        >
+                          <Plus size={14} />
+                          Add Device
+                        </button>
+                        <button
+                          onClick={() => { setGatewayToDelete(gateway); setShowDeleteConfirm(true) }}
+                          className="btn btn-ghost btn-sm"
+                          title="Delete Gateway"
+                          style={{ color: '#ef4444' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {devices.slice(0, 5).map((device: DataSource) => (
-                        <span
-                          key={device.id}
+
+                    {devices.length > 0 && (
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(51, 65, 85, 0.5)' }}>
+                        <div
                           style={{
-                            padding: '0.25rem 0.75rem',
-                            background: device.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)',
-                            border: `1px solid ${device.is_active ? 'rgba(16, 185, 129, 0.3)' : 'rgba(100, 116, 139, 0.3)'}`,
-                            borderRadius: '9999px',
                             fontSize: '0.75rem',
-                            color: device.is_active ? '#10b981' : '#64748b',
+                            fontWeight: 500,
+                            color: '#64748b',
+                            marginBottom: '0.5rem',
+                            textTransform: 'uppercase',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.375rem'
+                            justifyContent: 'space-between',
                           }}
                         >
-                          {device.is_active ? <Wifi size={10} /> : <XCircle size={10} />}
-                          {device.name}
+                          <span>Connected Devices</span>
+                          {devices.length > 5 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleDeviceExpansion(gateway.id) }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#3b82f6',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                textTransform: 'none',
+                                fontWeight: 400,
+                              }}
+                            >
+                              {isExpanded ? (
+                                <><ChevronUp size={12} /> Show less</>
+                              ) : (
+                                <><ChevronDown size={12} /> Show all {devices.length}</>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          {(isExpanded ? devices : devices.slice(0, 5)).map((device: DataSource) => (
+                            <span
+                              key={device.id}
+                              style={{
+                                padding: '0.25rem 0.75rem',
+                                background: device.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+                                border: `1px solid ${device.is_active ? 'rgba(16, 185, 129, 0.3)' : 'rgba(100, 116, 139, 0.3)'}`,
+                                borderRadius: '9999px',
+                                fontSize: '0.75rem',
+                                color: device.is_active ? '#10b981' : '#64748b',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.375rem'
+                              }}
+                            >
+                              {device.is_active ? <Wifi size={10} /> : <XCircle size={10} />}
+                              {device.name}
+                            </span>
+                          ))}
+                          {!isExpanded && devices.length > 5 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleDeviceExpansion(gateway.id) }}
+                              style={{
+                                padding: '0.25rem 0.75rem',
+                                color: '#3b82f6',
+                                fontSize: '0.75rem',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                borderRadius: '9999px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              +{devices.length - 5} more
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Detail Panel */}
+        {showDetailPanel && selectedGateway && (
+          <div className="card" style={{ width: '380px', flexShrink: 0, padding: '1.25rem', alignSelf: 'flex-start', position: 'sticky', top: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Info size={16} color="#3b82f6" />
+                Gateway Details
+              </h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowDetailPanel(false)}>&times;</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Name</div>
+                <div style={{ fontWeight: 500, color: '#f8fafc' }}>{selectedGateway.name}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Status</div>
+                <GatewayStatusBadge status={selectedGateway.status || 'offline'} size="sm" />
+              </div>
+              {selectedGateway.ip_address && (
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>IP Address</div>
+                  <div style={{ color: '#f8fafc', fontFamily: 'monospace', fontSize: '0.875rem' }}>{selectedGateway.ip_address}</div>
+                </div>
+              )}
+              {selectedGateway.description && (
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Description</div>
+                  <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>{selectedGateway.description}</div>
+                </div>
+              )}
+              {selectedGateway.firmware_version && (
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Firmware</div>
+                  <div style={{ color: '#f8fafc', fontSize: '0.875rem' }}>{selectedGateway.firmware_version}</div>
+                </div>
+              )}
+              {selectedGateway.last_seen_at && (
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Last Seen</div>
+                  <div style={{ color: '#f8fafc', fontSize: '0.875rem' }}>{new Date(selectedGateway.last_seen_at).toLocaleString()}</div>
+                </div>
+              )}
+
+              {/* Devices list */}
+              <div style={{ borderTop: '1px solid #334155', paddingTop: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.5rem', fontWeight: 500 }}>
+                  Connected Devices ({getDevicesForGateway(selectedGateway.id).length})
+                </div>
+                {getDevicesForGateway(selectedGateway.id).length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {getDevicesForGateway(selectedGateway.id).map((device: DataSource) => (
+                      <div key={device.id} style={{
+                        padding: '0.5rem 0.75rem',
+                        background: '#0f172a',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.875rem', color: '#f8fafc' }}>{device.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{device.source_type}</div>
+                        </div>
+                        <span className={`badge badge-${device.is_active ? 'success' : 'secondary'}`} style={{ fontSize: '0.625rem' }}>
+                          {device.is_active ? 'Active' : 'Inactive'}
                         </span>
-                      ))}
-                      {devices.length > 5 && (
-                        <span style={{ padding: '0.25rem 0.75rem', color: '#64748b', fontSize: '0.75rem' }}>
-                          +{devices.length - 5} more
-                        </span>
-                      )}
-                    </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.875rem' }}>
+                    No devices connected
                   </div>
                 )}
               </div>
-            )
-          })}
-        </div>
-      )}
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => handleViewCredentials(selectedGateway)}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}
+                >
+                  <Key size={14} />
+                  Credentials
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setSelectedGatewayForDevice(selectedGateway.id)
+                    setShowDeviceWizard(true)
+                  }}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}
+                >
+                  <Plus size={14} />
+                  Add Device
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {showAddGateway && (
         <div className="modal-overlay" onClick={() => setShowAddGateway(false)}>
@@ -310,7 +554,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
                   placeholder="e.g., Main Building Gateway"
                 />
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">IP Address (optional)</label>
                 <input
@@ -333,8 +577,8 @@ export default function Gateways({ currentSite }: GatewaysProps) {
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={() => setShowAddGateway(false)}>Cancel</button>
-              <button 
-                className="btn btn-primary" 
+              <button
+                className="btn btn-primary"
                 onClick={handleAddGateway}
                 disabled={!newGateway.name || createMutation.isPending}
               >
@@ -353,24 +597,24 @@ export default function Gateways({ currentSite }: GatewaysProps) {
               <button className="btn btn-ghost btn-sm" onClick={() => setShowCredentials(false)}>&times;</button>
             </div>
             <div className="modal-body">
-              <GatewayCredentialsCard 
-                credentials={credentials} 
+              <GatewayCredentialsCard
+                credentials={credentials}
                 onRotate={() => selectedGateway && handleRotateCredentials(selectedGateway)}
               />
-              
+
               <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f59e0b', fontWeight: 600, marginBottom: '0.5rem' }}>
                   <AlertCircle size={16} />
                   Important
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                  Save these credentials now - the password cannot be retrieved again. 
+                  Save these credentials now - the password cannot be retrieved again.
                   If lost, use "Rotate Credentials" to generate new ones.
                 </div>
               </div>
             </div>
             <div className="modal-footer">
-              <button 
+              <button
                 className="btn btn-outline"
                 onClick={() => selectedGateway && handleRotateCredentials(selectedGateway)}
                 disabled={rotateMutation.isPending}
@@ -393,7 +637,7 @@ export default function Gateways({ currentSite }: GatewaysProps) {
         confirmLabel="Delete"
         variant="danger"
       />
-      
+
       <DeviceOnboardingWizard
         isOpen={showDeviceWizard}
         onClose={() => {

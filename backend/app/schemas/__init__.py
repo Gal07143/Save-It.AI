@@ -127,6 +127,7 @@ from app.schemas.virtual_meters import (
     VirtualMeterType,
     VirtualMeterComponentCreate,
     VirtualMeterCreate,
+    VirtualMeterUpdate,
     VirtualMeterComponentResponse,
     VirtualMeterResponse,
 )
@@ -345,6 +346,7 @@ __all__ = [
     # Virtual Meters
     "VirtualMeterComponentCreate",
     "VirtualMeterCreate",
+    "VirtualMeterUpdate",
     "VirtualMeterComponentResponse",
     "VirtualMeterResponse",
     # Maintenance - Enums

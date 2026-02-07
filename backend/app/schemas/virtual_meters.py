@@ -32,6 +32,17 @@ class VirtualMeterCreate(BaseModel):
     components: List[VirtualMeterComponentCreate] = []
 
 
+class VirtualMeterUpdate(BaseModel):
+    """Schema for updating a virtual meter."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    meter_type: Optional[VirtualMeterType] = None
+    expression: Optional[str] = None
+    unit: Optional[str] = None
+    is_active: Optional[bool] = None
+    components: Optional[List[VirtualMeterComponentCreate]] = None
+
+
 class VirtualMeterComponentResponse(BaseModel):
     """Response schema for virtual meter component."""
     id: int

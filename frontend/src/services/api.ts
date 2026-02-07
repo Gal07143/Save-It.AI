@@ -189,6 +189,8 @@ export const api = {
     list: (siteId?: number) => fetchApi<Meter[]>(`/meters${siteId ? `?site_id=${siteId}` : ''}`),
     get: (id: number) => fetchApi<Meter>(`/meters/${id}`),
     create: (data: Partial<Meter>) => fetchApi<Meter>('/meters', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<Meter>) => fetchApi<Meter>(`/meters/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<{ message: string }>(`/meters/${id}`, { method: 'DELETE' }),
   },
   bills: {
     list: (siteId?: number) => fetchApi<Bill[]>(`/bills${siteId ? `?site_id=${siteId}` : ''}`),
@@ -522,6 +524,8 @@ export const api = {
     list: (siteId?: number) => fetchApi<VirtualMeter[]>(`/virtual-meters${siteId ? `?site_id=${siteId}` : ''}`),
     get: (id: number) => fetchApi<VirtualMeter>(`/virtual-meters/${id}`),
     create: (data: Partial<VirtualMeter>) => fetchApi<VirtualMeter>('/virtual-meters', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<VirtualMeter>) => fetchApi<VirtualMeter>(`/virtual-meters/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<{ message: string }>(`/virtual-meters/${id}`, { method: 'DELETE' }),
   },
   assetMaintenance: {
     alerts: (siteId?: number) => fetchApi<MaintenanceAlert[]>(`/maintenance/alerts${siteId ? `?site_id=${siteId}` : ''}`),
