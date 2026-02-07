@@ -24,7 +24,15 @@ from app.schemas import (
 # Cookie configuration
 COOKIE_NAME = "access_token"
 COOKIE_MAX_AGE = 60 * 60 * 24  # 24 hours in seconds
-COOKIE_SECURE = os.getenv("DEBUG", "false").lower() != "true"  # Secure in production
+# COOKIE_SECURE: explicit env var overrides auto-detection.
+# Set COOKIE_SECURE=false for HTTP-only deployments (e.g. Raspberry Pi on LAN).
+_cookie_secure_env = os.getenv("COOKIE_SECURE", "").lower()
+if _cookie_secure_env in ("false", "0", "no"):
+    COOKIE_SECURE = False
+elif _cookie_secure_env in ("true", "1", "yes"):
+    COOKIE_SECURE = True
+else:
+    COOKIE_SECURE = os.getenv("DEBUG", "false").lower() != "true"
 COOKIE_SAMESITE = "lax"  # Protects against CSRF while allowing normal navigation
 
 logger = logging.getLogger(__name__)

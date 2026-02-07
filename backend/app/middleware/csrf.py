@@ -85,9 +85,16 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self.exempt_paths = exempt_paths or EXEMPT_PATHS
         self.secret = get_csrf_secret()
 
-        # Auto-detect secure based on DEBUG
+        # Auto-detect secure: explicit COOKIE_SECURE env overrides DEBUG check.
+        # Set COOKIE_SECURE=false for HTTP-only deployments (e.g. Raspberry Pi on LAN).
         if cookie_secure is None:
-            self.cookie_secure = os.getenv("DEBUG", "false").lower() != "true"
+            _cs = os.getenv("COOKIE_SECURE", "").lower()
+            if _cs in ("false", "0", "no"):
+                self.cookie_secure = False
+            elif _cs in ("true", "1", "yes"):
+                self.cookie_secure = True
+            else:
+                self.cookie_secure = os.getenv("DEBUG", "false").lower() != "true"
         else:
             self.cookie_secure = cookie_secure
 
