@@ -1,35 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { Wrench, AlertTriangle, CheckCircle, Clock, ThermometerSun, Zap, Activity, Shield, Calendar, ClipboardList, Heart, History, DollarSign } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
-
-const API_BASE = '/api/v1'
-
-interface MaintenanceAlert {
-  id: number
-  title: string
-  description: string
-  severity: string
-  status: string
-}
+import { api } from '../services/api'
+import type { MaintenanceAlert, AssetCondition } from '../services/api'
 
 export default function Maintenance() {
   const { data: alerts, isLoading: alertsLoading } = useQuery<MaintenanceAlert[]>({
     queryKey: ['maintenance-alerts'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/maintenance/alerts`)
-      return response.json()
-    },
+    queryFn: () => api.assetMaintenance.alerts(),
   })
 
-  const { data: _conditions } = useQuery({
+  const { data: conditions } = useQuery<AssetCondition[]>({
     queryKey: ['asset-conditions'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/maintenance/asset-conditions`)
-      return response.json()
-    },
+    queryFn: () => api.assetMaintenance.assetConditions(),
   })
 
-  const openAlerts = alerts?.filter((a) => a.status === 'open').length || 0
+  const openAlerts = alerts?.filter((a) => !a.acknowledged_at).length || 0
 
   const maintenanceRules = [
     { name: 'Overload Detection', type: 'overload', threshold: '>85% rated capacity', active: true },
@@ -39,13 +25,33 @@ export default function Maintenance() {
     { name: 'Lifecycle Alert', type: 'lifecycle', threshold: '<20% remaining life', active: true },
   ]
 
-  const healthCategories = [
-    { condition: 'Excellent', count: Math.floor(Math.random() * 10 + 5), color: '#10b981' },
-    { condition: 'Good', count: Math.floor(Math.random() * 8 + 3), color: '#3b82f6' },
-    { condition: 'Fair', count: Math.floor(Math.random() * 5 + 1), color: '#f59e0b' },
-    { condition: 'Poor', count: Math.floor(Math.random() * 3), color: '#f97316' },
-    { condition: 'Critical', count: Math.floor(Math.random() * 2), color: '#ef4444' },
-  ]
+  const healthCategories = (() => {
+    if (!conditions || conditions.length === 0) {
+      return [
+        { condition: 'Excellent', count: 0, color: '#10b981' },
+        { condition: 'Good', count: 0, color: '#3b82f6' },
+        { condition: 'Fair', count: 0, color: '#f59e0b' },
+        { condition: 'Poor', count: 0, color: '#f97316' },
+        { condition: 'Critical', count: 0, color: '#ef4444' },
+      ]
+    }
+    const buckets: Record<string, number> = { excellent: 0, good: 0, fair: 0, poor: 0, critical: 0 }
+    for (const c of conditions) {
+      const score = c.condition_score ?? 0
+      if (score >= 90) buckets.excellent++
+      else if (score >= 70) buckets.good++
+      else if (score >= 50) buckets.fair++
+      else if (score >= 30) buckets.poor++
+      else buckets.critical++
+    }
+    return [
+      { condition: 'Excellent', count: buckets.excellent, color: '#10b981' },
+      { condition: 'Good', count: buckets.good, color: '#3b82f6' },
+      { condition: 'Fair', count: buckets.fair, color: '#f59e0b' },
+      { condition: 'Poor', count: buckets.poor, color: '#f97316' },
+      { condition: 'Critical', count: buckets.critical, color: '#ef4444' },
+    ]
+  })()
 
   const tabs: Tab[] = [
     { id: 'alerts', label: 'Alerts', icon: AlertTriangle, badge: openAlerts > 0 ? openAlerts : undefined },
@@ -113,12 +119,12 @@ export default function Maintenance() {
                         borderLeft: `3px solid ${alert.severity === 'critical' ? '#ef4444' : '#f59e0b'}`
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: 500 }}>{alert.title}</span>
+                          <span style={{ fontWeight: 500 }}>{alert.alert_type}</span>
                           <span className={`badge badge-${alert.severity === 'critical' ? 'danger' : 'warning'}`}>
                             {alert.severity}
                           </span>
                         </div>
-                        <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '0.75rem' }}>{alert.description}</p>
+                        <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '0.75rem' }}>{alert.message}</p>
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
                           <button className="btn btn-outline" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>
                             Acknowledge
@@ -457,7 +463,7 @@ export default function Maintenance() {
             <CheckCircle size={24} color="#10b981" />
           </div>
           <div>
-            <div className="stat-value">85%</div>
+            <div className="stat-value">{conditions && conditions.length > 0 ? Math.round((conditions.filter(c => c.condition_score >= 70).length / conditions.length) * 100) : 0}%</div>
             <div className="stat-label">Healthy Assets</div>
           </div>
         </div>
@@ -493,7 +499,7 @@ export default function Maintenance() {
             <Clock size={24} color="#3b82f6" />
           </div>
           <div>
-            <div className="stat-value">3</div>
+            <div className="stat-value">{scheduledMaintenance.length}</div>
             <div className="stat-label">Scheduled Maintenance</div>
           </div>
         </div>
@@ -511,7 +517,7 @@ export default function Maintenance() {
             <ThermometerSun size={24} color="#8b5cf6" />
           </div>
           <div>
-            <div className="stat-value">92.5</div>
+            <div className="stat-value">{conditions && conditions.length > 0 ? (conditions.reduce((sum, c) => sum + c.condition_score, 0) / conditions.length).toFixed(1) : '—'}</div>
             <div className="stat-label">Avg Health Score</div>
           </div>
         </div>

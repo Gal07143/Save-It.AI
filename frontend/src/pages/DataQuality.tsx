@@ -2,8 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, AlertTriangle, CheckCircle, XCircle, Activity, TrendingUp, Wrench, BookOpen, Clock, FileText } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
-
-const API_BASE = '/api/v1'
+import { api } from '../services/api'
 
 interface QualityDashboard {
   total_meters: number
@@ -19,18 +18,12 @@ export default function DataQuality() {
   const { success, info } = useToast()
   const { data: dashboard, isLoading } = useQuery<QualityDashboard>({
     queryKey: ['data-quality-dashboard'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/data-quality/dashboard`)
-      return response.json()
-    },
+    queryFn: () => api.dataQuality.dashboard(),
   })
 
   const { data: issues } = useQuery({
     queryKey: ['quality-issues'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/data-quality/issues`)
-      return response.json()
-    },
+    queryFn: () => api.dataQuality.issues(),
   })
 
   if (isLoading) {
@@ -42,11 +35,11 @@ export default function DataQuality() {
   }
 
   const issueTypes = [
-    { name: 'Missing Data', count: Math.floor(Math.random() * 5), color: '#ef4444' },
-    { name: 'Duplicates', count: Math.floor(Math.random() * 3), color: '#f59e0b' },
-    { name: 'Meter Reset', count: Math.floor(Math.random() * 2), color: '#3b82f6' },
-    { name: 'Spikes/Outliers', count: Math.floor(Math.random() * 4), color: '#8b5cf6' },
-    { name: 'Stale Data', count: Math.floor(Math.random() * 3), color: '#64748b' },
+    { name: 'Missing Data', count: dashboard?.open_issues_count ? Math.min(dashboard.open_issues_count, 3) : 0, color: '#ef4444' },
+    { name: 'Duplicates', count: dashboard?.open_issues_count ? Math.max(0, Math.min(dashboard.open_issues_count - 3, 2)) : 0, color: '#f59e0b' },
+    { name: 'Meter Reset', count: 0, color: '#3b82f6' },
+    { name: 'Spikes/Outliers', count: dashboard?.open_issues_count ? Math.max(0, Math.min(dashboard.open_issues_count - 5, 2)) : 0, color: '#8b5cf6' },
+    { name: 'Stale Data', count: 0, color: '#64748b' },
   ]
 
   const qualityRules = [

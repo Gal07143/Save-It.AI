@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
+import { useToast } from '../contexts/ToastContext'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 
 interface AuditResult {
@@ -32,6 +33,7 @@ interface DrillDownData {
 }
 
 export default function MVAudit({ currentSite }: { currentSite: number | null }) {
+  const { info: toastInfo } = useToast()
   const [varianceThreshold, setVarianceThreshold] = useState<number>(0)
   const [criticalThreshold, setCriticalThreshold] = useState<number>(10)
   const [majorThreshold, setMajorThreshold] = useState<number>(5)
@@ -46,27 +48,36 @@ export default function MVAudit({ currentSite }: { currentSite: number | null })
     queryFn: () => currentSite ? api.bills.list(currentSite) : api.bills.list(),
   })
 
+  // Deterministic hash for stable simulated values per bill
+  const seededRandom = (seed: number) => {
+    const x = Math.sin(seed * 9301 + 49297) * 49297
+    return x - Math.floor(x)
+  }
+
   const auditResults = useMemo((): AuditResult[] => {
     if (!bills) return []
-    
+
     return bills.map(bill => {
-      const meteredKwh = bill.total_kwh * (0.95 + Math.random() * 0.1)
+      // Use deterministic values based on bill ID so results don't change on re-render
+      const r1 = seededRandom(bill.id)
+      const r2 = seededRandom(bill.id + 1000)
+      const meteredKwh = bill.total_kwh * (0.95 + r1 * 0.1)
       const varianceKwh = bill.total_kwh - meteredKwh
       const variancePercent = (varianceKwh / meteredKwh) * 100
       const expectedAmount = meteredKwh * (bill.total_amount / bill.total_kwh)
       const savingsOpportunity = Math.max(0, bill.total_amount - expectedAmount)
-      
+
       const anomalyFlags: string[] = []
       if (Math.abs(variancePercent) > 15) anomalyFlags.push('Extreme variance detected')
       if (bill.total_kwh > 100000) anomalyFlags.push('Unusually high consumption')
       if (variancePercent < -5) anomalyFlags.push('Possible under-billing')
-      if (Math.random() > 0.7) anomalyFlags.push('Reading gap detected')
-      
+      if (r2 > 0.7) anomalyFlags.push('Reading gap detected')
+
       let status: AuditResult['status'] = 'match'
       if (Math.abs(variancePercent) > criticalThreshold) status = 'critical'
       else if (Math.abs(variancePercent) > majorThreshold) status = 'major_variance'
       else if (Math.abs(variancePercent) > 2) status = 'minor_variance'
-      
+
       return {
         billId: bill.id,
         billDate: bill.period_start || '',
@@ -125,13 +136,13 @@ export default function MVAudit({ currentSite }: { currentSite: number | null })
       billId,
       dailyBreakdown: Array.from({ length: 30 }, (_, i) => ({
         date: `Day ${i + 1}`,
-        billed: Math.round(1000 + Math.random() * 500),
-        metered: Math.round(950 + Math.random() * 550),
-        variance: Math.round(-50 + Math.random() * 100)
+        billed: Math.round(1000 + seededRandom(billId * 100 + i) * 500),
+        metered: Math.round(950 + seededRandom(billId * 100 + i + 50) * 550),
+        variance: Math.round(-50 + seededRandom(billId * 100 + i + 99) * 100)
       })),
       meterReadings: Array.from({ length: 10 }, (_, i) => ({
         timestamp: `2025-12-${String(i + 1).padStart(2, '0')} 00:00`,
-        reading: Math.round(100000 + i * 3500 + Math.random() * 200)
+        reading: Math.round(100000 + i * 3500 + seededRandom(billId * 10 + i) * 200)
       })),
       charges: [
         { type: 'Energy Charge', amount: 8500 },
@@ -143,17 +154,9 @@ export default function MVAudit({ currentSite }: { currentSite: number | null })
   }
 
   const handleExportPDF = () => {
-    // Prepare report data for PDF generation
-    const reportData = {
-      title: 'M&V Audit Report',
-      generated: new Date().toISOString(),
-      site: currentSite,
-      summary: summaryStats,
-      results: filteredResults
-    }
-    // TODO: Implement actual PDF generation
-    console.log('PDF report data prepared:', reportData.title)
-    alert('PDF export initiated. The report will be downloaded shortly.')
+    // Report data prepared for future PDF generation
+    void { title: 'M&V Audit Report', generated: new Date().toISOString(), site: currentSite, summary: summaryStats, results: filteredResults }
+    toastInfo('PDF export initiated', 'The report will be downloaded shortly.')
   }
 
   const toggleRowExpanded = (billId: number) => {

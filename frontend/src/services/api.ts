@@ -116,8 +116,9 @@ async function ensureCsrfCookie(): Promise<void> {
 }
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const isFormData = options?.body instanceof FormData
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...options?.headers,
   }
 
@@ -197,6 +198,8 @@ export const api = {
     get: (id: number) => fetchApi<Bill>(`/bills/${id}`),
     validate: (id: number) => fetchApi<BillValidationResult>(`/bills/${id}/validate`, { method: 'POST' }),
     create: (data: Partial<Bill>) => fetchApi<Bill>('/bills', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<Bill>) => fetchApi<Bill>(`/bills/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => fetchApi<{ message: string }>(`/bills/${id}`, { method: 'DELETE' }),
     ocrScan: async (file: File): Promise<OCRBillResult> => {
       const formData = new FormData()
       formData.append('file', file)
@@ -263,6 +266,22 @@ export const api = {
   invoices: {
     list: (tenantId?: number) => fetchApi<Invoice[]>(`/invoices${tenantId ? `?tenant_id=${tenantId}` : ''}`),
     get: (id: number) => fetchApi<Invoice>(`/invoices/${id}`),
+  },
+  leaseContracts: {
+    list: () => fetchApi<any[]>('/lease-contracts'),
+  },
+  dataIngestion: {
+    parse: (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return fetchApi<any>('/data-ingestion/parse', { method: 'POST', body: formData })
+    },
+    import: (file: File, mappings: any[]) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('mappings', JSON.stringify(mappings))
+      return fetchApi<any>('/data-ingestion/import', { method: 'POST', body: formData })
+    },
   },
   dataSources: {
     list: (siteId?: number) => fetchApi<DataSource[]>(`/data-sources${siteId ? `?site_id=${siteId}` : ''}`),
@@ -680,6 +699,15 @@ export const api = {
     }>(`/telemetry/devices/${deviceId}/stats?datapoint=${params.datapoint}&start=${params.start}&end=${params.end}`),
     ingest: (data: { device_id: number; datapoints: Record<string, unknown>; timestamp?: string; source?: string }) =>
       fetchApi<{ status: string; datapoints_stored: number }>('/telemetry', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  admin: {
+    organizations: () => fetchApi<any[]>('/admin/organizations'),
+    users: () => fetchApi<any[]>('/admin/users'),
+    auditLogs: (limit?: number) => fetchApi<any[]>(`/admin/audit-logs${limit ? `?limit=${limit}` : ''}`),
+    resetDemoData: () => fetchApi<{ success: boolean; message: string; deleted_counts?: Record<string, number> }>('/admin/reset-demo', { method: 'POST' }),
+  },
+  recommendations: {
+    list: () => fetchApi<any[]>('/recommendations'),
   },
   dashboards: {
     list: (includeShared?: boolean) =>

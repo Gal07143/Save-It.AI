@@ -117,11 +117,7 @@ export default function Bills({ currentSite }: BillsProps) {
 
   const updateBillMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<NewBillForm> }) =>
-      fetch(`/api/v1/bills/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      }).then(r => r.json()),
+      api.bills.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bills'] })
       setShowEditModal(false)
@@ -131,8 +127,7 @@ export default function Bills({ currentSite }: BillsProps) {
   })
 
   const deleteBillMutation = useMutation({
-    mutationFn: (id: number) =>
-      fetch(`/api/v1/bills/${id}`, { method: 'DELETE' }).then(r => r.json()),
+    mutationFn: (id: number) => api.bills.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bills'] })
       setShowDeleteConfirm(false)

@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { 
-  Battery, TrendingUp, AlertTriangle, 
+import {
+  Battery, TrendingUp, AlertTriangle,
   Activity, RefreshCw, Clock, ArrowUpRight, ArrowDownRight, Settings,
   Calendar, DollarSign, Gauge, CheckCircle, Bell
 } from 'lucide-react'
 import { Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts'
 import { useToast } from '../contexts/ToastContext'
+import { api } from '../services/api'
 
-const API_BASE = '/api/v1'
-
-interface Site { id: number; name: string }
-interface Asset { id: number; name: string; asset_type: string }
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed * 9301 + 49297) * 49297
+  return x - Math.floor(x)
+}
 
 const generateSocData = () => Array.from({ length: 24 }, (_, i) => {
   let soc = 50
@@ -22,16 +23,16 @@ const generateSocData = () => Array.from({ length: 24 }, (_, i) => {
   else soc = 88 - (i - 18) * 2
   return {
     hour: `${i}:00`,
-    soc: Math.min(100, Math.max(10, soc + Math.random() * 5 - 2.5)),
-    power: i > 6 && i < 10 ? 25 + Math.random() * 10 : i > 17 && i < 21 ? -(30 + Math.random() * 15) : Math.random() * 10 - 5,
-    price: 0.08 + (i > 16 && i < 21 ? 0.12 : 0) + Math.random() * 0.02,
+    soc: Math.min(100, Math.max(10, soc + seededRandom(i * 3) * 5 - 2.5)),
+    power: i > 6 && i < 10 ? 25 + seededRandom(i * 3 + 1) * 10 : i > 17 && i < 21 ? -(30 + seededRandom(i * 3 + 1) * 15) : seededRandom(i * 3 + 1) * 10 - 5,
+    price: 0.08 + (i > 16 && i < 21 ? 0.12 : 0) + seededRandom(i * 3 + 2) * 0.02,
   }
 })
 
 const generateCycleHistory = () => Array.from({ length: 30 }, (_, i) => ({
   day: `Day ${i + 1}`,
-  cycles: 0.8 + Math.random() * 0.4,
-  revenue: 15 + Math.random() * 20,
+  cycles: 0.8 + seededRandom(i * 2 + 100) * 0.4,
+  revenue: 15 + seededRandom(i * 2 + 101) * 20,
 }))
 
 export default function StorageUnits() {
@@ -44,22 +45,15 @@ export default function StorageUnits() {
   const [selectedUnit, setSelectedUnit] = useState(1)
   const [showAlarmConfig, setShowAlarmConfig] = useState(false)
 
-  const { data: sites } = useQuery<Site[]>({
+  const { data: sites } = useQuery({
     queryKey: ['sites'],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/sites`)
-      return res.json()
-    }
+    queryFn: () => api.sites.list(),
   })
 
-  const { data: assets } = useQuery<Asset[]>({
+  const { data: assets } = useQuery({
     queryKey: ['assets', selectedSite],
-    queryFn: async () => {
-      const url = selectedSite ? `${API_BASE}/assets?site_id=${selectedSite}` : `${API_BASE}/assets`
-      const res = await fetch(url)
-      return res.json()
-    },
-    enabled: !!selectedSite
+    queryFn: () => api.assets.list(selectedSite!),
+    enabled: !!selectedSite,
   })
 
   // This filter is available for future API integration

@@ -4,8 +4,7 @@ import { Shield, Users, Building2, FileText, Key, Activity, Settings, Plus, User
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 import ConfirmDialog from '../components/ConfirmDialog'
-
-const API_BASE = '/api/v1'
+import { api } from '../services/api'
 
 interface Organization {
   id: number
@@ -53,45 +52,27 @@ export default function Admin() {
 
   const { data: organizations } = useQuery<Organization[]>({
     queryKey: ['organizations'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/organizations`)
-      return response.json()
-    },
+    queryFn: () => api.admin.organizations(),
   })
 
   const { data: users } = useQuery<UserRecord[]>({
     queryKey: ['users'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/users`)
-      return response.json()
-    },
+    queryFn: () => api.admin.users(),
   })
 
   const { data: auditLogs } = useQuery<AuditLog[]>({
     queryKey: ['audit-logs'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/audit-logs?limit=50`)
-      return response.json()
-    },
+    queryFn: () => api.admin.auditLogs(50),
   })
 
   const handleResetDemoData = async () => {
     setIsResetting(true)
     setResetResult(null)
     try {
-      const response = await fetch(`${API_BASE}/reset-demo-data`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-      const result = await response.json()
-      if (response.ok) {
-        setResetResult(result)
-        success('Demo data has been reset successfully')
-        queryClient.invalidateQueries()
-      } else {
-        setResetResult({ success: false, message: result.detail || 'Failed to reset demo data' })
-        showError(result.detail || 'Failed to reset demo data')
-      }
+      const result = await api.admin.resetDemoData()
+      setResetResult(result)
+      success('Demo data has been reset successfully')
+      queryClient.invalidateQueries()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to reset demo data'
       setResetResult({ success: false, message })

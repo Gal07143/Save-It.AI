@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronRight, Activity, Cpu, Database, Download, Upload, Wand2, Heart,
   Edit, Trash2
 } from 'lucide-react'
+import { useToast } from '../contexts/ToastContext'
 import DeviceOnboardingWizard from './DeviceOnboardingWizard'
 import BulkDeviceImport from '../components/BulkDeviceImport'
 import DeviceHealthDashboard from '../components/DeviceHealthDashboard'
@@ -37,6 +38,7 @@ interface IntegrationsProps {
 }
 
 export default function Integrations({ currentSite }: IntegrationsProps) {
+  const { success: toastSuccess, error: toastError } = useToast()
   const [activeTab, setActiveTab] = useState<'gateways' | 'sources' | 'templates' | 'registers' | 'health' | 'validation' | 'groups' | 'retry' | 'firmware' | 'maintenance' | 'alerts'>('sources')
   const [showAddGateway, setShowAddGateway] = useState(false)
   const [showAddSource, setShowAddSource] = useState(false)
@@ -147,10 +149,10 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       queryClient.invalidateQueries({ queryKey: ['device-templates'] })
       setShowImportTemplate(false)
       setImportJson('')
-      alert('Template imported successfully!')
+      toastSuccess('Template imported successfully!')
     },
     onError: (error: Error) => {
-      alert(`Import failed: ${error.message}`)
+      toastError('Import failed', error.message)
     }
   })
 
@@ -167,7 +169,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (error) {
-      alert('Failed to export template')
+      toastError('Failed to export template')
     }
   }
 
@@ -195,7 +197,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
       setApplyMeterId(null)
       setSelectedSource(applyDataSourceId)
       setActiveTab('registers')
-      alert(`Template applied! Created ${data.registers_created} registers.`)
+      toastSuccess('Template applied', `Created ${data.registers_created} registers.`)
     }
   })
 
@@ -1532,7 +1534,7 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                   className="btn btn-sm"
                   onClick={() => {
                     navigator.clipboard.writeText(qrData.qr_string)
-                    alert('QR data copied to clipboard!')
+                    toastSuccess('QR data copied to clipboard!')
                   }}
                 >
                   Copy QR Data
@@ -1597,11 +1599,11 @@ export default function Integrations({ currentSite }: IntegrationsProps) {
                     if (result.success) {
                       setShowCloneModal(false)
                       queryClient.invalidateQueries({ queryKey: ['data-sources', currentSite] })
-                      alert(`Device cloned successfully! ${result.registers_cloned} registers copied.`)
+                      toastSuccess('Device cloned', `${result.registers_cloned} registers copied.`)
                     }
                   } catch (err) {
                     console.error('Failed to clone device:', err)
-                    alert('Failed to clone device')
+                    toastError('Failed to clone device')
                   }
                 }}
                 disabled={!cloneName.trim()}

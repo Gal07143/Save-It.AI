@@ -55,7 +55,7 @@ export default function Tenants({ currentSite }: TenantsProps) {
   const { data: tenants, isLoading } = useQuery({ queryKey: ['tenants'], queryFn: () => api.tenants.list() })
   const { data: invoices } = useQuery({ queryKey: ['invoices'], queryFn: () => api.invoices.list() })
   const { data: sites } = useQuery({ queryKey: ['sites'], queryFn: api.sites.list })
-  const { data: contracts } = useQuery({ queryKey: ['contracts'], queryFn: () => fetch('/api/v1/lease-contracts').then(r => r.json()).catch(() => []) })
+  const { data: contracts } = useQuery({ queryKey: ['contracts'], queryFn: () => api.leaseContracts.list().catch(() => []) })
 
   // Filter tenants by search and site
   const filteredTenants = useMemo(() => {

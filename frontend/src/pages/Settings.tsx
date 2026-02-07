@@ -3,45 +3,72 @@ import { Settings as SettingsIcon, User, Globe, Bell, Moon, Sun, Link2, Download
 import TabPanel, { Tab } from '../components/TabPanel'
 import { useToast } from '../contexts/ToastContext'
 
+const STORAGE_KEY = 'saveit_settings'
+
+function loadSettings<T>(section: string, defaults: T): T {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const all = JSON.parse(raw)
+      if (all[section]) return { ...defaults, ...all[section] }
+    }
+  } catch { /* use defaults */ }
+  return defaults
+}
+
+function saveAllSettings(sections: Record<string, unknown>) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...existing, ...sections }))
+  } catch { /* silently fail */ }
+}
+
 export default function Settings() {
   const { success, warning } = useToast()
-  const [isDarkMode, setIsDarkMode] = useState(true)
+  const [isDarkMode, setIsDarkMode] = useState(() => loadSettings('theme', { dark: true }).dark)
   const [saved, setSaved] = useState(false)
 
-  const [profileSettings, setProfileSettings] = useState({
+  const [profileSettings, setProfileSettings] = useState(() => loadSettings('profile', {
     companyName: 'Demo Organization',
     industry: 'Commercial Real Estate',
     fiscalYearStart: 'January',
     displayName: 'John Doe',
     email: 'john.doe@example.com',
     phone: '+1 (555) 123-4567',
-  })
+  }))
 
-  const [preferences, setPreferences] = useState({
+  const [preferences, setPreferences] = useState(() => loadSettings('preferences', {
     language: 'en',
     timezone: 'America/New_York',
     currency: 'USD',
     dateFormat: 'MM/DD/YYYY',
     units: 'imperial',
-  })
+  }))
 
-  const [notifications, setNotifications] = useState({
+  const [notifications, setNotifications] = useState(() => loadSettings('notifications', {
     emailAlerts: true,
     weeklyReports: true,
     monthlyReports: true,
     billReminders: true,
     anomalyAlerts: true,
     maintenanceAlerts: true,
-  })
+  }))
 
-  const [integrations, setIntegrations] = useState({
+  const [integrations, setIntegrations] = useState(() => loadSettings('integrations', {
     googleCalendar: false,
     slack: true,
     microsoftTeams: false,
     zapier: false,
-  })
+  }))
 
   const handleSave = () => {
+    saveAllSettings({
+      profile: profileSettings,
+      preferences,
+      notifications,
+      integrations,
+      theme: { dark: isDarkMode },
+    })
     setSaved(true)
     success('Settings Saved', 'Your settings have been saved successfully')
     setTimeout(() => setSaved(false), 2000)

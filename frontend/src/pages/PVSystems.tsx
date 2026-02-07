@@ -1,30 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { 
-  Sun, Zap, TrendingUp, AlertTriangle, Thermometer, 
+import {
+  Sun, Zap, TrendingUp, AlertTriangle, Thermometer,
   Activity, RefreshCw, Clock, ArrowUpRight, Settings,
   CloudSun, Gauge, CheckCircle
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line } from 'recharts'
+import { api } from '../services/api'
 
-const API_BASE = '/api/v1'
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed * 9301 + 49297) * 49297
+  return x - Math.floor(x)
+}
 
 const generateDailyProduction = () => Array.from({ length: 24 }, (_, i) => ({
   hour: `${i}:00`,
-  production: i > 5 && i < 20 ? Math.round(Math.sin((i - 5) / 14 * Math.PI) * 85 + Math.random() * 10) : 0,
+  production: i > 5 && i < 20 ? Math.round(Math.sin((i - 5) / 14 * Math.PI) * 85 + seededRandom(i * 2) * 10) : 0,
   forecast: i > 5 && i < 20 ? Math.round(Math.sin((i - 5) / 14 * Math.PI) * 80) : 0,
-  irradiance: i > 5 && i < 20 ? Math.round(Math.sin((i - 5) / 14 * Math.PI) * 950 + Math.random() * 50) : 0,
+  irradiance: i > 5 && i < 20 ? Math.round(Math.sin((i - 5) / 14 * Math.PI) * 950 + seededRandom(i * 2 + 1) * 50) : 0,
 }))
 
 const generateMonthlyProduction = () => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, i) => ({
   month,
-  production: Math.round(2000 + Math.sin((i + 3) / 6 * Math.PI) * 1500 + Math.random() * 200),
+  production: Math.round(2000 + Math.sin((i + 3) / 6 * Math.PI) * 1500 + seededRandom(i + 200) * 200),
   expected: Math.round(2200 + Math.sin((i + 3) / 6 * Math.PI) * 1400),
 }))
-
-interface Site { id: number; name: string }
-interface Asset { id: number; name: string; asset_type: string }
-interface Meter { id: number; meter_id: string; meter_type: string; site_id: number }
 
 export default function PVSystems() {
   const [dailyData, setDailyData] = useState(generateDailyProduction())
@@ -33,32 +33,21 @@ export default function PVSystems() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedSite, setSelectedSite] = useState<number | null>(null)
 
-  const { data: sites } = useQuery<Site[]>({ 
-    queryKey: ['sites'], 
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/sites`)
-      return res.json()
-    }
+  const { data: sites } = useQuery({
+    queryKey: ['sites'],
+    queryFn: () => api.sites.list(),
   })
 
-  const { data: assets } = useQuery<Asset[]>({
+  const { data: assets } = useQuery({
     queryKey: ['assets', selectedSite],
-    queryFn: async () => {
-      const url = selectedSite ? `${API_BASE}/assets?site_id=${selectedSite}` : `${API_BASE}/assets`
-      const res = await fetch(url)
-      return res.json()
-    },
-    enabled: !!selectedSite
+    queryFn: () => api.assets.list(selectedSite!),
+    enabled: !!selectedSite,
   })
 
-  const { data: meters } = useQuery<Meter[]>({
+  const { data: meters } = useQuery({
     queryKey: ['meters', selectedSite],
-    queryFn: async () => {
-      const url = selectedSite ? `${API_BASE}/meters?site_id=${selectedSite}` : `${API_BASE}/meters`
-      const res = await fetch(url)
-      return res.json()
-    },
-    enabled: !!selectedSite
+    queryFn: () => api.meters.list(selectedSite!),
+    enabled: !!selectedSite,
   })
 
   // These filters are available for future API integration
@@ -84,13 +73,13 @@ export default function PVSystems() {
   const currentProduction = dailyData[currentHour]?.production || 0
   const todayTotal = dailyData.reduce((sum, d) => sum + d.production, 0)
   const monthlyTotal = monthlyData.reduce((sum, d) => sum + d.production, 0)
-  const performanceRatio = 0.82 + Math.random() * 0.08
+  const performanceRatio = 0.82 + seededRandom(300) * 0.08
 
   const inverters = [
-    { id: 1, name: 'Inverter A', capacity: 50, output: 42.5 + Math.random() * 5, status: 'online', temp: 38 + Math.random() * 8 },
-    { id: 2, name: 'Inverter B', capacity: 50, output: 44.2 + Math.random() * 4, status: 'online', temp: 40 + Math.random() * 6 },
+    { id: 1, name: 'Inverter A', capacity: 50, output: 42.5 + seededRandom(301) * 5, status: 'online', temp: 38 + seededRandom(302) * 8 },
+    { id: 2, name: 'Inverter B', capacity: 50, output: 44.2 + seededRandom(303) * 4, status: 'online', temp: 40 + seededRandom(304) * 6 },
     { id: 3, name: 'Inverter C', capacity: 50, output: 0, status: 'offline', temp: 25 },
-    { id: 4, name: 'Inverter D', capacity: 25, output: 21.8 + Math.random() * 3, status: 'warning', temp: 52 },
+    { id: 4, name: 'Inverter D', capacity: 25, output: 21.8 + seededRandom(305) * 3, status: 'warning', temp: 52 },
   ]
 
   const panelStrings = [
@@ -234,7 +223,7 @@ export default function PVSystems() {
                 }}>
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>{day}</div>
                   <CloudSun size={24} style={{ color: i === 2 ? '#94a3b8' : '#f59e0b', margin: '0.25rem auto' }} />
-                  <div style={{ fontWeight: 'bold' }}>{Math.round(400 + Math.random() * 200 - (i === 2 ? 150 : 0))} kWh</div>
+                  <div style={{ fontWeight: 'bold' }}>{Math.round(400 + seededRandom(310 + i) * 200 - (i === 2 ? 150 : 0))} kWh</div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{i === 2 ? 'Cloudy' : 'Sunny'}</div>
                 </div>
               ))}

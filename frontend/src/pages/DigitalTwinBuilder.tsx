@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, PanelAssetExtracted, AssetTreeNode } from '../services/api'
+import { useToast } from '../contexts/ToastContext'
 
 interface AssetNode {
   id: string
@@ -38,6 +39,7 @@ const ASSET_TYPES = [
 ]
 
 export default function DigitalTwinBuilder({ currentSite }: { currentSite: number | null }) {
+  const { success: toastSuccess, error: toastError } = useToast()
   const queryClient = useQueryClient()
   const canvasRef = useRef<HTMLDivElement>(null)
   
@@ -495,10 +497,10 @@ export default function DigitalTwinBuilder({ currentSite }: { currentSite: numbe
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] })
-      alert('Digital twin saved successfully!')
+      toastSuccess('Digital twin saved successfully!')
     },
     onError: (error) => {
-      alert(`Failed to save: ${error}`)
+      toastError('Failed to save', String(error))
     }
   })
 

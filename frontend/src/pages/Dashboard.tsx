@@ -427,24 +427,6 @@ export default function Dashboard({ currentSite }: DashboardProps) {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-
-        .grid-3 {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1rem;
-        }
-
-        @media (max-width: 1024px) {
-          .grid-3 {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-
-        @media (max-width: 640px) {
-          .grid-3 {
-            grid-template-columns: 1fr;
-          }
-        }
       `}</style>
     </div>
   )

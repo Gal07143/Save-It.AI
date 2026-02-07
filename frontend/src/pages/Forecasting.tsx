@@ -3,8 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { TrendingUp, Clock, Target, Zap, RefreshCw, CloudSun, Cloud, BarChart3, GitBranch, Download, Sun, Thermometer, Wind, Droplets, CheckCircle, FileSpreadsheet, FileText } from 'lucide-react'
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import TabPanel, { Tab } from '../components/TabPanel'
-
-const API_BASE = '/api/v1'
+import { api } from '../services/api'
 
 export default function Forecasting() {
   const [forecastType, setForecastType] = useState<'load' | 'pv'>('load')
@@ -21,19 +20,13 @@ export default function Forecasting() {
   ]
 
   const forecastMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`${API_BASE}/forecasts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          site_id: 1,
-          forecast_type: forecastType,
-          horizon_hours: horizonHours,
-        }),
-      })
-      return response.json()
-    },
+    mutationFn: () => api.forecasts.create(1, forecastType, horizonHours),
   })
+
+  const seededRandom = (seed: number) => {
+    const x = Math.sin(seed * 9301 + 49297) * 49297
+    return x - Math.floor(x)
+  }
 
   const generateMockForecast = (type: 'load' | 'pv' = forecastType) => {
     const data = []
@@ -41,10 +34,10 @@ export default function Forecasting() {
     for (let i = 0; i < horizonHours; i++) {
       const hour = new Date(now.getTime() + i * 60 * 60 * 1000)
       const hourOfDay = hour.getHours()
-      const baseLoad = type === 'load' 
-        ? 100 + 50 * Math.sin((hourOfDay - 6) * Math.PI / 12) + Math.random() * 20
-        : Math.max(0, 80 * Math.sin((hourOfDay - 6) * Math.PI / 12) + Math.random() * 10)
-      
+      const baseLoad = type === 'load'
+        ? 100 + 50 * Math.sin((hourOfDay - 6) * Math.PI / 12) + seededRandom(i * 2 + (type === 'load' ? 0 : 500)) * 20
+        : Math.max(0, 80 * Math.sin((hourOfDay - 6) * Math.PI / 12) + seededRandom(i * 2 + 501) * 10)
+
       data.push({
         time: hour.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         predicted: Math.max(0, baseLoad),
@@ -55,12 +48,12 @@ export default function Forecasting() {
     return data
   }
 
-  const forecastData = forecastMutation.data?.data?.length 
-    ? forecastMutation.data.data.map((p: { timestamp: string; predicted_value: number; lower_bound: number; upper_bound: number }) => ({
+  const forecastData = forecastMutation.data?.data?.length
+    ? forecastMutation.data.data.map((p) => ({
         time: new Date(p.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         predicted: p.predicted_value,
-        lower: p.lower_bound,
-        upper: p.upper_bound,
+        lower: p.lower_bound ?? p.predicted_value * 0.85,
+        upper: p.upper_bound ?? p.predicted_value * 1.15,
       }))
     : generateMockForecast()
 

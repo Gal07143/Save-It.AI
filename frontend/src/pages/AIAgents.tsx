@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Bot, Send, Sparkles, Lightbulb, Search, MessageSquare, Zap, TrendingUp, FileText, GraduationCap, History, Brain } from 'lucide-react'
 import TabPanel, { Tab } from '../components/TabPanel'
-
-const API_BASE = '/api/v1'
+import { api } from '../services/api'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -22,30 +21,16 @@ export default function AIAgents() {
   const [selectedAgent, setSelectedAgent] = useState<'energy_analyst' | 'detective' | 'recommender'>('energy_analyst')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [sessionId, setSessionId] = useState<number | null>(null)
+  const [_sessionId, setSessionId] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState('chat')
 
   const { data: recommendations } = useQuery<Recommendation[]>({
     queryKey: ['recommendations'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/recommendations`)
-      return response.json()
-    },
+    queryFn: () => api.recommendations.list(),
   })
 
   const chatMutation = useMutation({
-    mutationFn: async (message: string) => {
-      const response = await fetch(`${API_BASE}/agents/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          agent_type: selectedAgent,
-          session_id: sessionId,
-        }),
-      })
-      return response.json()
-    },
+    mutationFn: (message: string) => api.agents.chat(1, selectedAgent, message),
     onSuccess: (data) => {
       setSessionId(data.session_id)
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }])

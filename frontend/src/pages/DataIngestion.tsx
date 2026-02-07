@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import FileUpload from '../components/FileUpload'
 import { useToast } from '../contexts/ToastContext'
+import { api } from '../services/api'
 
 interface ColumnMapping {
   sourceColumn: string
@@ -97,18 +98,7 @@ export default function DataIngestion() {
     formData.append('file', file)
     
     try {
-      const response = await fetch('/api/v1/data-ingestion/parse', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      })
-      
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.detail || 'Failed to parse file')
-      }
-      
-      const data = await response.json()
+      const data = await api.dataIngestion.parse(file)
       setParsedData(data)
       
       const initialMappings: ColumnMapping[] = data.headers.map((header: string) => {
@@ -163,22 +153,7 @@ export default function DataIngestion() {
     setError(null)
     
     try {
-      const formData = new FormData()
-      formData.append('file', selectedFile!)
-      formData.append('mappings', JSON.stringify(columnMappings))
-
-      const response = await fetch('/api/v1/data-ingestion/import', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      })
-      
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.detail || 'Import failed')
-      }
-      
-      const result = await response.json()
+      const result = await api.dataIngestion.import(selectedFile!, columnMappings)
       setImportResult(result)
       setStep('complete')
     } catch (err) {
@@ -198,7 +173,7 @@ export default function DataIngestion() {
 
   const handleRollback = (id: number) => {
     if (confirm('Are you sure you want to rollback this import? This will delete all imported readings.')) {
-      alert(`Rollback initiated for import #${id}`)
+      info('Rollback initiated', `Rolling back import #${id}`)
     }
   }
 

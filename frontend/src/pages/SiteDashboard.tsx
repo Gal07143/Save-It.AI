@@ -36,7 +36,7 @@ interface SiteDashboardProps {
 
 export default function SiteDashboard({ siteId }: SiteDashboardProps) {
   const [, navigate] = useLocation()
-  const { success } = useToast()
+  const { success, error: showError } = useToast()
   const [isLive, setIsLive] = useState(true)
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [animationPhase, setAnimationPhase] = useState(0)
@@ -76,7 +76,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
       setShowSiteConfig(false)
     },
     onError: (error: Error) => {
-      alert(`Failed to update site: ${error.message}`)
+      showError('Failed to update site', error.message)
     }
   })
 
@@ -273,12 +273,16 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
         gridImport: point.grid || point.consumption - (point.solar || 0)
       }))
     }
-    // Fallback data
+    // Fallback data with deterministic values
+    const seededRandom = (seed: number) => {
+      const x = Math.sin(seed * 9301 + 49297) * 49297
+      return x - Math.floor(x)
+    }
     return Array.from({ length: 24 }, (_, i) => ({
       hour: `${i}:00`,
-      consumption: 400 + Math.sin(i / 3) * 150 + Math.random() * 50,
+      consumption: 400 + Math.sin(i / 3) * 150 + seededRandom(i * 2) * 50,
       generation: i >= 6 && i <= 18 ? Math.sin((i - 6) / 4) * 150 : 0,
-      gridImport: 350 + Math.random() * 100
+      gridImport: 350 + seededRandom(i * 2 + 1) * 100
     }))
   }, [hourlyTelemetry])
 
@@ -367,7 +371,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
             )}
           </div>
 
-          <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: '1.5rem' }}>
+          <div className="stats-grid stats-grid-5" style={{ marginBottom: '1.5rem' }}>
             <div className="stat-card">
               <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
                 <Zap size={24} />
@@ -430,7 +434,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          <div className="site-dashboard-main-grid">
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>
@@ -444,12 +448,13 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
 
               <div style={{
                 position: 'relative',
-                height: '400px',
+                width: '100%',
+                minHeight: '350px',
                 background: '#0f172a',
                 borderRadius: '12px',
-                overflow: 'hidden'
+                overflow: 'auto'
               }}>
-                <svg width="100%" height="100%" viewBox="0 0 600 400">
+                <svg width="100%" height="100%" viewBox="-10 0 660 420" preserveAspectRatio="xMidYMid meet" style={{ minWidth: '500px', minHeight: '350px' }}>
                   <defs>
                     <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
@@ -552,7 +557,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
                     </g>
                   ))}
 
-                  <text x="300" y="380" fill="#64748b" fontSize="12" textAnchor="middle">
+                  <text x="320" y="400" fill="#64748b" fontSize="12" textAnchor="middle">
                     Power flow direction: Sources → Meter → Transformer → Loads
                   </text>
                 </svg>
@@ -653,7 +658,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          <div className="site-dashboard-two-col-grid">
             <div className="card">
               <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
                 <Activity size={18} style={{ marginRight: '0.5rem', color: '#3b82f6' }} />
@@ -767,7 +772,7 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
                 Configure
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
+            <div className="grid grid-4" style={{ gap: '1.5rem' }}>
               <div>
                 <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.5rem' }}>Site Name</div>
                 <div style={{ fontWeight: 500 }}>{currentSite?.name || 'N/A'}</div>
@@ -965,6 +970,42 @@ export default function SiteDashboard({ siteId }: SiteDashboardProps) {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        .stats-grid-5 {
+          grid-template-columns: repeat(5, 1fr);
+        }
+        .site-dashboard-main-grid {
+          display: grid;
+          grid-template-columns: 2fr 1fr;
+          gap: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+        .site-dashboard-two-col-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+        @media (max-width: 1200px) {
+          .stats-grid-5 {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        @media (max-width: 900px) {
+          .site-dashboard-main-grid {
+            grid-template-columns: 1fr;
+          }
+          .site-dashboard-two-col-grid {
+            grid-template-columns: 1fr;
+          }
+          .stats-grid-5 {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (max-width: 480px) {
+          .stats-grid-5 {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>
