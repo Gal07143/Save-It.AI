@@ -93,6 +93,21 @@ def set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
+def set_csrf_cookie(response: Response) -> None:
+    """Set a CSRF token cookie so the frontend can send it back on mutations."""
+    from app.middleware.csrf import generate_csrf_token, CSRF_COOKIE_NAME, CSRF_COOKIE_MAX_AGE
+    token = generate_csrf_token()
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=token,
+        max_age=CSRF_COOKIE_MAX_AGE,
+        httponly=False,  # Must be readable by JavaScript
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        path="/",
+    )
+
+
 def clear_auth_cookie(response: Response) -> None:
     """Clear the authentication cookie."""
     response.delete_cookie(
@@ -205,6 +220,8 @@ def register(request: RegisterRequest, response: Response, db: Session = Depends
 
     # Set HttpOnly cookie for browser clients
     set_auth_cookie(response, access_token)
+    # Set CSRF cookie so frontend can immediately make mutations
+    set_csrf_cookie(response)
 
     return TokenResponse(
         access_token=access_token,
@@ -268,6 +285,8 @@ def login(request: LoginRequest, response: Response, db: Session = Depends(get_d
 
     # Set HttpOnly cookie for browser clients
     set_auth_cookie(response, access_token)
+    # Set CSRF cookie so frontend can immediately make mutations
+    set_csrf_cookie(response)
 
     return TokenResponse(
         access_token=access_token,
@@ -304,6 +323,13 @@ def get_me(current_user: User = Depends(get_current_user)):
         last_login_at=current_user.last_login_at,
         created_at=current_user.created_at
     )
+
+
+@router.get("/csrf")
+def get_csrf(response: Response):
+    """Issue a CSRF token cookie. Call on page load if cookie is missing."""
+    set_csrf_cookie(response)
+    return {"status": "ok"}
 
 
 @router.post("/logout")

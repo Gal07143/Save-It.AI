@@ -101,14 +101,29 @@ function requiresCsrf(method?: string): boolean {
   return protectedMethods.includes((method || 'GET').toUpperCase())
 }
 
+/**
+ * Ensure a CSRF cookie exists. If not, fetch one from the server.
+ * Prevents "Missing CSRF token cookie" errors after login or cookie expiry.
+ */
+let csrfEnsurePromise: Promise<void> | null = null
+async function ensureCsrfCookie(): Promise<void> {
+  if (getCsrfToken()) return
+  if (csrfEnsurePromise) return csrfEnsurePromise
+  csrfEnsurePromise = fetch(`${API_BASE}/auth/csrf`, { credentials: 'include' })
+    .then(() => { csrfEnsurePromise = null })
+    .catch(() => { csrfEnsurePromise = null })
+  return csrfEnsurePromise
+}
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options?.headers,
   }
 
-  // Add CSRF token for state-changing requests
+  // Ensure CSRF cookie exists before making state-changing requests
   if (requiresCsrf(options?.method)) {
+    await ensureCsrfCookie()
     const csrfToken = getCsrfToken()
     if (csrfToken) {
       ;(headers as Record<string, string>)['X-CSRF-Token'] = csrfToken
