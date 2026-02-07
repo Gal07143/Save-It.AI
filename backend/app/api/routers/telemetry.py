@@ -5,7 +5,7 @@ Endpoints for telemetry ingestion and querying.
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,32 @@ from app.core.database import get_db
 from app.services.telemetry_service import TelemetryService, TelemetryRecord
 
 router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
+
+
+def _evaluate_alarms_for_device(request: Request, db: Session, device_id: int, datapoints: Dict[str, Any], timestamp=None):
+    """Evaluate alarms after telemetry ingestion if AlarmEngine is available."""
+    if not hasattr(request.app.state, "alarm_engine"):
+        return []
+
+    from app.models.devices import Device, Datapoint
+    alarm_engine = request.app.state.alarm_engine
+
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device or not device.model_id:
+        return []
+
+    model_datapoints = {}
+    dps = db.query(Datapoint).filter(Datapoint.model_id == device.model_id).all()
+    for dp in dps:
+        model_datapoints[dp.name] = dp
+
+    events = []
+    for name, value in datapoints.items():
+        dp_def = model_datapoints.get(name)
+        if dp_def and isinstance(value, (int, float)):
+            events.extend(alarm_engine.evaluate(device_id, dp_def, value, timestamp))
+
+    return events
 
 
 # Request/Response Models
@@ -93,13 +119,14 @@ class CleanupResponse(BaseModel):
 @router.post("/", response_model=IngestResponse, include_in_schema=False)
 def ingest_telemetry(
     data: TelemetryIngest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     Ingest telemetry data for a device.
 
     Stores datapoint values and updates current values.
-    Alarm evaluation is performed automatically.
+    Alarm evaluation is performed automatically via AlarmEngine.
     """
     service = TelemetryService(db)
 
@@ -110,6 +137,10 @@ def ingest_telemetry(
             timestamp=data.timestamp,
             source=data.source
         )
+
+        # Evaluate alarms for ingested data
+        _evaluate_alarms_for_device(request, db, data.device_id, data.datapoints, data.timestamp)
+
         db.commit()
 
         return IngestResponse(
@@ -315,6 +346,7 @@ def cleanup_old_telemetry(
 def ingest_device_telemetry(
     device_id: int,
     datapoints: Dict[str, Any],
+    request: Request,
     timestamp: Optional[datetime] = None,
     db: Session = Depends(get_db)
 ):
@@ -332,6 +364,10 @@ def ingest_device_telemetry(
             timestamp=timestamp,
             source="api"
         )
+
+        # Evaluate alarms for ingested data
+        _evaluate_alarms_for_device(request, db, device_id, datapoints, timestamp)
+
         db.commit()
 
         return {

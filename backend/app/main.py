@@ -98,10 +98,19 @@ async def lifespan(app: FastAPI):
         from app.services.service_discovery import service_registry, register_local_services
         from app.services.graceful_shutdown import shutdown_service
 
+        # Initialize AlarmEngine singleton
+        from app.services.alarm_engine import AlarmEngine
+        alarm_db = SessionLocal()
+        alarm_engine = AlarmEngine(alarm_db)
+        alarm_engine.load_active_alarms()
+        app.state.alarm_engine = alarm_engine
+        app.state.alarm_engine_db = alarm_db  # Keep reference for cleanup
+        logger.info("AlarmEngine initialized and active alarms loaded")
+
         await polling_service.start()
         logger.info("Polling service started")
 
-        register_default_tasks()
+        register_default_tasks(alarm_engine=alarm_engine)
         await scheduler_service.start()
         logger.info("Scheduler service started")
 
@@ -120,6 +129,14 @@ async def lifespan(app: FastAPI):
         shutdown_service.register_handler("health", health_service.stop, priority=80)
         shutdown_service.register_handler("service_registry", service_registry.stop, priority=70)
         shutdown_service.register_handler("job_queue", job_queue.stop, priority=60)
+
+        async def cleanup_alarm_engine(metadata=None):
+            """Close AlarmEngine DB session on shutdown."""
+            if hasattr(app.state, 'alarm_engine_db'):
+                app.state.alarm_engine_db.close()
+                logger.info("AlarmEngine DB session closed")
+
+        shutdown_service.register_handler("alarm_engine", cleanup_alarm_engine, priority=55)
         logger.info("Graceful shutdown handlers registered")
 
         # Start MQTT Subscriber for IoT device communication
@@ -134,8 +151,8 @@ async def lifespan(app: FastAPI):
             await mqtt_credential_manager.initialize()
             logger.info("MQTT credential manager initialized")
 
-            # Setup data ingestion handler for MQTT messages
-            ingestion_handler = DataIngestionHandler(SessionLocal)
+            # Setup data ingestion handler for MQTT messages (with AlarmEngine)
+            ingestion_handler = DataIngestionHandler(SessionLocal, alarm_engine=alarm_engine)
             mqtt_subscriber.add_handler("data", ingestion_handler.handle_data_message)
             mqtt_subscriber.add_handler("telemetry", ingestion_handler.handle_data_message)
             mqtt_subscriber.add_handler("heartbeat", ingestion_handler.handle_heartbeat)
@@ -184,9 +201,19 @@ except RuntimeError as e:
     if not settings.DEBUG:
         raise
 
+# CORS: Use explicit origins and methods in production, allow broader access in development
+_cors_origins = settings.allowed_origins_list
+if not settings.DEBUG and settings.ENVIRONMENT == "production":
+    # Validate that origins are explicitly configured in production
+    if _cors_origins == ["http://localhost:5000"]:
+        logger.warning(
+            "CORS: ALLOWED_ORIGINS is still default in production. "
+            "Set ALLOWED_ORIGINS to your actual frontend domain(s)."
+        )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=[

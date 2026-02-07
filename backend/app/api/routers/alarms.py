@@ -5,7 +5,7 @@ Endpoints for alarm management and monitoring.
 from datetime import datetime
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,13 @@ from app.services.alarm_engine import AlarmEngine
 from app.models.telemetry import DeviceAlarm, AlarmStatus
 
 router = APIRouter(prefix="/alarms", tags=["Alarms"])
+
+
+def get_alarm_engine(request: Request, db: Session = Depends(get_db)) -> AlarmEngine:
+    """Get AlarmEngine singleton from app state, or create per-request instance."""
+    if hasattr(request.app.state, "alarm_engine"):
+        return request.app.state.alarm_engine
+    return AlarmEngine(db)
 
 
 # Request/Response Models
@@ -141,13 +148,11 @@ def get_active_alarms(
     site_id: Optional[int] = None,
     severity: Optional[str] = None,
     limit: int = Query(100, le=1000),
-    db: Session = Depends(get_db)
+    engine: AlarmEngine = Depends(get_alarm_engine)
 ):
     """
     Get currently active (triggered or acknowledged) alarms.
     """
-    engine = AlarmEngine(db)
-
     alarms = engine.get_active(
         device_id=device_id,
         site_id=site_id,
@@ -197,13 +202,11 @@ def get_alarm_statistics(
     site_id: Optional[int] = None,
     start: Optional[datetime] = None,
     end: Optional[datetime] = None,
-    db: Session = Depends(get_db)
+    engine: AlarmEngine = Depends(get_alarm_engine)
 ):
     """
     Get alarm statistics with optional filters.
     """
-    engine = AlarmEngine(db)
-
     stats = engine.get_statistics(
         device_id=device_id,
         site_id=site_id,
@@ -235,15 +238,14 @@ def acknowledge_alarm(
     alarm_id: int,
     request: AcknowledgeRequest,
     user_id: int = Query(..., description="User ID performing acknowledgment"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    engine: AlarmEngine = Depends(get_alarm_engine)
 ):
     """
     Acknowledge an alarm.
 
     Changes status from 'triggered' to 'acknowledged'.
     """
-    engine = AlarmEngine(db)
-
     alarm = engine.acknowledge(
         alarm_id=alarm_id,
         user_id=user_id,
@@ -261,15 +263,14 @@ def acknowledge_alarm(
 def clear_alarm(
     alarm_id: int,
     user_id: Optional[int] = Query(None, description="User ID clearing the alarm"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    engine: AlarmEngine = Depends(get_alarm_engine)
 ):
     """
     Clear an alarm manually.
 
     Changes status to 'cleared'.
     """
-    engine = AlarmEngine(db)
-
     alarm = engine.clear(
         alarm_id=alarm_id,
         user_id=user_id,
@@ -287,13 +288,12 @@ def clear_alarm(
 def bulk_acknowledge_alarms(
     request: BulkAcknowledgeRequest,
     user_id: int = Query(..., description="User ID performing acknowledgment"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    engine: AlarmEngine = Depends(get_alarm_engine)
 ):
     """
     Acknowledge multiple alarms at once.
     """
-    engine = AlarmEngine(db)
-
     count = engine.bulk_acknowledge(
         alarm_ids=request.alarm_ids,
         user_id=user_id,
@@ -313,13 +313,11 @@ def get_device_alarms(
     device_id: int,
     include_cleared: bool = True,
     limit: int = Query(100, le=1000),
-    db: Session = Depends(get_db)
+    engine: AlarmEngine = Depends(get_alarm_engine)
 ):
     """
     Get alarms for a specific device.
     """
-    engine = AlarmEngine(db)
-
     alarms = engine.get_history(
         device_id=device_id,
         limit=limit,
@@ -362,15 +360,14 @@ def get_site_alarms(
 
 @router.post("/check-no-data")
 def check_no_data_alarms(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    engine: AlarmEngine = Depends(get_alarm_engine)
 ):
     """
     Manually trigger no-data alarm check.
 
     Usually called by scheduler, but can be triggered manually.
     """
-    engine = AlarmEngine(db)
-
     events = engine.check_no_data_conditions()
     db.commit()
 

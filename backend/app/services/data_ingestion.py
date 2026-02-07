@@ -1,11 +1,11 @@
 """
 Data Ingestion Service for SAVE-IT.AI
 Unified service for processing incoming device telemetry from all sources.
-Implements datapoint mapping, storage, and alarm evaluation.
+Implements datapoint mapping, storage, and alarm evaluation via AlarmEngine.
 """
 import json
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,9 @@ from app.models.devices import (
 )
 from app.services.device_onboarding import EdgeKeyResolver
 
+if TYPE_CHECKING:
+    from app.services.alarm_engine import AlarmEngine
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,12 +25,13 @@ class DataIngestionService:
     """
     Unified data ingestion pipeline for all telemetry sources.
     Handles MQTT, webhook, and Modbus data.
+    Delegates alarm evaluation to AlarmEngine for full alarm lifecycle support.
     """
-    
-    def __init__(self, db: Session):
+
+    def __init__(self, db: Session, alarm_engine: Optional["AlarmEngine"] = None):
         self.db = db
         self.resolver = EdgeKeyResolver(db)
-        self._alarm_handlers: List[callable] = []
+        self._alarm_engine = alarm_engine
     
     def ingest_telemetry(
         self,
@@ -122,9 +126,17 @@ class DataIngestionService:
                         device_dp.last_updated_at = timestamp
                         device_dp.quality = "good"
                 
-                if dp_def and isinstance(value, (int, float)):
-                    alarms = self._evaluate_alarms(device, dp_def, value)
-                    result["alarms_triggered"].extend(alarms)
+                if dp_def and isinstance(value, (int, float)) and self._alarm_engine:
+                    events = self._alarm_engine.evaluate(device.id, dp_def, value, timestamp)
+                    for event in events:
+                        result["alarms_triggered"].append({
+                            "alarm_id": event.alarm_id,
+                            "rule_id": event.rule_id,
+                            "rule_name": event.rule_name,
+                            "severity": event.severity,
+                            "event_type": event.event_type,
+                            "value": event.value,
+                        })
                     
             except Exception as e:
                 logger.error(f"Error processing datapoint {name}: {e}")
@@ -178,101 +190,9 @@ class DataIngestionService:
                 return False
         return False
     
-    def _evaluate_alarms(
-        self,
-        device: Device,
-        datapoint: Datapoint,
-        value: float,
-    ) -> List[Dict[str, Any]]:
-        """Evaluate alarm rules for a datapoint value."""
-        triggered = []
-        
-        rules = self.db.query(AlarmRule).filter(
-            AlarmRule.model_id == device.model_id,
-            AlarmRule.datapoint_id == datapoint.id,
-            AlarmRule.is_active == 1
-        ).all()
-        
-        for rule in rules:
-            if self._check_alarm_condition(rule, value):
-                event = self._create_alarm_event(device, datapoint, rule, value)
-                triggered.append({
-                    "rule_id": rule.id,
-                    "rule_name": rule.name,
-                    "severity": rule.severity.value,
-                    "value": value,
-                })
-                
-                for handler in self._alarm_handlers:
-                    try:
-                        handler(device, rule, event)
-                    except Exception as e:
-                        logger.error(f"Alarm handler error: {e}")
-        
-        return triggered
-    
-    def _check_alarm_condition(self, rule: AlarmRule, value: float) -> bool:
-        """Check if value triggers alarm condition."""
-        threshold = rule.threshold_value
-        threshold2 = rule.threshold_value_2
-        
-        if rule.condition == AlarmCondition.GREATER_THAN:
-            return value > threshold if threshold is not None else False
-        elif rule.condition == AlarmCondition.LESS_THAN:
-            return value < threshold if threshold is not None else False
-        elif rule.condition == AlarmCondition.EQUAL:
-            return value == threshold if threshold is not None else False
-        elif rule.condition == AlarmCondition.NOT_EQUAL:
-            return value != threshold if threshold is not None else False
-        elif rule.condition == AlarmCondition.GREATER_EQUAL:
-            return value >= threshold if threshold is not None else False
-        elif rule.condition == AlarmCondition.LESS_EQUAL:
-            return value <= threshold if threshold is not None else False
-        elif rule.condition == AlarmCondition.BETWEEN:
-            if threshold is not None and threshold2 is not None:
-                return threshold <= value <= threshold2
-        elif rule.condition == AlarmCondition.OUTSIDE:
-            if threshold is not None and threshold2 is not None:
-                return value < threshold or value > threshold2
-        
-        return False
-    
-    def _create_alarm_event(
-        self,
-        device: Device,
-        datapoint: Datapoint,
-        rule: AlarmRule,
-        value: float,
-    ) -> DeviceEvent:
-        """Create alarm event record and commit to database."""
-        event = DeviceEvent(
-            device_id=device.id,
-            alarm_rule_id=rule.id,
-            event_type="alarm",
-            severity=rule.severity,
-            title=f"{rule.name}: {datapoint.display_name or datapoint.name}",
-            message=f"Value {value} {rule.condition.value} threshold {rule.threshold_value}",
-            data=json.dumps({
-                "datapoint": datapoint.name,
-                "value": value,
-                "threshold": rule.threshold_value,
-                "unit": datapoint.unit,
-            }),
-            triggered_at=datetime.utcnow(),
-            is_active=1,
-        )
-        self.db.add(event)
-        try:
-            self.db.commit()
-            logger.info(f"Alarm event committed: {rule.name} for device {device.id}")
-        except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to commit alarm event: {e}")
-        return event
-    
-    def add_alarm_handler(self, handler: callable):
-        """Add handler for triggered alarms."""
-        self._alarm_handlers.append(handler)
+    def set_alarm_engine(self, alarm_engine: "AlarmEngine"):
+        """Set or update the AlarmEngine reference."""
+        self._alarm_engine = alarm_engine
     
     def ingest_event(
         self,
@@ -360,6 +280,6 @@ class DataIngestionService:
         return query.order_by(DeviceEvent.triggered_at.desc()).limit(limit).all()
 
 
-def get_ingestion_service(db: Session) -> DataIngestionService:
+def get_ingestion_service(db: Session, alarm_engine: Optional["AlarmEngine"] = None) -> DataIngestionService:
     """Get data ingestion service instance."""
-    return DataIngestionService(db)
+    return DataIngestionService(db, alarm_engine=alarm_engine)

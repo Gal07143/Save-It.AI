@@ -1,10 +1,13 @@
 """Scheduled task service for cron-like job scheduling."""
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import asyncio
 import logging
+
+if TYPE_CHECKING:
+    from app.services.alarm_engine import AlarmEngine
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +257,74 @@ async def send_billing_reminders(metadata: Dict):
     logger.info("Sending billing reminders...")
 
 
-def register_default_tasks():
+async def run_hourly_aggregation(metadata: Dict):
+    """Run hourly telemetry aggregation."""
+    from app.core.database import SessionLocal
+    from app.services.aggregation_service import AggregationService
+    db = SessionLocal()
+    try:
+        service = AggregationService(db)
+        result = await service.aggregate_hourly()
+        db.commit()
+        logger.info(f"Hourly aggregation: {result.aggregations_created} created, {result.aggregations_updated} updated")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Hourly aggregation failed: {e}")
+    finally:
+        db.close()
+
+
+async def run_daily_aggregation(metadata: Dict):
+    """Run daily telemetry aggregation."""
+    from app.core.database import SessionLocal
+    from app.services.aggregation_service import AggregationService
+    db = SessionLocal()
+    try:
+        service = AggregationService(db)
+        result = await service.aggregate_daily()
+        db.commit()
+        logger.info(f"Daily aggregation: {result.aggregations_created} created, {result.aggregations_updated} updated")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Daily aggregation failed: {e}")
+    finally:
+        db.close()
+
+
+async def run_monthly_aggregation(metadata: Dict):
+    """Run monthly telemetry aggregation."""
+    from app.core.database import SessionLocal
+    from app.services.aggregation_service import AggregationService
+    db = SessionLocal()
+    try:
+        service = AggregationService(db)
+        result = await service.aggregate_monthly()
+        db.commit()
+        logger.info(f"Monthly aggregation: {result.aggregations_created} created, {result.aggregations_updated} updated")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Monthly aggregation failed: {e}")
+    finally:
+        db.close()
+
+
+async def run_no_data_check(metadata: Dict):
+    """Check for devices that stopped sending data."""
+    alarm_engine = metadata.get("alarm_engine")
+    if not alarm_engine:
+        logger.warning("No AlarmEngine available for no-data check")
+        return
+    try:
+        events = alarm_engine.check_no_data_conditions()
+        alarm_engine.db.commit()
+        if events:
+            logger.info(f"No-data check: {len(events)} alarm events")
+    except Exception as e:
+        alarm_engine.db.rollback()
+        logger.error(f"No-data check failed: {e}")
+
+
+def register_default_tasks(alarm_engine: Optional["AlarmEngine"] = None):
     """Register default scheduled tasks."""
     scheduler_service.add_task(
         "daily_reports",
@@ -264,7 +334,7 @@ def register_default_tasks():
         run_at_hour=6,
         run_at_minute=0,
     )
-    
+
     scheduler_service.add_task(
         "refresh_views",
         "Refresh Materialized Views",
@@ -272,7 +342,7 @@ def register_default_tasks():
         ScheduleType.INTERVAL,
         interval_minutes=60,
     )
-    
+
     scheduler_service.add_task(
         "cleanup",
         "Data Cleanup",
@@ -281,7 +351,7 @@ def register_default_tasks():
         day_of_week=0,
         run_at_hour=3,
     )
-    
+
     scheduler_service.add_task(
         "billing_reminders",
         "Billing Reminders",
@@ -290,3 +360,42 @@ def register_default_tasks():
         day_of_month=25,
         run_at_hour=9,
     )
+
+    # Telemetry aggregation jobs
+    scheduler_service.add_task(
+        "hourly_aggregation",
+        "Hourly Telemetry Aggregation",
+        run_hourly_aggregation,
+        ScheduleType.INTERVAL,
+        interval_minutes=60,
+    )
+
+    scheduler_service.add_task(
+        "daily_aggregation",
+        "Daily Telemetry Aggregation",
+        run_daily_aggregation,
+        ScheduleType.DAILY,
+        run_at_hour=2,
+        run_at_minute=0,
+    )
+
+    scheduler_service.add_task(
+        "monthly_aggregation",
+        "Monthly Telemetry Aggregation",
+        run_monthly_aggregation,
+        ScheduleType.MONTHLY,
+        day_of_month=1,
+        run_at_hour=3,
+        run_at_minute=0,
+    )
+
+    # No-data alarm check
+    if alarm_engine:
+        scheduler_service.add_task(
+            "no_data_check",
+            "No-Data Alarm Check",
+            run_no_data_check,
+            ScheduleType.INTERVAL,
+            interval_minutes=5,
+            metadata={"alarm_engine": alarm_engine},
+        )

@@ -121,10 +121,16 @@ class Settings(BaseSettings):
                 )
 
             if self.ALLOWED_ORIGINS == "http://localhost:5000":
-                warnings.append(
-                    "ALLOWED_ORIGINS is set to default localhost value - "
-                    "configure this for production"
-                )
+                if self.ENVIRONMENT == "production":
+                    errors.append(
+                        "ALLOWED_ORIGINS must be set to actual frontend domain(s) in production. "
+                        "Example: ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com"
+                    )
+                else:
+                    warnings.append(
+                        "ALLOWED_ORIGINS is set to default localhost value - "
+                        "configure this for production"
+                    )
 
             # Warn about Redis for horizontal scaling
             if not self.REDIS_URL:

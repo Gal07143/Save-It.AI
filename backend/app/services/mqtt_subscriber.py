@@ -209,9 +209,10 @@ class MQTTSubscriber:
 
 class DataIngestionHandler:
     """Handler for ingesting meter/device data from MQTT messages."""
-    
-    def __init__(self, db_session_factory):
+
+    def __init__(self, db_session_factory, alarm_engine=None):
         self.db_session_factory = db_session_factory
+        self._alarm_engine = alarm_engine
         self._buffer: List[Dict[str, Any]] = []
         self._buffer_size = 100
         self._last_flush = datetime.utcnow()
@@ -258,8 +259,8 @@ class DataIngestionHandler:
         db = self.db_session_factory()
         try:
             from app.services.data_ingestion import get_ingestion_service
-            
-            ingestion_service = get_ingestion_service(db)
+
+            ingestion_service = get_ingestion_service(db, alarm_engine=self._alarm_engine)
             
             for reading in readings:
                 try:
