@@ -44,6 +44,18 @@ export interface Site {
   city?: string
   country?: string
   timezone: string
+  site_type?: string
+  industry?: string
+  area_sqm?: number
+  grid_capacity_kva?: number
+  operating_hours?: string
+  operating_hours_start?: string
+  operating_hours_end?: string
+  currency?: string
+  electricity_rate?: number
+  utility_provider?: string
+  contact_name?: string
+  contact_phone?: string
   created_at: string
   organization_id?: number
   is_active?: number

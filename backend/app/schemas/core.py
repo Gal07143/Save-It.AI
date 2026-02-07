@@ -39,6 +39,18 @@ class SiteCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     timezone: str = "UTC"
+    site_type: Optional[str] = None
+    industry: Optional[str] = None
+    area_sqm: Optional[float] = None
+    grid_capacity_kva: Optional[float] = None
+    operating_hours: Optional[str] = None
+    operating_hours_start: Optional[str] = None
+    operating_hours_end: Optional[str] = None
+    currency: Optional[str] = None
+    electricity_rate: Optional[float] = None
+    utility_provider: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
 
 
 class SiteUpdate(BaseModel):
@@ -49,6 +61,18 @@ class SiteUpdate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     timezone: Optional[str] = None
+    site_type: Optional[str] = None
+    industry: Optional[str] = None
+    area_sqm: Optional[float] = None
+    grid_capacity_kva: Optional[float] = None
+    operating_hours: Optional[str] = None
+    operating_hours_start: Optional[str] = None
+    operating_hours_end: Optional[str] = None
+    currency: Optional[str] = None
+    electricity_rate: Optional[float] = None
+    utility_provider: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
 
 
 class SiteResponse(BaseModel):
@@ -60,6 +84,18 @@ class SiteResponse(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     timezone: str
+    site_type: Optional[str] = None
+    industry: Optional[str] = None
+    area_sqm: Optional[float] = None
+    grid_capacity_kva: Optional[float] = None
+    operating_hours: Optional[str] = None
+    operating_hours_start: Optional[str] = None
+    operating_hours_end: Optional[str] = None
+    currency: Optional[str] = None
+    electricity_rate: Optional[float] = None
+    utility_provider: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
