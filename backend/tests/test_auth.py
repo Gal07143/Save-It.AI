@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from backend.app.models import User
+from app.models import User
 
 
 class TestRegistration:
@@ -111,8 +111,8 @@ class TestLogin:
     def test_login_inactive_user(self, client: TestClient, db: Session, test_organization):
         """Test login with inactive user fails."""
         # Create inactive user
-        from backend.app.utils.password import hash_password
-        from backend.app.models import UserRole
+        from app.utils.password import hash_password
+        from app.models import UserRole
         user = User(
             organization_id=test_organization.id,
             email="inactive@example.com",

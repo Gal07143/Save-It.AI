@@ -308,6 +308,39 @@ async def run_monthly_aggregation(metadata: Dict):
         db.close()
 
 
+async def run_kpi_calculations(metadata: Dict):
+    """Run scheduled KPI calculations for all active KPIs."""
+    from app.core.database import SessionLocal
+    from app.services.kpi_engine import KPIEngine, TimeRange
+    from app.models.telemetry import KPIDefinition
+    from datetime import datetime, timedelta
+    db = SessionLocal()
+    try:
+        engine = KPIEngine(db)
+        now = datetime.utcnow()
+        kpis = db.query(KPIDefinition).filter(KPIDefinition.is_active == 1).all()
+        calculated = 0
+        for kpi in kpis:
+            interval = kpi.calculation_interval or "hourly"
+            if interval == "hourly":
+                time_range = TimeRange(start=now - timedelta(hours=1), end=now)
+            elif interval == "daily":
+                time_range = TimeRange(start=now - timedelta(days=1), end=now)
+            elif interval == "monthly":
+                time_range = TimeRange(start=now - timedelta(days=30), end=now)
+            else:
+                time_range = TimeRange(start=now - timedelta(hours=1), end=now)
+            engine.calculate(kpi.id, time_range)
+            calculated += 1
+        db.commit()
+        logger.info(f"KPI calculations: {calculated} KPIs calculated")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"KPI calculations failed: {e}")
+    finally:
+        db.close()
+
+
 async def run_no_data_check(metadata: Dict):
     """Check for devices that stopped sending data."""
     alarm_engine = metadata.get("alarm_engine")
@@ -387,6 +420,15 @@ def register_default_tasks(alarm_engine: Optional["AlarmEngine"] = None):
         day_of_month=1,
         run_at_hour=3,
         run_at_minute=0,
+    )
+
+    # KPI calculations (run hourly alongside aggregation)
+    scheduler_service.add_task(
+        "kpi_calculations",
+        "Scheduled KPI Calculations",
+        run_kpi_calculations,
+        ScheduleType.INTERVAL,
+        interval_minutes=60,
     )
 
     # No-data alarm check

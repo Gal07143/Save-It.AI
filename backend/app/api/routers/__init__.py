@@ -28,6 +28,7 @@ from app.api.routers.system import router as system_router
 from app.api.routers.webhooks import router as webhooks_router
 from app.api.routers.telemetry import router as telemetry_router
 from app.api.routers.alarms import router as alarms_router
+from app.api.routers.kpis import router as kpis_router
 from app.routers.device_models import router as device_models_router
 from app.routers.device_products import router as device_products_router
 from app.routers.devices_v2 import router as devices_v2_router
@@ -81,6 +82,7 @@ __all__ = [
     "certificates_router",
     "telemetry_router",
     "alarms_router",
+    "kpis_router",
     # Week 6-8 Service Routers
     "exports_router",
     "device_groups_router",
@@ -129,6 +131,7 @@ all_routers = [
     certificates_router,
     telemetry_router,
     alarms_router,
+    kpis_router,
     # Week 6-8 Service Routers
     exports_router,
     device_groups_router,

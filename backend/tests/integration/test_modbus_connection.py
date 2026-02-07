@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock, patch
 
-from backend.app.services.modbus_manager import (
+from app.services.modbus_manager import (
     ModbusConnectionManager,
     ModbusConnection,
     ModbusProtocol,

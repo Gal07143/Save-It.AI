@@ -107,6 +107,14 @@ async def lifespan(app: FastAPI):
         app.state.alarm_engine_db = alarm_db  # Keep reference for cleanup
         logger.info("AlarmEngine initialized and active alarms loaded")
 
+        # Initialize KPIEngine singleton
+        from app.services.kpi_engine import KPIEngine
+        kpi_db = SessionLocal()
+        kpi_engine = KPIEngine(kpi_db)
+        app.state.kpi_engine = kpi_engine
+        app.state.kpi_engine_db = kpi_db
+        logger.info("KPIEngine initialized")
+
         await polling_service.start()
         logger.info("Polling service started")
 
@@ -136,7 +144,14 @@ async def lifespan(app: FastAPI):
                 app.state.alarm_engine_db.close()
                 logger.info("AlarmEngine DB session closed")
 
+        async def cleanup_kpi_engine(metadata=None):
+            """Close KPIEngine DB session on shutdown."""
+            if hasattr(app.state, 'kpi_engine_db'):
+                app.state.kpi_engine_db.close()
+                logger.info("KPIEngine DB session closed")
+
         shutdown_service.register_handler("alarm_engine", cleanup_alarm_engine, priority=55)
+        shutdown_service.register_handler("kpi_engine", cleanup_kpi_engine, priority=54)
         logger.info("Graceful shutdown handlers registered")
 
         # Start MQTT Subscriber for IoT device communication

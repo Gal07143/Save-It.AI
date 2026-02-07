@@ -5,7 +5,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy.orm import Session
 
-from backend.app.services.mqtt_subscriber import MQTTMessage, MQTTSubscriber, DataIngestionHandler
+from app.services.mqtt_subscriber import MQTTMessage, MQTTSubscriber, DataIngestionHandler
 
 
 class TestMQTTMessageParsing:
@@ -288,8 +288,8 @@ class TestMQTTTelemetryE2E:
     @pytest.mark.asyncio
     async def test_full_message_flow(self, db: Session, test_site):
         """Test complete message flow from MQTT to database."""
-        from backend.app.services.data_ingestion import DataIngestionService
-        from backend.app.models.devices import Device, DeviceModel, DeviceType
+        from app.services.data_ingestion import DataIngestionService
+        from app.models.devices import Device, DeviceModel, DeviceType
 
         # Setup: Create device model and device
         model = DeviceModel(

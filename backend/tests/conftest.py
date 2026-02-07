@@ -1,6 +1,7 @@
 """Pytest fixtures for Save-It.AI backend tests."""
 
 import os
+import sys
 import pytest
 from datetime import datetime
 from typing import Generator
@@ -17,9 +18,14 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 # Disable rate limiting in tests
 os.environ["RATE_LIMIT_ENABLED"] = "false"
 
+# Ensure 'app' package is importable (same import path as the app itself)
+_backend_dir = os.path.join(os.path.dirname(__file__), '..')
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 # Import Base and patch the app's engine BEFORE importing the app
-from backend.app.core.database import Base, get_db
-import backend.app.core.database as db_module
+from app.core.database import Base, get_db
+import app.core.database as db_module
 
 # Create a single test engine that will be shared everywhere
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -47,8 +53,8 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 db_module.SessionLocal = TestingSessionLocal
 
 # Now import the rest after patching
-from backend.app.models import User, Organization, UserRole
-from backend.app.utils.password import hash_password
+from app.models import User, Organization, UserRole
+from app.utils.password import hash_password
 
 
 def _reset_database():
@@ -112,7 +118,7 @@ def db() -> Generator[Session, None, None]:
 def client(db: Session) -> Generator[TestClient, None, None]:
     """Create a test client with database override."""
     # Import app here to avoid circular imports and ensure env vars are set
-    from backend.app.main import app
+    from app.main import app
 
     # Override the database dependency
     app.dependency_overrides[get_db] = lambda: db
@@ -220,8 +226,8 @@ def authenticated_client(client: TestClient, auth_headers: dict) -> TestClient:
 @pytest.fixture
 def site_factory(db: Session, test_organization: Organization):
     """Factory to create test sites linked to the test organization."""
-    from backend.app.models import Site
-    from backend.app.models.platform import OrgSite
+    from app.models import Site
+    from app.models.platform import OrgSite
 
     def create_site(
         name: str = "Test Site",
@@ -264,7 +270,7 @@ def site_factory(db: Session, test_organization: Organization):
 @pytest.fixture
 def meter_factory(db: Session):
     """Factory to create test meters."""
-    from backend.app.models import Meter
+    from app.models import Meter
 
     def create_meter(
         site_id: int,
@@ -291,7 +297,7 @@ def meter_factory(db: Session):
 @pytest.fixture
 def asset_factory(db: Session):
     """Factory to create test assets."""
-    from backend.app.models import Asset
+    from app.models import Asset
 
     def create_asset(
         site_id: int,
@@ -320,7 +326,7 @@ def asset_factory(db: Session):
 @pytest.fixture
 def user_factory(db: Session, test_organization: Organization):
     """Factory to create test users."""
-    from backend.app.models import User, UserRole
+    from app.models import User, UserRole
 
     _counter = [0]
 
@@ -352,7 +358,7 @@ def user_factory(db: Session, test_organization: Organization):
 @pytest.fixture
 def gateway_factory(db: Session):
     """Factory to create test gateways."""
-    from backend.app.models.integrations import Gateway, GatewayStatus
+    from app.models.integrations import Gateway, GatewayStatus
 
     def create_gateway(
         site_id: int,
@@ -376,7 +382,7 @@ def gateway_factory(db: Session):
 @pytest.fixture
 def data_source_factory(db: Session):
     """Factory to create test data sources."""
-    from backend.app.models import DataSource
+    from app.models import DataSource
 
     def create_data_source(
         site_id: int,

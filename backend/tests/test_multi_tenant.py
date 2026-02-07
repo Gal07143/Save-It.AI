@@ -10,8 +10,8 @@ class TestTenantIsolation:
         self, client: TestClient, db, test_organization, user_factory, site_factory
     ):
         """Test that users cannot access sites from other organizations."""
-        from backend.app.models import Organization, Site
-        from backend.app.models.platform import OrgSite
+        from app.models import Organization, Site
+        from app.models.platform import OrgSite
 
         # Create another organization
         other_org = Organization(name="Other Org Multi", slug="other-org-multi", is_active=1)
@@ -51,7 +51,7 @@ class TestTenantIsolation:
         self, client: TestClient, db, test_organization, user_factory, site_factory
     ):
         """Test that site listing only shows user's organization sites."""
-        from backend.app.models import Organization
+        from app.models import Organization
 
         # Create site for test org
         my_site = site_factory(name="My Site")
@@ -85,7 +85,7 @@ class TestTenantIsolation:
         self, client: TestClient, db, test_organization, user_factory
     ):
         """Test that users cannot create sites for other organizations."""
-        from backend.app.models import Organization
+        from app.models import Organization
 
         # Create another org
         other_org = Organization(name="Other Org", slug="other-org-3", is_active=1)

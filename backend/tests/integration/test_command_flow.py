@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
 
-from backend.app.services.command_service import (
+from app.services.command_service import (
     CommandService, CommandAckHandler, get_command_service
 )
-from backend.app.models.devices import (
+from app.models.devices import (
     Device, DeviceModel, Command, CommandExecution, DeviceType
 )
 

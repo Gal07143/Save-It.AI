@@ -4,8 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from backend.app.models import Site, User, Organization
-from backend.app.models.platform import OrgSite
+from app.models import Site, User, Organization
+from app.models.platform import OrgSite
 
 
 @pytest.fixture

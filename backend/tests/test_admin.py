@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from backend.app.models import User, Organization
+from app.models import User, Organization
 
 
 class TestOrganizationAdmin:

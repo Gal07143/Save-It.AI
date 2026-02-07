@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from backend.app.models.integrations import Gateway, GatewayStatus, GatewayCredentials
+from app.models.integrations import Gateway, GatewayStatus, GatewayCredentials
 
 
 class TestGatewayRegistrationE2E:
